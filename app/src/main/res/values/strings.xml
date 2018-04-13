@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">FinanceHelper</string>
+    <string name="loadingscreen_title">Loading</string>
+    <string name="loadingscreen_body">Please wait...</string>
 </resources>
