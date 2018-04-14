@@ -2,4 +2,7 @@
     <string name="app_name">FinanceHelper</string>
     <string name="loadingscreen_title">Loading</string>
     <string name="loadingscreen_body">Please wait...</string>
+    <string name="text_soll">Soll</string>
+    <string name="text_haben">Haben</string>
+    <string name="text_new_account">Neuer Account</string>
 </resources>

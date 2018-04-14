@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout
+        android:id="@+id/topPanel"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_heigth="200dp">
+        <TextView
+            android:id="@+id/textViewSoll"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="0.5"
+            android:text="@string/text_soll"/>
+        <TextView
+            android:id="@+id/textViewHaben"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="0.5"
+            android:text="@string/text_haben"/>
+    </LinearLayout>
+    <LinearLayout
+        android:id="@+id/bottomPanel"
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_heigth="200dp">
+        <LinearLayout
+            android:id="@+id/sollPanel"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="0.5">
+
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/habenPanel"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="0.5">
+
+        </LinearLayout>
+    </LinearLayout>
+</merge>
