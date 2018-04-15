@@ -1,8 +1,26 @@
 <resources>
     <string name="app_name">FinanceHelper</string>
+    <string name="cancel">Abbrechen</string>
+    <string name="accept">Annehmen</string>
+    <string name="default_account_title">Account Title</string>
     <string name="loadingscreen_title">Loading</string>
     <string name="loadingscreen_body">Please wait...</string>
-    <string name="text_soll">Soll</string>
+    <string name="label_soll">Soll</string>
     <string name="text_haben">Haben</string>
-    <string name="text_new_account">Neuer Account</string>
+    <string name="text_save_accounts">Konten Speichern</string>
+    <string name="text_new_account">Neues Konto</string>
+    <string name="text_label_new_account">Name:</string>
+    <string name="label_pay_accounts">Zahlungskonten</string>
+    <string name="label_invest_accounts">Investitionskonten</string>
+    <string name="toast_unknown_error">ein unbekannter Fehler ist aufgetreten</string>
+    <string name="account_bargeld">Bargeld</string>
+    <string name="account_bank">Sichteinlagen</string>
+    <string name="account_savings">Sparkonto</string>
+    <string name="account_credit_card">Kreditkarte</string>
+    <string name="account_investments">Anschaffungen</string>
+    <string name="account_groceries">Lebensmittel</string>
+    <string name="account_cosmetics">Kosmetik</string>
+    <string name="account_go_out">Ausgehen</string>
+    <string name="account_drugs">Drogen</string>
+    <string name="account_necessary">Notwendige</string>
 </resources>

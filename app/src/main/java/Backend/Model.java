@@ -5,5 +5,6 @@ import java.util.List;
 import Logic.AccountBE;
 
 public class Model {
-    List<AccountBE> accounts;
+    public List<AccountBE> payAccounts;
+    public List<AccountBE> investAccounts;
 }
