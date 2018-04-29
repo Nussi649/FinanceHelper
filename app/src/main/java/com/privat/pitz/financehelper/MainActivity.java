@@ -1,14 +1,9 @@
 package com.privat.pitz.financehelper;
 
-import android.Manifest;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.os.Bundle;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -20,11 +15,9 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
+import android.widget.TextView;
 
-import java.util.ArrayList;
-
-import Backend.AccountView;
-import Backend.Controller;
+import View.AccountView;
 import Logic.AccountBE;
 
 public class MainActivity extends AbstractActivity {
@@ -37,12 +30,13 @@ public class MainActivity extends AbstractActivity {
         onAppStartup();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        populateUI();
     }
 
     private void populateUI() {
         Button pay = findViewById(R.id.button_pay);
         Button invest = findViewById(R.id.button_invest);
+        LinearLayout payAccounts = findViewById(R.id.linLayPayAccounts);
+        LinearLayout investAccounts = findViewById(R.id.linLayInvestAccounts);
 
         pay.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -57,6 +51,18 @@ public class MainActivity extends AbstractActivity {
                 startActivity(InvestActivity.class);
             }
         });
+
+        for (AccountBE a : model.payAccounts) {
+            TextView tv = new TextView(this);
+            tv.setText(a.getName());
+            payAccounts.addView(tv);
+        }
+        for (AccountBE a : model.investAccounts) {
+            TextView tv = new TextView(this);
+            tv.setText(a.getName());
+            tv.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
+            investAccounts.addView(tv);
+        }
     }
 
     @Override
@@ -81,7 +87,7 @@ public class MainActivity extends AbstractActivity {
 
     @Override
     protected void endWorkingThread() {
-
+        populateUI();
     }
 
     @Override

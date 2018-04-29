@@ -8,6 +8,11 @@ public class InvestActivity extends AccountActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_account);
+    }
+
+    @Override
+    protected void endWorkingThread() {
         populateUI();
     }
 

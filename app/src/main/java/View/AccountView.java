@@ -1,4 +1,4 @@
-package Backend;
+package View;
 
 import android.content.Context;
 import android.content.res.Configuration;
@@ -13,6 +13,7 @@ import com.privat.pitz.financehelper.R;
 
 import java.util.List;
 
+import Backend.Const;
 import Logic.AccountBE;
 import Logic.EntryBE;
 
