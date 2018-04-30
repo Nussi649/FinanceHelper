@@ -40,8 +40,5 @@ public abstract class AccountActivity extends AbstractActivity {
         } else {
             showToast(R.string.toast_unknown_error);
         }
-        if (newAccountView != null) {
-            newAccountView.adjustWidth();
-        }
     }
 }

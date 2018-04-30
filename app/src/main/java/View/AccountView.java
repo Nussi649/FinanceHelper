@@ -6,6 +6,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
@@ -30,43 +31,14 @@ public class AccountView extends LinearLayout {
 
     private void populateUI() {
         LayoutInflater.from(context).inflate(R.layout.view_account, this);
-        LinearLayout sollPanel = findViewById(R.id.sollPanel);
-        LinearLayout habenPanel = findViewById(R.id.habenPanel);
-        List<EntryBE> sollEntries = mAccount.getSoll();
-        List<EntryBE> habenEntries = mAccount.getHaben();
+        TableLayout content = findViewById(R.id.contentTable);
+        List<EntryBE> entries = mAccount.getEntries();
         TextView label = findViewById(R.id.label_account);
         label.setText(mAccount.getName());
 
-        for (EntryBE e : sollEntries) {
-            TextView tv = new TextView(context);
-            tv.setText(e.getDescription() + ": " + e.getAmount());
-            sollPanel.addView(tv);
+        for (EntryBE e : entries) {
+            AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
+            content.addView(row);
         }
-        for (EntryBE e : habenEntries) {
-            TextView tv = new TextView(context);
-            tv.setText(e.getDescription() + ": " + e.getAmount());
-            habenPanel.addView(tv);
-        }
-    }
-
-    public void adjustWidth() {
-        ViewGroup.LayoutParams params = getLayoutParams();
-        TextView sollLabel = findViewById(R.id.textViewSoll);
-        TextView habenLabel = findViewById(R.id.textViewHaben);
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(params);
-        if (context.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            layoutParams = new LinearLayout.LayoutParams(
-                    Const.ACOUNT_VIEW_LANDSCAPE_WIDTH, params.height);
-            layoutParams.setMargins(Const.MARGIN_ACCOUNT_VIEW, Const.MARGIN_ACCOUNT_VIEW, Const.MARGIN_ACCOUNT_VIEW, 0);
-            sollLabel.setWidth(Const.ACOUNT_VIEW_LANDSCAPE_WIDTH/2-1);
-            habenLabel.setWidth(Const.ACOUNT_VIEW_LANDSCAPE_WIDTH/2-1);
-        } else {
-            layoutParams = new TableRow.LayoutParams(
-                    ((View) getParent().getParent()).getMeasuredWidth()/2, params.height);
-            layoutParams.setMargins(Const.MARGIN_ACCOUNT_VIEW, Const.MARGIN_ACCOUNT_VIEW, Const.MARGIN_ACCOUNT_VIEW, 0);
-            sollLabel.setWidth(params.width/2-1);
-            habenLabel.setWidth(params.width/2-1);
-        }
-        setLayoutParams(layoutParams);
     }
 }

@@ -24,6 +24,8 @@ public class MainActivity extends AbstractActivity {
 
 
     public EditText newAccountName;
+    public EditText newDescription;
+    public EditText newAmount;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,8 +37,11 @@ public class MainActivity extends AbstractActivity {
     private void populateUI() {
         Button pay = findViewById(R.id.button_pay);
         Button invest = findViewById(R.id.button_invest);
+        Button addEntry = findViewById(R.id.button_add_entry);
         LinearLayout payAccounts = findViewById(R.id.linLayPayAccounts);
         LinearLayout investAccounts = findViewById(R.id.linLayInvestAccounts);
+        newDescription = findViewById(R.id.edit_new_description);
+        newAmount = findViewById(R.id.edit_new_amount);
 
         pay.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -52,17 +57,53 @@ public class MainActivity extends AbstractActivity {
             }
         });
 
+        addEntry.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // TODO: implementieren
+            }
+        });
+
+        //region populate pay Account list
         for (AccountBE a : model.payAccounts) {
-            TextView tv = new TextView(this);
+            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
             tv.setText(a.getName());
+            tv.setTag(a.getName());
+            tv.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
+                    model.currentPayAcc = controller.getPayAccountByName(v.getTag().toString());
+                    findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+                }
+            });
             payAccounts.addView(tv);
         }
+        if (model.currentPayAcc == null)
+            model.currentPayAcc = model.payAccounts.get(0);
+        findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+        //endregion
+
+        //region populate invest Account list
         for (AccountBE a : model.investAccounts) {
-            TextView tv = new TextView(this);
+            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
             tv.setText(a.getName());
+            tv.setTag(a.getName());
             tv.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
+            tv.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
+                    model.currentInvestAcc = controller.getInvestAccountByName(v.getTag().toString());
+                    findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+                }
+            });
             investAccounts.addView(tv);
         }
+        if (model.currentInvestAcc == null)
+            model.currentInvestAcc = model.investAccounts.get(0);
+        findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+        //endregion
     }
 
     @Override
@@ -161,9 +202,6 @@ public class MainActivity extends AbstractActivity {
             linLay.addView(newAccountView);
         } else {
             showToast(R.string.toast_unknown_error);
-        }
-        if (newAccountView != null) {
-            newAccountView.adjustWidth();
         }
     }
 }

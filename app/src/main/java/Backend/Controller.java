@@ -42,10 +42,7 @@ public class Controller {
             } catch (JSONException jsone) {
                 jsone.printStackTrace();
             }
-            for (EntryBE e : a.getSoll()) {
-                // TODO
-            }
-            for (EntryBE e : a.getHaben()) {
+            for (EntryBE e : a.getEntries()) {
                 // TODO
             }
             array.put(acc);
@@ -96,5 +93,21 @@ public class Controller {
                 jsone.printStackTrace();
             }
         }
+    }
+
+    public AccountBE getPayAccountByName(String name) {
+        for (AccountBE a : model.payAccounts) {
+            if (a.getName().equals(name))
+                return a;
+        }
+        return null;
+    }
+
+    public AccountBE getInvestAccountByName(String name) {
+        for (AccountBE a : model.investAccounts) {
+            if (a.getName().equals(name))
+                return a;
+        }
+        return null;
     }
 }

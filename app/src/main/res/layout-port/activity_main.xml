@@ -55,4 +55,50 @@
             android:layout_height="wrap_content"
             android:orientation="vertical" />
     </android.support.v4.widget.NestedScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <EditText
+                android:id="@+id/edit_new_description"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ems="10"
+                android:hint="@string/label_description"
+                android:inputType="textPersonName" />
+
+            <EditText
+                android:id="@+id/edit_new_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:contentDescription="Amount"
+                android:ems="10"
+                android:hint="@string/label_amount"
+                android:inputType="numberDecimal"
+                android:textAlignment="textEnd" />
+
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/button_add_entry"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/label_add_entry" />
+
+    </LinearLayout>
+
 </RelativeLayout>
