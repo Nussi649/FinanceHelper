@@ -17,6 +17,8 @@ import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
+import org.json.JSONException;
+
 import View.AccountView;
 import Logic.AccountBE;
 
@@ -32,6 +34,16 @@ public class MainActivity extends AbstractActivity {
         onAppStartup();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+    }
+
+    @Override
+    protected void onDestroy() {
+        try {
+            controller.saveAccountsToInternal();
+        } catch (JSONException jsone) {
+            jsone.printStackTrace();
+        }
+        super.onDestroy();
     }
 
     private void populateUI() {
@@ -60,7 +72,21 @@ public class MainActivity extends AbstractActivity {
         addEntry.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // TODO: implementieren
+                String des = newDescription.getText().toString();
+                String am = newAmount.getText().toString();
+
+                if (des.equals("")) {
+                    showToastLong(R.string.toast_error_empty_description);
+                    return;
+                }
+                if (am.equals("")) {
+                    showToastLong(R.string.toast_error_empty_amount);
+                    return;
+                }
+                controller.addEntry(des, Float.valueOf(am), model.currentPayAcc, model.currentInvestAcc);
+                newDescription.setText("");
+                newAmount.setText("");
+                showToastLong(R.string.toast_success_new_entry);
             }
         });
 
@@ -108,6 +134,12 @@ public class MainActivity extends AbstractActivity {
 
     @Override
     protected void workingThread() {
+        try {
+            controller.readAccountsFromInternal();
+        } catch (JSONException jsone) {
+            jsone.printStackTrace();
+        }
+
         if (model.payAccounts.size() == 0) {
             model.payAccounts.add(new AccountBE(getString(R.string.account_bargeld)));
             model.payAccounts.add(new AccountBE(getString(R.string.account_bank)));
@@ -122,8 +154,6 @@ public class MainActivity extends AbstractActivity {
             model.investAccounts.add(new AccountBE(getString(R.string.account_drugs)));
             model.investAccounts.add(new AccountBE(getString(R.string.account_necessary)));
         }
-
-//        controller.readAccountsFromInternal();
     }
 
     @Override
@@ -143,9 +173,6 @@ public class MainActivity extends AbstractActivity {
         switch (item.getItemId()) {
             case R.id.item_new_account:
                 showNewAccountDialog();
-                break;
-            case R.id.item_save_accounts:
-                controller.saveAccountsToInternal();
                 break;
             default:
                 break;
@@ -201,7 +228,7 @@ public class MainActivity extends AbstractActivity {
             LinearLayout linLay = findViewById(R.id.accountContainer);
             linLay.addView(newAccountView);
         } else {
-            showToast(R.string.toast_unknown_error);
+            showToast(R.string.toast_error_unknown);
         }
     }
 }

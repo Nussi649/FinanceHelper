@@ -20,6 +20,7 @@ public abstract class AccountActivity extends AbstractActivity {
         AccountView newAccountView = new AccountView(this, acc);
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
             TableLayout table = findViewById(R.id.accountContainer);
+            newAccountView.setLayoutWidth(getWindowManager().getDefaultDisplay().getWidth()/2-60);
             if (table.getChildCount() == 0) {
                 TableRow row = new TableRow(this);
                 row.addView(newAccountView);
@@ -38,7 +39,7 @@ public abstract class AccountActivity extends AbstractActivity {
             LinearLayout linLay = findViewById(R.id.accountContainer);
             linLay.addView(newAccountView);
         } else {
-            showToast(R.string.toast_unknown_error);
+            showToast(R.string.toast_error_unknown);
         }
     }
 }

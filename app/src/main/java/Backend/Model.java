@@ -9,4 +9,5 @@ public class Model {
     public List<AccountBE> investAccounts;
     public AccountBE currentPayAcc;
     public AccountBE currentInvestAcc;
+    public int entrySequenceValue;
 }

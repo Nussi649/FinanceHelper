@@ -1,6 +1,8 @@
 package View;
 
 import android.content.Context;
+import android.view.ViewGroup;
+import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
@@ -27,5 +29,9 @@ public class AccountTableRow extends TableRow {
         am.setTextAlignment(TEXT_ALIGNMENT_TEXT_END);
         addView(des);
         addView(am);
+    }
+
+    public void setWidth(int width) {
+        setLayoutParams(new LayoutParams(width, ViewGroup.LayoutParams.WRAP_CONTENT));
     }
 }

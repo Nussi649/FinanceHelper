@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <merge xmlns:android="http://schemas.android.com/apk/res/android">
     <LinearLayout
+        android:id="@+id/root_layout"
         android:layout_height="match_parent"
         android:layout_width="match_parent"
+        android:layout_margin="10dp"
+        android:paddingBottom="50dp"
         android:orientation="vertical">
         <TextView
             android:id="@+id/label_account"
@@ -18,7 +21,7 @@
             android:layout_width="match_parent"
             android:layout_height="20dp">
             <TextView
-                android:id="@+id/textViewSoll"
+                android:id="@+id/textViewDesc"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:textAlignment="center"
@@ -29,7 +32,7 @@
                 android:layout_height="match_parent"
                 android:background="?android:attr/listDivider" />
             <TextView
-                android:id="@+id/textViewHaben"
+                android:id="@+id/textViewAmount"
                 android:layout_width="wrap_content"
                 android:layout_height="match_parent"
                 android:textAlignment="center"
@@ -44,5 +47,35 @@
             android:id="@+id/contentTable"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"/>
+        <LinearLayout
+            android:id="@+id/sum_block"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:background="?android:attr/listDivider" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_sum"
+                    android:layout_gravity="left"/>
+                <TextView
+                    android:id="@+id/display_sum"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="right"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="right"
+                    android:text="@string/label_currency"/>
+            </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
 </merge>

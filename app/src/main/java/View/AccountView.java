@@ -35,10 +35,26 @@ public class AccountView extends LinearLayout {
         List<EntryBE> entries = mAccount.getEntries();
         TextView label = findViewById(R.id.label_account);
         label.setText(mAccount.getName());
+        if (entries.size() == 0) {
+            findViewById(R.id.sum_block).setVisibility(GONE);
+        } else {
+            for (EntryBE e : entries) {
+                AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
+                content.addView(row);
+            }
+            TextView sum = findViewById(R.id.display_sum);
+            sum.setText(String.valueOf(mAccount.getSum()));
+        }
+    }
 
-        for (EntryBE e : entries) {
-            AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
-            content.addView(row);
+    public void setLayoutWidth(int width) {
+        LinearLayout root = findViewById(R.id.root_layout);
+        LayoutParams params = (LinearLayout.LayoutParams) root.getLayoutParams();
+        params.width = width;
+        root.setLayoutParams(params);
+        TableLayout content = findViewById(R.id.contentTable);
+        for (int i = 0; i < content.getChildCount(); i++) {
+            ((AccountTableRow) content.getChildAt(i)).setWidth(width);
         }
     }
 }

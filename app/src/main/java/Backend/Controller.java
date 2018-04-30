@@ -32,26 +32,47 @@ public class Controller {
 
     public Model getModel() { return model; }
 
-    public void saveAccountsToInternal() {
+    public void saveAccountsToInternal() throws JSONException{
         JSONObject json = new JSONObject();
         JSONArray array = new JSONArray();
+        //region save payAccounts
         for (AccountBE a : model.payAccounts) {
             JSONObject acc = new JSONObject();
-            try {
-                acc.put("name", a.getName());
-            } catch (JSONException jsone) {
-                jsone.printStackTrace();
-            }
+            acc.put(Const.JSON_TAG_NAME, a.getName());
+            JSONArray entries = new JSONArray();
             for (EntryBE e : a.getEntries()) {
-                // TODO
+                JSONObject entr = new JSONObject();
+                entr.put(Const.JSON_TAG_ID, e.getId());
+                entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
+                entr.put(Const.JSON_TAG_AMOUNT, e.getAmount());
+                entries.put(entr);
             }
+            acc.put(Const.JSON_TAG_ENTRIES, entries);
             array.put(acc);
         }
-        try {
-            json.put("accounts", array);
-        } catch (JSONException jsone) {
-            jsone.printStackTrace();
+        json.put(Const.JSON_TAG_PACCOUNTS, array);
+        //endregion
+
+        //region save investAccounts
+        array = new JSONArray();
+        for (AccountBE a : model.investAccounts) {
+            JSONObject acc = new JSONObject();
+            acc.put(Const.JSON_TAG_NAME, a.getName());
+            JSONArray entries = new JSONArray();
+            for (EntryBE e : a.getEntries()) {
+                JSONObject entr = new JSONObject();
+                entr.put(Const.JSON_TAG_ID, e.getId());
+                entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
+                entr.put(Const.JSON_TAG_AMOUNT, e.getAmount());
+                entries.put(entr);
+            }
+            acc.put(Const.JSON_TAG_ENTRIES, entries);
+            array.put(acc);
         }
+        json.put(Const.JSON_TAG_IACCOUNTS, array);
+        //endregion
+
+        //region write data to internal
         String payload = json.toString();
         File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
         try {
@@ -64,12 +85,15 @@ public class Controller {
         } catch (Exception e){
             e.printStackTrace();
         }
+        //endregion
     }
 
-    public void readAccountsFromInternal() {
+    public void readAccountsFromInternal() throws JSONException{
         String payload = "";
         JSONObject json = new JSONObject();
-        JSONArray accounts = new JSONArray();
+        JSONArray accounts;
+
+        //region read data from internal
         File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
         try {
             File gpxfile = new File(file, Const.ACCOUNTS_FILE_NAME);
@@ -79,20 +103,47 @@ public class Controller {
             reader.close();
             fReader.close();
             json = new JSONObject(payload);
-            accounts = json.getJSONArray("accounts");
         } catch (Exception e){
             e.printStackTrace();
         }
+        //endregion
+
+        //region get pay accounts
+        accounts = json.getJSONArray(Const.JSON_TAG_PACCOUNTS);
         for (int i = 0; i < accounts.length(); i++) {
-            try {
-                JSONObject cur = accounts.getJSONObject(i);
-                AccountBE curAcc = new AccountBE(cur.getString("name"));
-                model.payAccounts.add(curAcc);
-                // TODO soll/haben Listen auslesen
-            } catch (JSONException jsone) {
-                jsone.printStackTrace();
+            JSONObject cur = accounts.getJSONObject(i);
+            AccountBE curAcc = new AccountBE(cur.getString(Const.JSON_TAG_NAME));
+            JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
+            for (int j = 0; j < entries.length(); j++) {
+                JSONObject curEntry = entries.getJSONObject(j);
+                EntryBE entry = new EntryBE(curEntry.getInt(Const.JSON_TAG_ID), (float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION));
+                curAcc.addEntry(entry);
             }
+            model.payAccounts.add(curAcc);
         }
+        //endregion
+
+        //region get invest accounts
+        accounts = json.getJSONArray(Const.JSON_TAG_IACCOUNTS);
+        for (int i = 0; i < accounts.length(); i++) {
+            JSONObject cur = accounts.getJSONObject(i);
+            AccountBE curAcc = new AccountBE(cur.getString(Const.JSON_TAG_NAME));
+            JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
+            for (int j = 0; j < entries.length(); j++) {
+                JSONObject curEntry = entries.getJSONObject(j);
+                EntryBE entry = new EntryBE(curEntry.getInt(Const.JSON_TAG_ID), (float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION));
+                curAcc.addEntry(entry);
+            }
+            model.investAccounts.add(curAcc);
+        }
+        //endregion
+    }
+
+    public void addEntry(String desc, float amount, AccountBE payAccount, AccountBE investAccount) {
+        EntryBE entryPay = new EntryBE(model.entrySequenceValue++, amount*(-1.0f), desc);
+        EntryBE entryInvest = new EntryBE(model.entrySequenceValue++, amount, desc);
+        payAccount.addEntry(entryPay);
+        investAccount.addEntry(entryInvest);
     }
 
     public AccountBE getPayAccountByName(String name) {
