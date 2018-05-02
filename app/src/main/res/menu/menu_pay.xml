@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/item_add_funds"
+        android:title="@string/label_add_funds"/>
+    <item
+        android:id="@+id/item_transfer"
+        android:title="@string/label_transfer" />
+</menu>

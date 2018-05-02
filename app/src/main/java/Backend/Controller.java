@@ -76,8 +76,10 @@ public class Controller {
         String payload = json.toString();
         File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
         try {
-            File gpxfile = new File(file, Const.ACCOUNTS_FILE_NAME);
-            FileWriter writer = new FileWriter(gpxfile);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+            FileWriter writer = new FileWriter(file);
             writer.append(payload);
             writer.flush();
             writer.close();
@@ -96,8 +98,7 @@ public class Controller {
         //region read data from internal
         File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
         try {
-            File gpxfile = new File(file, Const.ACCOUNTS_FILE_NAME);
-            FileReader fReader = new FileReader(gpxfile);
+            FileReader fReader = new FileReader(file);
             BufferedReader reader = new BufferedReader(fReader);
             payload = reader.readLine();
             reader.close();
@@ -137,6 +138,11 @@ public class Controller {
             model.investAccounts.add(curAcc);
         }
         //endregion
+    }
+
+    public boolean deleteSavedAccounts() {
+        File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
+        return file.delete();
     }
 
     public void addEntry(String desc, float amount, AccountBE payAccount, AccountBE investAccount) {

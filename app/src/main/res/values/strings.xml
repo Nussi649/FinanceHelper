@@ -14,10 +14,15 @@
     <string name="label_currency">€</string>
     <string name="text_save_accounts">Konten Speichern</string>
     <string name="text_new_account">Neues Konto</string>
-    <string name="text_label_new_account">Name:</string>
+    <string name="label_delete_save">Speicherstand Löschen</string>
+    <string name="label_add_funds">Einkommen buchen</string>
+    <string name="label_transfer">Umbuchung</string>
+    <string name="label_new_account">Name:</string>
     <string name="label_pay_accounts">Zahlungskonten</string>
     <string name="label_invest_accounts">Investitionskonten</string>
     <string name="toast_success_new_entry">neuer Eintrag erfolgreich hinzugefügt.</string>
+    <string name="toast_success_accounts_saved">Die Konten wurden erfolgreich gespeichert.</string>
+    <string name="toast_success_accounts_deleted">Der Speicherstand der Konten wurde erfolgreich gelöscht. Nach einem Neustart der App ist alles leer.</string>
     <string name="toast_error_unknown">ein unbekannter Fehler ist aufgetreten</string>
     <string name="toast_error_empty_description">Das Beschreibungsfeld ist leer</string>
     <string name="toast_error_empty_amount">Es ist kein Betrag angegeben</string>
@@ -31,4 +36,5 @@
     <string name="account_go_out">Ausgehen</string>
     <string name="account_drugs">Drogen</string>
     <string name="account_necessary">Notwendige</string>
+    <string name="account_bus">Busbudget</string>
 </resources>

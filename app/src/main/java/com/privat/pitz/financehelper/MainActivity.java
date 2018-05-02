@@ -153,6 +153,7 @@ public class MainActivity extends AbstractActivity {
             model.investAccounts.add(new AccountBE(getString(R.string.account_go_out)));
             model.investAccounts.add(new AccountBE(getString(R.string.account_drugs)));
             model.investAccounts.add(new AccountBE(getString(R.string.account_necessary)));
+            model.investAccounts.add(new AccountBE(getString(R.string.account_bus)));
         }
     }
 
@@ -171,9 +172,18 @@ public class MainActivity extends AbstractActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.item_new_account:
-                showNewAccountDialog();
+            case R.id.item_save_accounts:
+                try {
+                    controller.saveAccountsToInternal();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    showToastLong(R.string.toast_error_unknown);
+                    break;
+                }
+                showToastLong(R.string.toast_success_accounts_saved);
                 break;
+            case R.id.item_delete_save:
+                showToastLong(controller.deleteSavedAccounts() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
             default:
                 break;
         }

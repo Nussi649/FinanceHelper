@@ -31,7 +31,7 @@ public class AccountView extends LinearLayout {
 
     private void populateUI() {
         LayoutInflater.from(context).inflate(R.layout.view_account, this);
-        TableLayout content = findViewById(R.id.contentTable);
+        LinearLayout content = findViewById(R.id.contentTable);
         List<EntryBE> entries = mAccount.getEntries();
         TextView label = findViewById(R.id.label_account);
         label.setText(mAccount.getName());
@@ -52,7 +52,7 @@ public class AccountView extends LinearLayout {
         LayoutParams params = (LinearLayout.LayoutParams) root.getLayoutParams();
         params.width = width;
         root.setLayoutParams(params);
-        TableLayout content = findViewById(R.id.contentTable);
+        LinearLayout content = findViewById(R.id.contentTable);
         for (int i = 0; i < content.getChildCount(); i++) {
             ((AccountTableRow) content.getChildAt(i)).setWidth(width);
         }

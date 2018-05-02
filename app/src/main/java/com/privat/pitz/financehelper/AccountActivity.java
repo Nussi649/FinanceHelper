@@ -42,4 +42,19 @@ public abstract class AccountActivity extends AbstractActivity {
             showToast(R.string.toast_error_unknown);
         }
     }
+
+    protected void reloadContent() {
+        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
+            TableLayout table = findViewById(R.id.accountContainer);
+            table.removeAllViews();
+        } else if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            LinearLayout linLay = findViewById(R.id.accountContainer);
+            linLay.removeAllViews();
+        } else {
+            showToast(R.string.toast_error_unknown);
+        }
+        for (AccountBE a : model.payAccounts) {
+            addAccountToUI(a);
+        }
+    }
 }
