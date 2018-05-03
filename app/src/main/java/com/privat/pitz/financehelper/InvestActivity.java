@@ -18,7 +18,8 @@ public class InvestActivity extends AccountActivity {
 
     private void populateUI() {
         for (AccountBE a : model.investAccounts) {
-            addAccountToUI(a);
+            if (a.getIsActive())
+                addAccountToUI(a);
         }
     }
 }

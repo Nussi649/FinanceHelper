@@ -7,10 +7,12 @@ public class AccountBE {
     private String mName;
     private List<EntryBE> mEntries;
     private float mSum;
+    private boolean isActive;
 
     public AccountBE(String name) {
         mName = name;
         mEntries = new ArrayList<>();
+        isActive = true;
     }
 
     public float refreshSum() {
@@ -35,6 +37,8 @@ public class AccountBE {
     public String getName() {
         return mName;
     }
+
+    public boolean getIsActive() { return isActive;}
     //endregion
 
     //region add entries
@@ -43,4 +47,8 @@ public class AccountBE {
         refreshSum();
     }
     //endregion
+
+    public void setActive(boolean active) {
+        isActive = active;
+    }
 }

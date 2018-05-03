@@ -33,7 +33,8 @@ public class PayActivity extends AccountActivity {
 
     private void populateUI() {
         for (AccountBE a : model.payAccounts) {
-            addAccountToUI(a);
+            if (a.getIsActive())
+                addAccountToUI(a);
         }
     }
 
@@ -84,6 +85,8 @@ public class PayActivity extends AccountActivity {
         });
         LinearLayout payAccounts = dialogView.findViewById(R.id.linLayPayAccounts);
         for (AccountBE a : model.payAccounts) {
+            if (!a.getIsActive())
+                continue;
             TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
             tv.setText(a.getName());
             tv.setTag(a.getName());
@@ -133,6 +136,8 @@ public class PayActivity extends AccountActivity {
         });
         LinearLayout payAccounts1 = dialogView.findViewById(R.id.linLayPayAccounts1);
         for (AccountBE a : model.payAccounts) {
+            if (!a.getIsActive())
+                continue;
             TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
             tv.setText(a.getName());
             tv.setTag(a.getName() + "-1");
@@ -153,6 +158,8 @@ public class PayActivity extends AccountActivity {
 
         LinearLayout payAccounts2 = dialogView.findViewById(R.id.linLayPayAccounts2);
         for (AccountBE a : model.payAccounts) {
+            if (!a.getIsActive())
+                continue;
             TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
             tv.setText(a.getName());
             tv.setTag(a.getName() + "-2");

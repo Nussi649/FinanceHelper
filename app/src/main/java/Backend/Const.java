@@ -13,5 +13,6 @@ public class Const {
     public static String JSON_TAG_DESCRIPTION = "description";
     public static String JSON_TAG_PACCOUNTS = "paccounts";
     public static String JSON_TAG_IACCOUNTS = "iaccounts";
+    public static String JSON_TAG_ISACTIVE = "active";
 
 }

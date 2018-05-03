@@ -20,6 +20,8 @@
     <string name="label_new_account">Name:</string>
     <string name="label_pay_accounts">Zahlungskonten</string>
     <string name="label_invest_accounts">Investitionskonten</string>
+    <string name="label_filter_accounts">Kontofilter</string>
+    <string name="label_settings">Einstellungen</string>
     <string name="toast_success_new_entry">neuer Eintrag erfolgreich hinzugefügt.</string>
     <string name="toast_success_accounts_saved">Die Konten wurden erfolgreich gespeichert.</string>
     <string name="toast_success_accounts_deleted">Der Speicherstand der Konten wurde erfolgreich gelöscht. Nach einem Neustart der App ist alles leer.</string>

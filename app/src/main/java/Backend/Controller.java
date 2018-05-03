@@ -39,6 +39,7 @@ public class Controller {
         for (AccountBE a : model.payAccounts) {
             JSONObject acc = new JSONObject();
             acc.put(Const.JSON_TAG_NAME, a.getName());
+            acc.put(Const.JSON_TAG_ISACTIVE, a.getIsActive());
             JSONArray entries = new JSONArray();
             for (EntryBE e : a.getEntries()) {
                 JSONObject entr = new JSONObject();
@@ -58,6 +59,7 @@ public class Controller {
         for (AccountBE a : model.investAccounts) {
             JSONObject acc = new JSONObject();
             acc.put(Const.JSON_TAG_NAME, a.getName());
+            acc.put(Const.JSON_TAG_ISACTIVE, a.getIsActive());
             JSONArray entries = new JSONArray();
             for (EntryBE e : a.getEntries()) {
                 JSONObject entr = new JSONObject();
@@ -114,6 +116,7 @@ public class Controller {
         for (int i = 0; i < accounts.length(); i++) {
             JSONObject cur = accounts.getJSONObject(i);
             AccountBE curAcc = new AccountBE(cur.getString(Const.JSON_TAG_NAME));
+            curAcc.setActive(cur.getBoolean(Const.JSON_TAG_ISACTIVE));
             JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
             for (int j = 0; j < entries.length(); j++) {
                 JSONObject curEntry = entries.getJSONObject(j);
@@ -129,6 +132,7 @@ public class Controller {
         for (int i = 0; i < accounts.length(); i++) {
             JSONObject cur = accounts.getJSONObject(i);
             AccountBE curAcc = new AccountBE(cur.getString(Const.JSON_TAG_NAME));
+            curAcc.setActive(cur.getBoolean(Const.JSON_TAG_ISACTIVE));
             JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
             for (int j = 0; j < entries.length(); j++) {
                 JSONObject curEntry = entries.getJSONObject(j);

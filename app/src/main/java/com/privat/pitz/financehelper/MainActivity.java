@@ -92,18 +92,20 @@ public class MainActivity extends AbstractActivity {
 
         //region populate pay Account list
         for (AccountBE a : model.payAccounts) {
-            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName());
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
-                    model.currentPayAcc = controller.getPayAccountByName(v.getTag().toString());
-                    findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-                }
-            });
-            payAccounts.addView(tv);
+            if (a.getIsActive()) {
+                TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
+                tv.setText(a.getName());
+                tv.setTag(a.getName());
+                tv.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
+                        model.currentPayAcc = controller.getPayAccountByName(v.getTag().toString());
+                        findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+                    }
+                });
+                payAccounts.addView(tv);
+            }
         }
         if (model.currentPayAcc == null)
             model.currentPayAcc = model.payAccounts.get(0);
@@ -112,19 +114,21 @@ public class MainActivity extends AbstractActivity {
 
         //region populate invest Account list
         for (AccountBE a : model.investAccounts) {
-            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName());
-            tv.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
-                    model.currentInvestAcc = controller.getInvestAccountByName(v.getTag().toString());
-                    findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-                }
-            });
-            investAccounts.addView(tv);
+            if (a.getIsActive()) {
+                TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
+                tv.setText(a.getName());
+                tv.setTag(a.getName());
+                tv.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
+                tv.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
+                        model.currentInvestAcc = controller.getInvestAccountByName(v.getTag().toString());
+                        findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+                    }
+                });
+                investAccounts.addView(tv);
+            }
         }
         if (model.currentInvestAcc == null)
             model.currentInvestAcc = model.investAccounts.get(0);
@@ -184,6 +188,9 @@ public class MainActivity extends AbstractActivity {
                 break;
             case R.id.item_delete_save:
                 showToastLong(controller.deleteSavedAccounts() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
+            case R.id.item_settings:
+                startActivity(SettingsActivity.class);
+                break;
             default:
                 break;
         }

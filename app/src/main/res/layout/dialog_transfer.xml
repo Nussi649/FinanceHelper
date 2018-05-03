@@ -5,10 +5,10 @@
     android:layout_height="match_parent">
     <android.support.v4.widget.NestedScrollView
         android:id="@+id/nestedScrollView1"
-        android:layout_width="150dp"
+        android:layout_width="160dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="50dp"
-        android:layout_marginLeft="10dp"
+        android:layout_marginLeft="5dp"
         android:clipToPadding="false"
         android:fillViewport="true">
 
@@ -21,10 +21,10 @@
 
     <android.support.v4.widget.NestedScrollView
         android:id="@+id/nestedScrollView2"
-        android:layout_width="150dp"
+        android:layout_width="160dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="50dp"
-        android:layout_marginRight="10dp"
+        android:layout_marginRight="5dp"
         android:layout_alignParentRight="true"
         android:clipToPadding="false"
         android:fillViewport="true">
