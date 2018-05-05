@@ -19,6 +19,7 @@ import android.widget.TextView;
 
 import org.json.JSONException;
 
+import Backend.Util;
 import View.AccountView;
 import Logic.AccountBE;
 
@@ -90,50 +91,8 @@ public class MainActivity extends AbstractActivity {
             }
         });
 
-        //region populate pay Account list
-        for (AccountBE a : model.payAccounts) {
-            if (a.getIsActive()) {
-                TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
-                tv.setText(a.getName());
-                tv.setTag(a.getName());
-                tv.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
-                        model.currentPayAcc = controller.getPayAccountByName(v.getTag().toString());
-                        findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-                    }
-                });
-                payAccounts.addView(tv);
-            }
-        }
-        if (model.currentPayAcc == null)
-            model.currentPayAcc = model.payAccounts.get(0);
-        findViewById(R.id.root_layout).findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-        //endregion
-
-        //region populate invest Account list
-        for (AccountBE a : model.investAccounts) {
-            if (a.getIsActive()) {
-                TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
-                tv.setText(a.getName());
-                tv.setTag(a.getName());
-                tv.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
-                tv.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
-                        model.currentInvestAcc = controller.getInvestAccountByName(v.getTag().toString());
-                        findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-                    }
-                });
-                investAccounts.addView(tv);
-            }
-        }
-        if (model.currentInvestAcc == null)
-            model.currentInvestAcc = model.investAccounts.get(0);
-        findViewById(R.id.root_layout).findViewWithTag(model.currentInvestAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-        //endregion
+        Util.populatePayAccountsList(this, payAccounts);
+        Util.populateInvestAccountsList(this, investAccounts);
     }
 
     @Override
@@ -177,6 +136,9 @@ public class MainActivity extends AbstractActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.item_save_accounts:
+                showSaveAccountsDialog();
+                break;
+            case R.id.item_fast_save:
                 try {
                     controller.saveAccountsToInternal();
                 } catch (Exception e) {
@@ -215,6 +177,38 @@ public class MainActivity extends AbstractActivity {
         newAccountName.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.showSoftInput(newAccountName, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    private void showSaveAccountsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_save_accounts);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_save_accounts, null);
+        final EditText saveName = dialogView.findViewById(R.id.edit_save_name);
+        builder.setView(dialogView);
+        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
+        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                saveAccountsByName(saveName.getText().toString());
+            }
+        });
+        builder.show();
+        saveName.requestFocus();
+    }
+
+    private void exportAccounts() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_export);
+    }
+
+    private void saveAccountsByName(String name) {
+        try {
+            getController().saveAccountsToInternal(name);
+        } catch (JSONException json) {
+            showToastLong(R.string.toast_error_unknown);
+            return;
+        }
+        showToastLong(R.string.toast_success_accounts_saved);
     }
 
     private void createAccount(String name) {

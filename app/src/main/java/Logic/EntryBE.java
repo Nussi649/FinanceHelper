@@ -19,6 +19,11 @@ public class EntryBE {
         return mDescription;
     }
 
+    @Override
+    public String toString() {
+        return getDescription();
+    }
+
     public int getId() {
         return mId;
     }

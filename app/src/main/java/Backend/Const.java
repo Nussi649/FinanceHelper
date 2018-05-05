@@ -5,6 +5,7 @@ public class Const {
     public static int ACOUNT_VIEW_LANDSCAPE_WIDTH = 500;
 
     public static String ACCOUNTS_FILE_NAME = "accounts.jso";
+    public static String ACCOUNTS_FILE_TYPE = ".jso";
 
     public static String JSON_TAG_ID = "id";
     public static String JSON_TAG_ENTRIES = "entries";

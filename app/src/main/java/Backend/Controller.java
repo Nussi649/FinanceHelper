@@ -32,7 +32,11 @@ public class Controller {
 
     public Model getModel() { return model; }
 
-    public void saveAccountsToInternal() throws JSONException{
+    public void saveAccountsToInternal() throws JSONException {
+        saveAccountsToInternal(Const.ACCOUNTS_FILE_NAME);
+    }
+
+    public void saveAccountsToInternal(String filename) throws JSONException {
         JSONObject json = new JSONObject();
         JSONArray array = new JSONArray();
         //region save payAccounts
@@ -76,7 +80,7 @@ public class Controller {
 
         //region write data to internal
         String payload = json.toString();
-        File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
+        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
         try {
             if (!file.exists()) {
                 file.createNewFile();
@@ -92,13 +96,17 @@ public class Controller {
         //endregion
     }
 
-    public void readAccountsFromInternal() throws JSONException{
+    public void readAccountsFromInternal() throws JSONException {
+        readAccountsFromInternal(Const.ACCOUNTS_FILE_NAME);
+    }
+
+    public void readAccountsFromInternal(String filename) throws JSONException {
         String payload = "";
         JSONObject json = new JSONObject();
         JSONArray accounts;
 
         //region read data from internal
-        File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
+        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
         try {
             FileReader fReader = new FileReader(file);
             BufferedReader reader = new BufferedReader(fReader);

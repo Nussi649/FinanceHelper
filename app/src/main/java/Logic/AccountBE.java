@@ -38,6 +38,11 @@ public class AccountBE {
         return mName;
     }
 
+    @Override
+    public String toString() {
+        return getName();
+    }
+
     public boolean getIsActive() { return isActive;}
     //endregion
 

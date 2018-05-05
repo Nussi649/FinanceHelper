@@ -28,7 +28,7 @@ public class AbstractActivity extends AppCompatActivity {
     private final int MY_PERMISSIONS_READ_EXTERNAL_STORAGE = 4;
 
     Controller controller = Controller.instance;
-    Model model;
+    public Model model;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

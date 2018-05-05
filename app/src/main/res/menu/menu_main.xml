@@ -2,8 +2,11 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
+        android:id="@+id/item_fast_save"
+        android:title="@string/label_fast_save"/>
+    <item
         android:id="@+id/item_save_accounts"
-        android:title="@string/text_save_accounts"/>
+        android:title="@string/label_save_accounts"/>
     <item
         android:id="@+id/item_delete_save"
         android:title="@string/label_delete_save" />

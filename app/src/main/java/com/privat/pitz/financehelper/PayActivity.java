@@ -11,6 +11,7 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import Backend.Util;
 import Logic.AccountBE;
 import Logic.EntryBE;
 
@@ -77,32 +78,15 @@ public class PayActivity extends AccountActivity {
                     amount = Float.parseFloat(addFundsAmount.getText().toString());
                     desc = descriptionText.getText().toString();
                 } catch (Exception e) {
-                    // TODO: close Dialog
+                    dialogInterface.dismiss();
+                    showToast(R.string.toast_error_NaN);
                 }
                 if (amount != 0.0f && !(desc.equals("")))
                     addFunds(amount, desc);
             }
         });
         LinearLayout payAccounts = dialogView.findViewById(R.id.linLayPayAccounts);
-        for (AccountBE a : model.payAccounts) {
-            if (!a.getIsActive())
-                continue;
-            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName());
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    dialogView.findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimary));
-                    model.currentPayAcc = controller.getPayAccountByName(v.getTag().toString());
-                    dialogView.findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-                }
-            });
-            payAccounts.addView(tv);
-        }
-        if (model.currentPayAcc == null)
-            model.currentPayAcc = model.payAccounts.get(0);
-        dialogView.findViewWithTag(model.currentPayAcc.getName()).setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+        Util.populatePayAccountsList(this, payAccounts);
         builder.show();
     }
 
@@ -128,55 +112,18 @@ public class PayActivity extends AccountActivity {
                     amount = Float.parseFloat(addFundsAmount.getText().toString());
                     desc = descriptionText.getText().toString();
                 } catch (Exception e) {
-                    // TODO: close Dialog
+                    dialogInterface.dismiss();
+                    showToast(R.string.toast_error_NaN);
                 }
                 if (amount != 0.0f && !(desc.equals("")))
                     transferFunds(amount, desc);
             }
         });
         LinearLayout payAccounts1 = dialogView.findViewById(R.id.linLayPayAccounts1);
-        for (AccountBE a : model.payAccounts) {
-            if (!a.getIsActive())
-                continue;
-            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName() + "-1");
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    dialogView.findViewWithTag(model.currentPayAcc.getName() + "-1").setBackgroundColor(getResources().getColor(R.color.colorPrimary));
-                    String tag = v.getTag().toString();
-                    model.currentPayAcc = controller.getPayAccountByName(tag.substring(0, tag.length() - 2));
-                    dialogView.findViewWithTag(model.currentPayAcc.getName() + "-1").setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-                }
-            });
-            payAccounts1.addView(tv);
-        }
-        if (model.currentPayAcc == null)
-            model.currentPayAcc = model.payAccounts.get(0);
-        dialogView.findViewWithTag(model.currentPayAcc.getName() + "-1").setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-
         LinearLayout payAccounts2 = dialogView.findViewById(R.id.linLayPayAccounts2);
-        for (AccountBE a : model.payAccounts) {
-            if (!a.getIsActive())
-                continue;
-            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, null, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName() + "-2");
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    dialogView.findViewWithTag(model.transferRecipientAcc.getName() + "-2").setBackgroundColor(getResources().getColor(R.color.colorPrimary));
-                    String tag = v.getTag().toString();
-                    model.transferRecipientAcc = controller.getPayAccountByName(tag.substring(0, tag.length() - 2));
-                    dialogView.findViewWithTag(model.transferRecipientAcc.getName() + "-2").setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
-                }
-            });
-            payAccounts2.addView(tv);
-        }
-        if (model.transferRecipientAcc == null)
-            model.transferRecipientAcc = model.payAccounts.get(1);
-        dialogView.findViewWithTag(model.transferRecipientAcc.getName() + "-2").setBackgroundColor(getResources().getColor(R.color.colorPrimaryDark));
+        Util.populatePayAccountsList(this, payAccounts1, "-1");
+        Util.populatePayAccountsList(this, payAccounts2, "-2");
+
         builder.show();
     }
 
