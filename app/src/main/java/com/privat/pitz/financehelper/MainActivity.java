@@ -19,6 +19,9 @@ import android.widget.TextView;
 
 import org.json.JSONException;
 
+import java.io.IOException;
+import java.util.List;
+
 import Backend.Util;
 import View.AccountView;
 import Logic.AccountBE;
@@ -38,13 +41,70 @@ public class MainActivity extends AbstractActivity {
     }
 
     @Override
-    protected void onDestroy() {
+    protected void workingThread() {
         try {
-            controller.saveAccountsToInternal();
+            controller.readAccountsFromInternal();
         } catch (JSONException jsone) {
             jsone.printStackTrace();
+            getController().initAccountLists();
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            getController().initAccountLists();
         }
-        super.onDestroy();
+    }
+
+    @Override
+    protected void endWorkingThread() {
+        populateUI();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_main, menu);
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.item_save_accounts:
+                showSaveAccountsDialog();
+                break;
+            case R.id.item_load_accounts:
+                showLoadAccountsDialog();
+                break;
+            case R.id.item_settings:
+                startActivity(SettingsActivity.class);
+                break;
+            default:
+                break;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        reloadAccountLists();
+    }
+
+    @Override
+    protected void onStop() {
+        try {
+            controller.saveAccountsToInternal();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        super.onStop();
+    }
+
+    private void reloadAccountLists() {
+        LinearLayout payAccounts = findViewById(R.id.linLayPayAccounts);
+        LinearLayout investAccounts = findViewById(R.id.linLayInvestAccounts);
+
+        Util.populatePayAccountsList(this, payAccounts);
+        Util.populateInvestAccountsList(this, investAccounts);
     }
 
     private void populateUI() {
@@ -95,70 +155,6 @@ public class MainActivity extends AbstractActivity {
         Util.populateInvestAccountsList(this, investAccounts);
     }
 
-    @Override
-    protected void workingThread() {
-        try {
-            controller.readAccountsFromInternal();
-        } catch (JSONException jsone) {
-            jsone.printStackTrace();
-        }
-
-        if (model.payAccounts.size() == 0) {
-            model.payAccounts.add(new AccountBE(getString(R.string.account_bargeld)));
-            model.payAccounts.add(new AccountBE(getString(R.string.account_bank)));
-            model.payAccounts.add(new AccountBE(getString(R.string.account_credit_card)));
-            model.payAccounts.add(new AccountBE(getString(R.string.account_savings)));
-        }
-        if (model.investAccounts.size() == 0) {
-            model.investAccounts.add(new AccountBE(getString(R.string.account_investments)));
-            model.investAccounts.add(new AccountBE(getString(R.string.account_groceries)));
-            model.investAccounts.add(new AccountBE(getString(R.string.account_cosmetics)));
-            model.investAccounts.add(new AccountBE(getString(R.string.account_go_out)));
-            model.investAccounts.add(new AccountBE(getString(R.string.account_drugs)));
-            model.investAccounts.add(new AccountBE(getString(R.string.account_necessary)));
-            model.investAccounts.add(new AccountBE(getString(R.string.account_bus)));
-        }
-    }
-
-    @Override
-    protected void endWorkingThread() {
-        populateUI();
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.menu_main, menu);
-        return super.onCreateOptionsMenu(menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.item_save_accounts:
-                showSaveAccountsDialog();
-                break;
-            case R.id.item_fast_save:
-                try {
-                    controller.saveAccountsToInternal();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    showToastLong(R.string.toast_error_unknown);
-                    break;
-                }
-                showToastLong(R.string.toast_success_accounts_saved);
-                break;
-            case R.id.item_delete_save:
-                showToastLong(controller.deleteSavedAccounts() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
-            case R.id.item_settings:
-                startActivity(SettingsActivity.class);
-                break;
-            default:
-                break;
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
     private void showNewAccountDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.text_new_account);
@@ -170,7 +166,7 @@ public class MainActivity extends AbstractActivity {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
                 // TODO: check for correct input
-                createAccount(newAccountName.getText().toString());
+                createInvestAccount(newAccountName.getText().toString());
             }
         });
         builder.show();
@@ -184,6 +180,13 @@ public class MainActivity extends AbstractActivity {
         builder.setTitle(R.string.label_save_accounts);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_save_accounts, null);
         final EditText saveName = dialogView.findViewById(R.id.edit_save_name);
+        final Button exportButton = dialogView.findViewById(R.id.button_export);
+        exportButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                exportAccounts();
+            }
+        });
         builder.setView(dialogView);
         builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
         builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
@@ -196,9 +199,57 @@ public class MainActivity extends AbstractActivity {
         saveName.requestFocus();
     }
 
+    private void showLoadAccountsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_load_accounts);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_load_accounts, null);
+        final LinearLayout availableFilesLayout = dialogView.findViewById(R.id.layout_available_files);
+        final EditText filenameEdit = dialogView.findViewById(R.id.edit_load_name);
+        List<String> availableFiles = getController().getAvailableSaveFiles();
+        for (String s : availableFiles) {
+            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, availableFilesLayout, false);
+            tv.setText(s);
+            tv.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    filenameEdit.setText(((TextView)v).getText());
+                }
+            });
+            availableFilesLayout.addView(tv);
+        }
+        builder.setView(dialogView);
+        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
+        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                try {
+                    getController().readAccountsFromInternal(filenameEdit.getText().toString());
+                } catch (JSONException jsone) {
+                    dialog.dismiss();
+                    showToastLong(R.string.toast_error_unknown);
+                } catch (IOException ioe) {
+                    dialog.dismiss();
+                    showToastLong(R.string.toast_error_invalid_filename);
+                }
+            }
+        });
+        builder.show();
+    }
+
     private void exportAccounts() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_export);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_show_export, null);
+        final EditText showExport = dialogView.findViewById(R.id.edit_show_export);
+        try {
+            showExport.setText(getController().exportAccounts());
+        } catch (JSONException jsone) {
+            showToast(R.string.toast_error_unknown);
+            return;
+        }
+        builder.setView(dialogView);
+        builder.setPositiveButton(R.string.accept, getDoNothingClickListener());
+        builder.show();
     }
 
     private void saveAccountsByName(String name) {
@@ -207,11 +258,14 @@ public class MainActivity extends AbstractActivity {
         } catch (JSONException json) {
             showToastLong(R.string.toast_error_unknown);
             return;
+        } catch (IOException ioe) {
+            showToastLong(R.string.toast_error_unknown);
+            return;
         }
         showToastLong(R.string.toast_success_accounts_saved);
     }
 
-    private void createAccount(String name) {
+    private void createInvestAccount(String name) {
         AccountBE newAccount = new AccountBE(name);
         model.investAccounts.add(newAccount);
         addAccountToUI(newAccount);

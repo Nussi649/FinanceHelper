@@ -2,6 +2,8 @@ package Backend;
 
 import android.content.Context;
 
+import com.privat.pitz.financehelper.R;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -10,6 +12,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import Logic.AccountBE;
 import Logic.EntryBE;
@@ -32,13 +37,31 @@ public class Controller {
 
     public Model getModel() { return model; }
 
-    public void saveAccountsToInternal() throws JSONException {
-        saveAccountsToInternal(Const.ACCOUNTS_FILE_NAME);
+    public void initAccountLists() {
+        if (model.payAccounts.size() == 0) {
+            model.payAccounts.add(new AccountBE(Const.ACCOUNT_BARGELD));
+            model.payAccounts.add(new AccountBE(Const.ACCOUNT_UNI));
+            model.payAccounts.add(new AccountBE(Const.ACCOUNT_BANK));
+            model.payAccounts.add(new AccountBE(Const.ACCOUNT_CREDIT_CARD));
+            model.payAccounts.add(new AccountBE(Const.ACCOUNT_SAVINGS));
+        }
+
+        if (model.investAccounts.size() == 0) {
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_INVESTMENTS));
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_GROCERIES));
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_COSMETICS));
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_GO_OUT));
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_DRUGS));
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_NECESSARY));
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_BUS));
+        }
     }
 
-    public void saveAccountsToInternal(String filename) throws JSONException {
+    //region Import/Export Account Saves
+    public String exportAccounts() throws JSONException {
         JSONObject json = new JSONObject();
         JSONArray array = new JSONArray();
+
         //region save payAccounts
         for (AccountBE a : model.payAccounts) {
             JSONObject acc = new JSONObject();
@@ -49,7 +72,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, e.getAmount());
+                entr.put(Const.JSON_TAG_AMOUNT, String.valueOf(e.getAmount()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -78,48 +101,15 @@ public class Controller {
         json.put(Const.JSON_TAG_IACCOUNTS, array);
         //endregion
 
-        //region write data to internal
-        String payload = json.toString();
-        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
-        try {
-            if (!file.exists()) {
-                file.createNewFile();
-            }
-            FileWriter writer = new FileWriter(file);
-            writer.append(payload);
-            writer.flush();
-            writer.close();
-
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-        //endregion
+        return json.toString();
     }
 
-    public void readAccountsFromInternal() throws JSONException {
-        readAccountsFromInternal(Const.ACCOUNTS_FILE_NAME);
-    }
-
-    public void readAccountsFromInternal(String filename) throws JSONException {
-        String payload = "";
-        JSONObject json = new JSONObject();
+    public void importAccounts(String data) throws JSONException {
+        JSONObject json = new JSONObject(data);
         JSONArray accounts;
 
-        //region read data from internal
-        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
-        try {
-            FileReader fReader = new FileReader(file);
-            BufferedReader reader = new BufferedReader(fReader);
-            payload = reader.readLine();
-            reader.close();
-            fReader.close();
-            json = new JSONObject(payload);
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-        //endregion
-
         //region get pay accounts
+        model.payAccounts = new ArrayList<>();
         accounts = json.getJSONArray(Const.JSON_TAG_PACCOUNTS);
         for (int i = 0; i < accounts.length(); i++) {
             JSONObject cur = accounts.getJSONObject(i);
@@ -136,6 +126,7 @@ public class Controller {
         //endregion
 
         //region get invest accounts
+        model.investAccounts = new ArrayList<>();
         accounts = json.getJSONArray(Const.JSON_TAG_IACCOUNTS);
         for (int i = 0; i < accounts.length(); i++) {
             JSONObject cur = accounts.getJSONObject(i);
@@ -152,10 +143,61 @@ public class Controller {
         //endregion
     }
 
-    public boolean deleteSavedAccounts() {
-        File file = new File(context.getFilesDir(), Const.ACCOUNTS_FILE_NAME);
+    public void saveAccountsToInternal() throws JSONException, IOException {
+        saveAccountsToInternal(Const.ACCOUNTS_FASTSAVE_FILE_NAME);
+    }
+
+    public void saveAccountsToInternal(String filename) throws JSONException, IOException {
+        String payload = exportAccounts();
+        File directory = new File(context.getFilesDir(), Const.ACCOUNTS_FASTSAVE_DIRECTORY_NAME);
+        if (!directory.exists())
+            directory.mkdir();
+        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
+        if (!file.exists()) {
+            file.createNewFile();
+        }
+        FileWriter writer = new FileWriter(file);
+        writer.append(payload);
+        writer.flush();
+        writer.close();
+    }
+
+    public void readAccountsFromInternal() throws JSONException, IOException{
+        readAccountsFromInternal(Const.ACCOUNTS_FASTSAVE_FILE_NAME);
+    }
+
+    public void readAccountsFromInternal(String filename) throws JSONException, IOException {
+        String payload = "";
+
+        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
+        FileReader fReader = new FileReader(file);
+        BufferedReader reader = new BufferedReader(fReader);
+        payload = reader.readLine();
+        reader.close();
+        fReader.close();
+        importAccounts(payload);
+}
+
+    public boolean deleteFastSave() {
+        File file = new File(context.getFilesDir(), Const.ACCOUNTS_FASTSAVE_FILE_NAME + Const.ACCOUNTS_FILE_TYPE);
         return file.delete();
     }
+
+    public List<String> getAvailableSaveFiles() {
+        File[] files = context.getFilesDir().listFiles();
+        List<String> re = new ArrayList<>();
+        if (files.length == 0)
+            return re;
+        int size = files.length;
+        for (int i = 0; i < size; i++) {
+            String name = files[i].getName();
+            if (name.equals(Const.ACCOUNTS_FASTSAVE_DIRECTORY_NAME))
+                continue;
+            re.add(name.substring(0, name.length() - 4));
+        }
+        return re;
+    }
+    //endregion
 
     public void addEntry(String desc, float amount, AccountBE payAccount, AccountBE investAccount) {
         EntryBE entryPay = new EntryBE(model.entrySequenceValue++, amount*(-1.0f), desc);

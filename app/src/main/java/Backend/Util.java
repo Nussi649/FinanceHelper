@@ -14,6 +14,13 @@ public abstract class Util {
 
     public static void populatePayAccountsList(final AbstractActivity act, final LinearLayout parent) {
         final Model m = act.model;
+        parent.removeAllViews();
+        if (m.payAccounts == null) {
+            return;
+        }
+        if (m.payAccounts.size() == 0) {
+            return;
+        }
         for (AccountBE a : m.payAccounts) {
             if (!a.getIsActive()) {
                 continue;
@@ -42,6 +49,13 @@ public abstract class Util {
 
     public static void populatePayAccountsList(final AbstractActivity act, final LinearLayout parent, final String appendix) {
         final Model m = act.model;
+        parent.removeAllViews();
+        if (m.payAccounts == null) {
+            return;
+        }
+        if (m.payAccounts.size() == 0) {
+            return;
+        }
         for (AccountBE a : m.payAccounts) {
             if (!a.getIsActive()) {
                 continue;
@@ -70,6 +84,13 @@ public abstract class Util {
 
     public static void populateInvestAccountsList(final AbstractActivity act, final LinearLayout parent) {
         final Model m = act.model;
+        parent.removeAllViews();
+        if (m.investAccounts == null) {
+            return;
+        }
+        if (m.investAccounts.size() == 0) {
+            return;
+        }
         for (AccountBE a : m.investAccounts) {
             if (!a.getIsActive()) {
                 continue;

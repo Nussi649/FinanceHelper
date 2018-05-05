@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import Backend.Controller;
 import Backend.Model;
+import Logic.AccountBE;
 
 public class AbstractActivity extends AppCompatActivity {
 
