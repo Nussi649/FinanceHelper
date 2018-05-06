@@ -72,7 +72,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, String.valueOf(e.getAmount()));
+                entr.put(Const.JSON_TAG_AMOUNT, String.format("%.2f", e.getAmount()).replace(',','.'));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -92,7 +92,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, e.getAmount());
+                entr.put(Const.JSON_TAG_AMOUNT, String.format("%.2f", e.getAmount()).replace(',','.'));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -149,9 +149,7 @@ public class Controller {
 
     public void saveAccountsToInternal(String filename) throws JSONException, IOException {
         String payload = exportAccounts();
-        File directory = new File(context.getFilesDir(), Const.ACCOUNTS_FASTSAVE_DIRECTORY_NAME);
-        if (!directory.exists())
-            directory.mkdir();
+        checkDirectories();
         File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
         if (!file.exists()) {
             file.createNewFile();
@@ -183,6 +181,11 @@ public class Controller {
         return file.delete();
     }
 
+    public boolean deleteSavefile(String name) {
+        File file = new File(context.getFilesDir(), name + Const.ACCOUNTS_FILE_TYPE);
+        return file.delete();
+    }
+
     public List<String> getAvailableSaveFiles() {
         File[] files = context.getFilesDir().listFiles();
         List<String> re = new ArrayList<>();
@@ -193,9 +196,20 @@ public class Controller {
             String name = files[i].getName();
             if (name.equals(Const.ACCOUNTS_FASTSAVE_DIRECTORY_NAME))
                 continue;
+            if (name.equals(Const.ACCOUNTS_HIDDEN_DIRECTORY))
+                continue;
             re.add(name.substring(0, name.length() - 4));
         }
         return re;
+    }
+
+    private void checkDirectories() {
+        File fastsave = new File(context.getFilesDir(), Const.ACCOUNTS_FASTSAVE_DIRECTORY_NAME);
+        if (!fastsave.exists())
+            fastsave.mkdir();
+        File hidden = new File(context.getFilesDir(), Const.ACCOUNTS_HIDDEN_DIRECTORY);
+        if (!hidden.exists())
+            hidden.mkdir();
     }
     //endregion
 

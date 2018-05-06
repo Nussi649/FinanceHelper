@@ -2,7 +2,6 @@ package com.privat.pitz.financehelper;
 
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.res.Configuration;
 import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
 import android.view.Menu;
@@ -11,6 +10,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TableLayout;
@@ -22,8 +22,8 @@ import org.json.JSONException;
 import java.io.IOException;
 import java.util.List;
 
+import Backend.Const;
 import Backend.Util;
-import View.AccountView;
 import Logic.AccountBE;
 
 public class MainActivity extends AbstractActivity {
@@ -84,8 +84,8 @@ public class MainActivity extends AbstractActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
+    protected void onStart() {
+        super.onStart();
         reloadAccountLists();
     }
 
@@ -155,32 +155,13 @@ public class MainActivity extends AbstractActivity {
         Util.populateInvestAccountsList(this, investAccounts);
     }
 
-    private void showNewAccountDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.text_new_account);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_new_account, null);
-        newAccountName = dialogView.findViewById(R.id.edit_new_account_name);
-        builder.setView(dialogView);
-        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                // TODO: check for correct input
-                createInvestAccount(newAccountName.getText().toString());
-            }
-        });
-        builder.show();
-        newAccountName.requestFocus();
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(newAccountName, InputMethodManager.SHOW_IMPLICIT);
-    }
-
     private void showSaveAccountsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_save_accounts);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_save_accounts, null);
         final EditText saveName = dialogView.findViewById(R.id.edit_save_name);
         final Button exportButton = dialogView.findViewById(R.id.button_export);
+        final CheckBox hiddenCheck = dialogView.findViewById(R.id.check_hidden);
         exportButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -192,7 +173,7 @@ public class MainActivity extends AbstractActivity {
         builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                saveAccountsByName(saveName.getText().toString());
+                saveAccountsByName(saveName.getText().toString(), hiddenCheck.isChecked());
             }
         });
         builder.show();
@@ -203,19 +184,40 @@ public class MainActivity extends AbstractActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_load_accounts);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_load_accounts, null);
-        final LinearLayout availableFilesLayout = dialogView.findViewById(R.id.layout_available_files);
+        final TableLayout availableFilesLayout = dialogView.findViewById(R.id.layout_available_files);
         final EditText filenameEdit = dialogView.findViewById(R.id.edit_load_name);
-        List<String> availableFiles = getController().getAvailableSaveFiles();
+        final Button importButton = dialogView.findViewById(R.id.button_import);
+        importButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                importAccounts();
+            }
+        });
+        final List<String> availableFiles = getController().getAvailableSaveFiles();
         for (String s : availableFiles) {
-            TextView tv = (TextView) getLayoutInflater().inflate(R.layout.textview_accountselect, availableFilesLayout, false);
-            tv.setText(s);
-            tv.setOnClickListener(new View.OnClickListener() {
+            TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.tablerow_file_list, availableFilesLayout, false);
+            row.setTag(s);
+            final TextView name = row.findViewById(R.id.text_filename);
+            TextView delete = row.findViewById(R.id.text_delete_sign);
+            name.setText(s);
+            name.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     filenameEdit.setText(((TextView)v).getText());
                 }
             });
-            availableFilesLayout.addView(tv);
+            delete.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (getController().deleteSavefile(name.getText().toString())) {
+                        ((TableLayout) v.getParent().getParent()).removeView((View)v.getParent());
+                        showToastLong(R.string.toast_success_file_deleted);
+                    } else {
+                        showToastLong(R.string.toast_error_unknown);
+                    }
+                }
+            });
+            availableFilesLayout.addView(row);
         }
         builder.setView(dialogView);
         builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
@@ -223,7 +225,13 @@ public class MainActivity extends AbstractActivity {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 try {
-                    getController().readAccountsFromInternal(filenameEdit.getText().toString());
+                    if (availableFiles.contains(filenameEdit.getText().toString())) {
+                        getController().readAccountsFromInternal(filenameEdit.getText().toString());
+                        reloadAccountLists();
+                    } else {
+                        getController().readAccountsFromInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + filenameEdit.getText().toString());
+                        reloadAccountLists();
+                    }
                 } catch (JSONException jsone) {
                     dialog.dismiss();
                     showToastLong(R.string.toast_error_unknown);
@@ -252,9 +260,34 @@ public class MainActivity extends AbstractActivity {
         builder.show();
     }
 
-    private void saveAccountsByName(String name) {
+    private void importAccounts() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_import);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_show_import, null);
+        final EditText showImport = dialogView.findViewById(R.id.edit_show_import);
+        builder.setView(dialogView);
+        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
+        builder.setPositiveButton(R.string.label_import, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                try {
+                    getController().importAccounts(showImport.getText().toString());
+                    showToast(R.string.toast_success_accounts_imported);
+                } catch (JSONException jsone) {
+                    showToastLong(R.string.toast_error_invalid_import);
+                }
+            }
+        });
+        builder.show();
+    }
+
+    private void saveAccountsByName(String name, boolean hidden) {
         try {
-            getController().saveAccountsToInternal(name);
+            if (hidden) {
+                getController().saveAccountsToInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + name);
+            } else {
+                getController().saveAccountsToInternal(name);
+            }
         } catch (JSONException json) {
             showToastLong(R.string.toast_error_unknown);
             return;
@@ -263,37 +296,5 @@ public class MainActivity extends AbstractActivity {
             return;
         }
         showToastLong(R.string.toast_success_accounts_saved);
-    }
-
-    private void createInvestAccount(String name) {
-        AccountBE newAccount = new AccountBE(name);
-        model.investAccounts.add(newAccount);
-        addAccountToUI(newAccount);
-    }
-
-    private void addAccountToUI(AccountBE acc) {
-        AccountView newAccountView = new AccountView(this, acc);
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
-            TableLayout table = findViewById(R.id.accountContainer);
-            if (table.getChildCount() == 0) {
-                TableRow row = new TableRow(this);
-                row.addView(newAccountView);
-                table.addView(row);
-            } else {
-                TableRow lastRow = (TableRow) table.getChildAt(table.getChildCount() - 1);
-                if (lastRow.getChildCount() == 2) {
-                    TableRow newRow = new TableRow(this);
-                    newRow.addView(newAccountView);
-                    table.addView(newRow);
-                } else {
-                    lastRow.addView(newAccountView);
-                }
-            }
-        } else if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            LinearLayout linLay = findViewById(R.id.accountContainer);
-            linLay.addView(newAccountView);
-        } else {
-            showToast(R.string.toast_error_unknown);
-        }
     }
 }

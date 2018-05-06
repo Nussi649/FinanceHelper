@@ -28,11 +28,7 @@ public class PayActivity extends AccountActivity {
     }
 
     @Override
-    protected void endWorkingThread() {
-        populateUI();
-    }
-
-    private void populateUI() {
+    protected void populateUI() {
         for (AccountBE a : model.payAccounts) {
             if (a.getIsActive())
                 addAccountToUI(a);
@@ -55,10 +51,20 @@ public class PayActivity extends AccountActivity {
             case R.id.item_transfer:
                 showTransferDialog();
                 break;
+            case R.id.item_new_account:
+                showNewAccountDialog();
+                break;
             default:
                 break;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void createAccount(String name) {
+        AccountBE newAccount = new AccountBE(name);
+        model.payAccounts.add(newAccount);
+        addAccountToUI(newAccount);
     }
 
     private void showAddFundsDialog() {

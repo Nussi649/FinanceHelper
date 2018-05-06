@@ -1,7 +1,13 @@
 package com.privat.pitz.financehelper;
 
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.res.Configuration;
 import android.os.Bundle;
+import android.support.v7.app.AlertDialog;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
@@ -15,6 +21,13 @@ public abstract class AccountActivity extends AbstractActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
     }
+
+    @Override
+    protected void endWorkingThread() {
+        populateUI();
+    }
+
+    abstract void populateUI();
 
     protected void addAccountToUI(AccountBE acc) {
         AccountView newAccountView = new AccountView(this, acc);
@@ -57,4 +70,25 @@ public abstract class AccountActivity extends AbstractActivity {
             addAccountToUI(a);
         }
     }
+
+    protected void showNewAccountDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_new_account);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_new_account, null);
+        final EditText newAccountName = dialogView.findViewById(R.id.edit_new_account_name);
+        builder.setView(dialogView);
+        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
+        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                createAccount(newAccountName.getText().toString());
+            }
+        });
+        builder.show();
+        newAccountName.requestFocus();
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.showSoftInput(newAccountName, InputMethodManager.SHOW_IMPLICIT);
+    }
+
+    abstract void createAccount(String name);
 }

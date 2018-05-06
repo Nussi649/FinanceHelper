@@ -8,6 +8,7 @@ public class Const {
 
     public static String ACCOUNTS_FASTSAVE_DIRECTORY_NAME = "fastsave";
     public static String ACCOUNTS_FASTSAVE_FILE_NAME = ACCOUNTS_FASTSAVE_DIRECTORY_NAME + "/accounts";
+    public static String ACCOUNTS_HIDDEN_DIRECTORY = "hidden";
     public static String ACCOUNTS_FILE_TYPE = ".jso";
 
     public static String JSON_TAG_ID = "id";

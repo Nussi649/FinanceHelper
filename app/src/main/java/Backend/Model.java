@@ -11,4 +11,5 @@ public class Model {
     public AccountBE currentInvestAcc;
     public AccountBE transferRecipientAcc;
     public int entrySequenceValue;
+    public boolean needRefresh = false;
 }
