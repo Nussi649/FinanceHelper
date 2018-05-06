@@ -18,6 +18,7 @@ import java.util.List;
 
 import Logic.AccountBE;
 import Logic.EntryBE;
+import Logic.PrivateKey;
 
 public class Controller {
     public static Controller instance;
@@ -210,6 +211,18 @@ public class Controller {
         File hidden = new File(context.getFilesDir(), Const.ACCOUNTS_HIDDEN_DIRECTORY);
         if (!hidden.exists())
             hidden.mkdir();
+    }
+    //endregion
+
+    //region encryption
+    private String encryptData(String data, String decryptionKey) {
+        PrivateKey priv = PrivateKey.generateSpecificKey(decryptionKey);
+        return priv.publicKey.encrypt(data);
+    }
+
+    private String decryptData(String data, String decryptionKey) {
+        PrivateKey priv = PrivateKey.generateSpecificKey(decryptionKey);
+        return priv.decrypt(data);
     }
     //endregion
 

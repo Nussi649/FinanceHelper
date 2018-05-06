@@ -34,4 +34,6 @@ public class Const {
     public static String ACCOUNT_NECESSARY = "Notwendige";
     public static String ACCOUNT_BUS = "Busbudget";
 
+    public static int KEY_BIT_LENGTH = 2048;
+
 }
