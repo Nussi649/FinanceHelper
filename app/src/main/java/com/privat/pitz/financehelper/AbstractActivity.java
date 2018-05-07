@@ -21,7 +21,7 @@ import Backend.Controller;
 import Backend.Model;
 import Logic.AccountBE;
 
-public class AbstractActivity extends AppCompatActivity {
+public abstract class AbstractActivity extends AppCompatActivity {
 
     private final int MY_PERMISSIONS_REQUEST_INTERNET = 1;
     private final int MY_PERMISSIONS_REQUEST_PHONE_STATE = 2;
@@ -58,50 +58,6 @@ public class AbstractActivity extends AppCompatActivity {
     public Controller getController() { return controller; }
 
     public Model getModel() { return model; }
-
-    //region DeviceID
-    protected String getDeviceId() {
-        final int androidIdValue = createAndroidIdValue();
-        final long deviceIdValue = createDeviceIdValue();
-        final int simSerialValue = createSimSerialValue();
-
-        final UUID deviceUuid = new UUID(androidIdValue, deviceIdValue | simSerialValue);
-        if (deviceIdValue + simSerialValue + androidIdValue == 0) {
-            return null;
-        }
-        return deviceUuid.toString();
-    }
-
-    private int createAndroidIdValue() {
-        final String androidId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-        return androidId == null ? 0 : androidId.hashCode();
-    }
-
-    private long createDeviceIdValue() {
-        final TelephonyManager tm = (TelephonyManager) getBaseContext().getSystemService(Context.TELEPHONY_SERVICE);
-        try {
-            final String deviceId = tm.getDeviceId();
-            return deviceId == null ? 0 : (long) deviceId.hashCode() << 32;
-        } catch (SecurityException e) {
-            e.printStackTrace();
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_PHONE_STATE},2);
-        }
-        return -1;
-
-    }
-
-    private int createSimSerialValue() {
-        final TelephonyManager tm = (TelephonyManager) getBaseContext().getSystemService(Context.TELEPHONY_SERVICE);
-        try {
-            final String simSerialNumber = tm.getSimSerialNumber();
-            return simSerialNumber == null ? 0 : simSerialNumber.hashCode();
-        } catch (SecurityException e) {
-            e.printStackTrace();
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_PHONE_STATE},2);
-        }
-        return -1;
-    }
-    //endregion
 
     //region Toast
     protected void showToast(String message) {
@@ -165,28 +121,16 @@ public class AbstractActivity extends AppCompatActivity {
 
     //region Permissions
     private void askForPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.READ_PHONE_STATE }, MY_PERMISSIONS_REQUEST_PHONE_STATE);
-        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.READ_EXTERNAL_STORAGE }, MY_PERMISSIONS_REQUEST_PHONE_STATE);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.READ_EXTERNAL_STORAGE }, MY_PERMISSIONS_READ_EXTERNAL_STORAGE);
         } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE }, MY_PERMISSIONS_REQUEST_PHONE_STATE);
+            ActivityCompat.requestPermissions(this, new String[] { Manifest.permission.WRITE_EXTERNAL_STORAGE }, MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE);
         }
     }
 
     @Override
     public void onRequestPermissionsResult(final int requestCode, final String permissions[], final int[] grantResults) {
         switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_PHONE_STATE: {
-                // If request is cancelled, the result arrays are empty.
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-                        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE);
-                    }
-                } else {
-                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_PHONE_STATE}, MY_PERMISSIONS_REQUEST_PHONE_STATE);
-                } return;
-            }
             case MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE: {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -200,11 +144,11 @@ public class AbstractActivity extends AppCompatActivity {
             case MY_PERMISSIONS_READ_EXTERNAL_STORAGE: {
                 // If request is cancelled, the result arrays are empty.
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
-                        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_PHONE_STATE}, MY_PERMISSIONS_REQUEST_PHONE_STATE);
+                    if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+                        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE);
                     }
                 } else {
-                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_WRITE_EXTERNAL_STORAGE);
+                    ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, MY_PERMISSIONS_READ_EXTERNAL_STORAGE);
                 } return;
             }
         }

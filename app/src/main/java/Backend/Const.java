@@ -1,6 +1,5 @@
 package Backend;
 
-import com.privat.pitz.financehelper.R;
 
 public class Const {
     public static int MARGIN_ACCOUNT_VIEW = 5;
