@@ -1,5 +1,7 @@
 package com.privat.pitz.financehelper;
 
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -77,7 +79,13 @@ public class SettingsActivity extends AbstractActivity {
         deleteFastsaveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                showToastLong(getController().deleteFastSave() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
+                AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        showToastLong(getController().deleteFastSave() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
+                    }
+                };
+                showConfirmDialog(R.string.question_delete_savefile, listener);
             }
         });
     }

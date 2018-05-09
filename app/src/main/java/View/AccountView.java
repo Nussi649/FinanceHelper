@@ -15,6 +15,7 @@ import com.privat.pitz.financehelper.R;
 import java.util.List;
 
 import Backend.Const;
+import Backend.Util;
 import Logic.AccountBE;
 import Logic.EntryBE;
 
@@ -43,7 +44,7 @@ public class AccountView extends LinearLayout {
                 content.addView(row);
             }
             TextView sum = findViewById(R.id.display_sum);
-            sum.setText(String.valueOf(mAccount.getSum()));
+            sum.setText(Util.formatFloat(mAccount.getSum()));
         }
     }
 

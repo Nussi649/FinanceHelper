@@ -1,6 +1,7 @@
 package com.privat.pitz.financehelper;
 
 import android.Manifest;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -83,6 +84,15 @@ public abstract class AbstractActivity extends AppCompatActivity {
         re.setMessage(getString(R.string.loadingscreen_body));
         re.setCancelable(false);
         return re;
+    }
+
+    protected void showConfirmDialog(int msgID, AlertDialog.OnClickListener acceptListener) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_are_u_sure);
+        builder.setMessage(msgID);
+        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
+        builder.setPositiveButton(R.string.accept, acceptListener);
+        builder.show();
     }
 
     protected DialogInterface.OnClickListener getDoNothingClickListener() {

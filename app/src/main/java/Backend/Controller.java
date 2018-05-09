@@ -73,7 +73,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, String.format("%.2f", e.getAmount()).replace(',','.'));
+                entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -93,7 +93,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, String.format("%.2f", e.getAmount()).replace(',','.'));
+                entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);

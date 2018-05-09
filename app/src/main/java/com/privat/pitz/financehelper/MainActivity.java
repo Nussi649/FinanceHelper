@@ -29,7 +29,7 @@ import Logic.AccountBE;
 public class MainActivity extends AbstractActivity {
 
 
-    public EditText newAccountName;
+    public EditText passwordInput;
     public EditText newDescription;
     public EditText newAmount;
 
@@ -208,13 +208,19 @@ public class MainActivity extends AbstractActivity {
             });
             delete.setOnClickListener(new View.OnClickListener() {
                 @Override
-                public void onClick(View v) {
-                    if (getController().deleteSavefile(name.getText().toString())) {
-                        ((TableLayout) v.getParent().getParent()).removeView((View)v.getParent());
-                        showToastLong(R.string.toast_success_file_deleted);
-                    } else {
-                        showToastLong(R.string.toast_error_unknown);
-                    }
+                public void onClick(final View v) {
+                    AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            if (getController().deleteSavefile(name.getText().toString())) {
+                                ((TableLayout) v.getParent().getParent()).removeView((View)v.getParent());
+                                showToastLong(R.string.toast_success_file_deleted);
+                            } else {
+                                showToastLong(R.string.toast_error_unknown);
+                            }
+                        }
+                    };
+                    showConfirmDialog(R.string.question_delete_savefile, listener);
                 }
             });
             availableFilesLayout.addView(row);
@@ -242,6 +248,10 @@ public class MainActivity extends AbstractActivity {
             }
         });
         builder.show();
+    }
+
+    private void showPasswordInputDialog() {
+
     }
 
     private void exportAccounts() {
