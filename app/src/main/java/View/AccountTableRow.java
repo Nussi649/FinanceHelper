@@ -11,6 +11,8 @@ import android.widget.TextView;
 
 import com.privat.pitz.financehelper.R;
 
+import Backend.Util;
+
 public class AccountTableRow extends LinearLayout {
 
     Context context;
@@ -30,7 +32,7 @@ public class AccountTableRow extends LinearLayout {
         TextView des = relative.findViewById(R.id.text_description);
         des.setText(description);
         TextView am = relative.findViewById(R.id.text_amount);
-        am.setText(String.valueOf(amount));
+        am.setText(Util.formatFloat(amount));
         addView(relative);
     }
 

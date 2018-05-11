@@ -31,7 +31,12 @@
     <string name="label_settings">Einstellungen</string>
     <string name="label_export">Exportieren</string>
     <string name="label_import">Importieren</string>
+<<<<<<< HEAD
     <string name="label_enter_password">Passwort eingeben</string>
+=======
+    <string name="label_are_u_sure">Sind Sie sicher?</string>
+    <string name="question_delete_savefile">Wollen Sie wirklich den Speicherstand löschen?</string>
+>>>>>>> a2ba2416e32beaab6252f1bf397fd1aad26b71fb
     <string name="sign_delete">-</string>
     <string name="toast_success_new_entry">neuer Eintrag erfolgreich hinzugefügt.</string>
     <string name="toast_success_accounts_saved">Die Konten wurden erfolgreich gespeichert.</string>

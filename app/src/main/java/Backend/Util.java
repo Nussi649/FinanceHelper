@@ -127,6 +127,10 @@ public abstract class Util {
         parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
     }
 
+    public static String formatFloat(float input) {
+        return String.format("%.2f", input).replace(',','.');
+    }
+
     public static String sha256(String s) {
         try {
             // Create SHA-256 Hash
