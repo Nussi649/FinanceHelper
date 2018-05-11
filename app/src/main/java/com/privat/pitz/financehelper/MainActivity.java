@@ -162,6 +162,7 @@ public class MainActivity extends AbstractActivity {
         final EditText saveName = dialogView.findViewById(R.id.edit_save_name);
         final Button exportButton = dialogView.findViewById(R.id.button_export);
         final CheckBox hiddenCheck = dialogView.findViewById(R.id.check_hidden);
+        final CheckBox encryptedCheck = dialogView.findViewById(R.id.check_encrypt);
         exportButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -173,7 +174,14 @@ public class MainActivity extends AbstractActivity {
         builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                saveAccountsByName(saveName.getText().toString(), hiddenCheck.isChecked());
+                if (encryptedCheck.isChecked()) {
+                    getModel().nextFileName = saveName.getText().toString();
+                    getModel().nextFileHidden = hiddenCheck.isChecked();
+                    showSavePasswordDialog();
+                    dialogInterface.dismiss();
+                } else {
+                    saveAccountsByName(saveName.getText().toString(), hiddenCheck.isChecked());
+                }
             }
         });
         builder.show();
@@ -244,6 +252,22 @@ public class MainActivity extends AbstractActivity {
         builder.show();
     }
 
+    private void showSavePasswordDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_enter_password);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_enter_password, null);
+        final EditText password = dialogView.findViewById(R.id.edit_password);
+        builder.setView(dialogView);
+        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
+        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                saveEncryptedAccountsByName(getModel().nextFileName, password.getText().toString(), getModel().nextFileHidden);
+            }
+        });
+        builder.show();
+    }
+
     private void exportAccounts() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_export);
@@ -279,6 +303,23 @@ public class MainActivity extends AbstractActivity {
             }
         });
         builder.show();
+    }
+
+    private void saveEncryptedAccountsByName(String name, String password, boolean hidden) {
+        try {
+            if (hidden) {
+                getController().saveEncryptedAccountsToInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + name, password);
+            } else {
+                getController().saveEncryptedAccountsToInternal(name, password);
+            }
+        } catch (JSONException json) {
+            showToastLong(R.string.toast_error_encryption);
+            return;
+        } catch (IOException ioe) {
+            showToastLong(R.string.toast_error_unknown);
+            return;
+        }
+        showToastLong(R.string.toast_success_accounts_saved);
     }
 
     private void saveAccountsByName(String name, boolean hidden) {

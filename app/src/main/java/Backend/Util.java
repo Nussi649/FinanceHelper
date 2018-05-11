@@ -155,4 +155,8 @@ public abstract class Util {
         byte[] bytes = b.toByteArray();
         return new String(bytes);
     }
+
+    public static String formatFloat(float f) {
+        return String.format("%.2f", f).replace(',','.');
+    }
 }

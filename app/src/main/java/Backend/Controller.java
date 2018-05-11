@@ -73,7 +73,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, String.format("%.2f", e.getAmount()).replace(',','.'));
+                entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -93,7 +93,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, String.format("%.2f", e.getAmount()).replace(',','.'));
+                entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -144,21 +144,42 @@ public class Controller {
         //endregion
     }
 
+    public void writeToInternal(String data, String filename) throws IOException {
+        checkDirectories();
+        File file = new File(context.getFilesDir(), filename);
+        if (!file.exists()) {
+            file.createNewFile();
+        }
+        FileWriter writer = new FileWriter(file);
+        writer.append(data);
+        writer.flush();
+        writer.close();
+    }
+
+    public String readFromInternal(String filename) throws IOException {
+        String data = "";
+
+        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
+        FileReader fReader = new FileReader(file);
+        BufferedReader reader = new BufferedReader(fReader);
+        data = reader.readLine();
+        reader.close();
+        fReader.close();
+        return data;
+    }
+
     public void saveAccountsToInternal() throws JSONException, IOException {
         saveAccountsToInternal(Const.ACCOUNTS_FASTSAVE_FILE_NAME);
     }
 
     public void saveAccountsToInternal(String filename) throws JSONException, IOException {
         String payload = exportAccounts();
-        checkDirectories();
-        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-        FileWriter writer = new FileWriter(file);
-        writer.append(payload);
-        writer.flush();
-        writer.close();
+        writeToInternal(payload, filename + Const.ACCOUNTS_FILE_TYPE);
+    }
+
+    public void saveEncryptedAccountsToInternal(String filename, String password) throws  JSONException, IOException {
+        String payload = encryptData(exportAccounts(), password);
+        writeToInternal(payload, filename + Const.ACCOUNTS_FILE_TYPE);
     }
 
     public void readAccountsFromInternal() throws JSONException, IOException{
@@ -166,16 +187,14 @@ public class Controller {
     }
 
     public void readAccountsFromInternal(String filename) throws JSONException, IOException {
-        String payload = "";
-
-        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
-        FileReader fReader = new FileReader(file);
-        BufferedReader reader = new BufferedReader(fReader);
-        payload = reader.readLine();
-        reader.close();
-        fReader.close();
+        String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
         importAccounts(payload);
-}
+    }
+
+    public void readEncryptedAccountsFromInternal(String filename, String password) throws JSONException, IOException {
+        String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
+        importAccounts(decryptData(payload, password));
+    }
 
     public boolean deleteFastSave() {
         File file = new File(context.getFilesDir(), Const.ACCOUNTS_FASTSAVE_FILE_NAME + Const.ACCOUNTS_FILE_TYPE);

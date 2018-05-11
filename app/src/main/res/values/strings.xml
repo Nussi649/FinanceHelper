@@ -17,6 +17,7 @@
     <string name="label_fast_save">Schnellspeichern</string>
     <string name="label_new_account">Neues Konto</string>
     <string name="label_hidden">verstecken</string>
+    <string name="label_encrypt">verschlüsseln</string>
     <string name="label_delete_fastsave">Standardspeicherstand löschen</string>
     <string name="label_delete">Löschen</string>
     <string name="label_add_funds">Einkommen buchen</string>
@@ -30,6 +31,7 @@
     <string name="label_settings">Einstellungen</string>
     <string name="label_export">Exportieren</string>
     <string name="label_import">Importieren</string>
+    <string name="label_enter_password">Passwort eingeben</string>
     <string name="sign_delete">-</string>
     <string name="toast_success_new_entry">neuer Eintrag erfolgreich hinzugefügt.</string>
     <string name="toast_success_accounts_saved">Die Konten wurden erfolgreich gespeichert.</string>
@@ -39,6 +41,7 @@
     <string name="toast_error_unknown">ein unbekannter Fehler ist aufgetreten</string>
     <string name="toast_error_invalid_filename">Die angegebene Datei existiert nicht.</string>
     <string name="toast_error_invalid_import">Syntaxfehler in den Daten.</string>
+    <string name="toast_error_encryption">Verschlüsselungsfehler</string>
     <string name="toast_error_empty_description">Das Beschreibungsfeld ist leer</string>
     <string name="toast_error_empty_amount">Es ist kein Betrag angegeben</string>
     <string name="toast_error_NaN">Bitte geben Sie eine Zahl an.</string>

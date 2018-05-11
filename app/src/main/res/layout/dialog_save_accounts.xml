@@ -31,4 +31,13 @@
         android:layout_centerHorizontal="true"
         android:layout_below="@id/edit_save_name"
         android:text = "@string/label_hidden" />
+
+    <CheckBox
+        android:id="@+id/check_encrypt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_alignLeft="@id/check_hidden"
+        android:layout_below="@id/check_hidden"
+        android:text="@string/label_encrypt" />
 </RelativeLayout>
