@@ -6,6 +6,13 @@
     android:layout_height="match_parent"
     android:padding="10dp">
 
+    <EditText
+        android:id="@+id/edit_filter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:hint="@string/label_filter" />
+
     <TableLayout
         android:id="@+id/contentTable"
         android:layout_width="match_parent"

@@ -2,8 +2,6 @@ package Backend;
 
 import android.content.Context;
 
-import com.privat.pitz.financehelper.R;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -16,7 +14,6 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 
 import Logic.AccountBE;
@@ -76,7 +73,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
                 entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
-                entr.put(Const.JSON_TAG_TIME, Util.formatDate(e.getDate()));
+                entr.put(Const.JSON_TAG_TIME, Util.formatDateSave(e.getDate()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -96,7 +93,7 @@ public class Controller {
                 JSONObject entr = new JSONObject();
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
                 entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
-                entr.put(Const.JSON_TAG_TIME, Util.formatDate(e.getDate()));
+                entr.put(Const.JSON_TAG_TIME, Util.formatDateSave(e.getDate()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -122,7 +119,7 @@ public class Controller {
             JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
             for (int j = 0; j < entries.length(); j++) {
                 JSONObject curEntry = entries.getJSONObject(j);
-                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDate(curEntry.getString(Const.JSON_TAG_TIME)));
+                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(curEntry.getString(Const.JSON_TAG_TIME)));
                 curAcc.addEntry(entry);
             }
             model.payAccounts.add(curAcc);
@@ -139,7 +136,7 @@ public class Controller {
             JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
             for (int j = 0; j < entries.length(); j++) {
                 JSONObject curEntry = entries.getJSONObject(j);
-                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDate(curEntry.getString(Const.JSON_TAG_TIME)));
+                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(curEntry.getString(Const.JSON_TAG_TIME)));
                 curAcc.addEntry(entry);
             }
             model.investAccounts.add(curAcc);
@@ -254,6 +251,14 @@ public class Controller {
         EntryBE entryInvest = new EntryBE(amount, desc, calendar.getTime());
         payAccount.addEntry(entryPay);
         investAccount.addEntry(entryInvest);
+    }
+
+    public AccountBE getAccountByName(String name) {
+        AccountBE re = getPayAccountByName(name);
+        if (re == null) {
+            re = getInvestAccountByName(name);
+        }
+        return re;
     }
 
     public AccountBE getPayAccountByName(String name) {

@@ -35,6 +35,7 @@ public class Const {
 
     public static int KEY_BIT_LENGTH = 2048;
 
-    public static String DATE_FORMAT = "dd.MM. hh:mm";
+    public static String DATE_FORMAT_DISPLAY = "dd.MM. hh:mm";
+    public static String DATE_FORMAT_SAVE = "dd.MM.yyyy hh:mm";
 
 }

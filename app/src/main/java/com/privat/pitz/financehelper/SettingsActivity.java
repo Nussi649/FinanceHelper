@@ -43,7 +43,7 @@ public class SettingsActivity extends AbstractActivity {
             check1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    controller.getPayAccountByName(check1.getText().toString()).setActive(b);
+                    controller.getAccountByName(check1.getText().toString()).setActive(b);
                 }
             });
             check1.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0.5f));
@@ -53,7 +53,7 @@ public class SettingsActivity extends AbstractActivity {
             check2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    controller.getPayAccountByName(check2.getText().toString()).setActive(b);
+                    controller.getAccountByName(check2.getText().toString()).setActive(b);
                 }
             });
             check2.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0.5f));
@@ -69,7 +69,7 @@ public class SettingsActivity extends AbstractActivity {
             check.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    controller.getPayAccountByName(check.getText().toString()).setActive(b);
+                    controller.getAccountByName(check.getText().toString()).setActive(b);
                 }
             });
             TableRow row = new TableRow(this);

@@ -1,11 +1,6 @@
 package Backend;
 
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -134,13 +129,18 @@ public abstract class Util {
         return String.format("%.2f", input).replace(',','.');
     }
 
-    public static String formatDate(Date input) {
+    public static String formatDateDisplay(Date input) {
         android.text.format.DateFormat df = new android.text.format.DateFormat();
-        return df.format(Const.DATE_FORMAT, input).toString();
+        return df.format(Const.DATE_FORMAT_DISPLAY, input).toString();
     }
 
-    public static Date parseDate(String input) throws ParseException {
-        SimpleDateFormat df = new SimpleDateFormat(Const.DATE_FORMAT);
+    public static String formatDateSave(Date input) {
+        android.text.format.DateFormat df = new android.text.format.DateFormat();
+        return df.format(Const.DATE_FORMAT_SAVE, input).toString();
+    }
+
+    public static Date parseDateSave(String input) throws ParseException {
+        SimpleDateFormat df = new SimpleDateFormat(Const.DATE_FORMAT_SAVE);
         return df.parse(input);
     }
 

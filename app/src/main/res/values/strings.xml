@@ -35,6 +35,7 @@
     <string name="label_import">Importieren</string>
     <string name="label_enter_password">Passwort eingeben</string>
     <string name="label_are_u_sure">Sind Sie sicher?</string>
+    <string name="label_filter">Filtern...</string>
     <string name="question_delete_savefile">Wollen Sie wirklich den Speicherstand löschen?</string>
     <string name="sign_delete">-</string>
     <string name="toast_success_new_entry">neuer Eintrag erfolgreich hinzugefügt.</string>
