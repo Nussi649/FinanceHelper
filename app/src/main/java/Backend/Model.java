@@ -10,8 +10,8 @@ public class Model {
     public AccountBE currentPayAcc;
     public AccountBE currentInvestAcc;
     public AccountBE transferRecipientAcc;
+    public AccountBE currentInspectedAccount;
     public String nextFileName;
     public boolean nextFileHidden;
-    public int entrySequenceValue;
     public boolean needRefresh = false;
 }

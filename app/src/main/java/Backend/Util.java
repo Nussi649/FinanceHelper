@@ -15,6 +15,9 @@ import com.privat.pitz.financehelper.R;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import Logic.AccountBE;
 
@@ -131,6 +134,16 @@ public abstract class Util {
         return String.format("%.2f", input).replace(',','.');
     }
 
+    public static String formatDate(Date input) {
+        android.text.format.DateFormat df = new android.text.format.DateFormat();
+        return df.format(Const.DATE_FORMAT, input).toString();
+    }
+
+    public static Date parseDate(String input) throws ParseException {
+        SimpleDateFormat df = new SimpleDateFormat(Const.DATE_FORMAT);
+        return df.parse(input);
+    }
+
     public static String sha256(String s) {
         try {
             // Create SHA-256 Hash
@@ -158,9 +171,5 @@ public abstract class Util {
     public static String bigIntToString(BigInteger b) {
         byte[] bytes = b.toByteArray();
         return new String(bytes);
-    }
-
-    public static String formatFloat(float f) {
-        return String.format("%.2f", f).replace(',','.');
     }
 }

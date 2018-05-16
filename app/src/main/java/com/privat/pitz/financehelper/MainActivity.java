@@ -1,6 +1,5 @@
 package com.privat.pitz.financehelper;
 
-import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.support.v7.app.AlertDialog;
@@ -8,7 +7,6 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -20,11 +18,11 @@ import android.widget.TextView;
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.List;
 
 import Backend.Const;
 import Backend.Util;
-import Logic.AccountBE;
 
 public class MainActivity extends AbstractActivity {
 
@@ -33,6 +31,7 @@ public class MainActivity extends AbstractActivity {
     public EditText newDescription;
     public EditText newAmount;
 
+    //region overridden activity methods
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         onAppStartup();
@@ -43,13 +42,18 @@ public class MainActivity extends AbstractActivity {
     @Override
     protected void workingThread() {
         try {
-            controller.readAccountsFromInternal();
+            if (model.payAccounts.size() == 0 || model.investAccounts.size() == 0)
+                controller.readAccountsFromInternal();
         } catch (JSONException jsone) {
             jsone.printStackTrace();
             getController().initAccountLists();
         } catch (IOException ioe) {
             ioe.printStackTrace();
             getController().initAccountLists();
+        } catch (ParseException pe) {
+            pe.printStackTrace();
+            getController().initAccountLists();
+            showToastLong(R.string.toast_error_parsing);
         }
     }
 
@@ -98,6 +102,7 @@ public class MainActivity extends AbstractActivity {
         }
         super.onStop();
     }
+    //endregion
 
     private void reloadAccountLists() {
         LinearLayout payAccounts = findViewById(R.id.linLayPayAccounts);
@@ -155,6 +160,7 @@ public class MainActivity extends AbstractActivity {
         Util.populateInvestAccountsList(this, investAccounts);
     }
 
+    //region show Dialog
     private void showSaveAccountsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_save_accounts);
@@ -166,7 +172,7 @@ public class MainActivity extends AbstractActivity {
         exportButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                exportAccounts();
+                showExportDialog();
             }
         });
         builder.setView(dialogView);
@@ -188,6 +194,22 @@ public class MainActivity extends AbstractActivity {
         saveName.requestFocus();
     }
 
+    private void showSavePasswordDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_enter_password);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_enter_password, null);
+        final EditText password = dialogView.findViewById(R.id.edit_password);
+        builder.setView(dialogView);
+        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
+        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                saveEncryptedAccountsByName(getModel().nextFileName, password.getText().toString(), getModel().nextFileHidden);
+            }
+        });
+        builder.show();
+    }
+
     private void showLoadAccountsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_load_accounts);
@@ -198,7 +220,7 @@ public class MainActivity extends AbstractActivity {
         importButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                importAccounts();
+                showImportDialog();
             }
         });
         final List<String> availableFiles = getController().getAvailableSaveFiles();
@@ -252,34 +274,20 @@ public class MainActivity extends AbstractActivity {
                 } catch (IOException ioe) {
                     dialog.dismiss();
                     showToastLong(R.string.toast_error_invalid_filename);
+                } catch (ParseException pe) {
+                    dialog.dismiss();
+                    showToastLong(R.string.toast_error_parsing);
                 }
             }
         });
         builder.show();
     }
 
-<<<<<<< HEAD
-    private void showSavePasswordDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_enter_password);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_enter_password, null);
-        final EditText password = dialogView.findViewById(R.id.edit_password);
-        builder.setView(dialogView);
-        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                saveEncryptedAccountsByName(getModel().nextFileName, password.getText().toString(), getModel().nextFileHidden);
-            }
-        });
-        builder.show();
-=======
     private void showPasswordInputDialog() {
 
->>>>>>> a2ba2416e32beaab6252f1bf397fd1aad26b71fb
     }
 
-    private void exportAccounts() {
+    private void showExportDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_export);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_show_export, null);
@@ -295,7 +303,7 @@ public class MainActivity extends AbstractActivity {
         builder.show();
     }
 
-    private void importAccounts() {
+    private void showImportDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_import);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_show_import, null);
@@ -310,12 +318,16 @@ public class MainActivity extends AbstractActivity {
                     showToast(R.string.toast_success_accounts_imported);
                 } catch (JSONException jsone) {
                     showToastLong(R.string.toast_error_invalid_import);
+                } catch (ParseException pe) {
+                    showToastLong(R.string.toast_error_parsing);
                 }
             }
         });
         builder.show();
     }
+    //endregion
 
+    //region react to dialog
     private void saveEncryptedAccountsByName(String name, String password, boolean hidden) {
         try {
             if (hidden) {
@@ -349,4 +361,5 @@ public class MainActivity extends AbstractActivity {
         }
         showToastLong(R.string.toast_success_accounts_saved);
     }
+    //endregion
 }

@@ -13,7 +13,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 
 import Logic.AccountBE;
@@ -71,9 +74,9 @@ public class Controller {
             JSONArray entries = new JSONArray();
             for (EntryBE e : a.getEntries()) {
                 JSONObject entr = new JSONObject();
-                entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
                 entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
+                entr.put(Const.JSON_TAG_TIME, Util.formatDate(e.getDate()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -91,9 +94,9 @@ public class Controller {
             JSONArray entries = new JSONArray();
             for (EntryBE e : a.getEntries()) {
                 JSONObject entr = new JSONObject();
-                entr.put(Const.JSON_TAG_ID, e.getId());
                 entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
                 entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
+                entr.put(Const.JSON_TAG_TIME, Util.formatDate(e.getDate()));
                 entries.put(entr);
             }
             acc.put(Const.JSON_TAG_ENTRIES, entries);
@@ -105,7 +108,7 @@ public class Controller {
         return json.toString();
     }
 
-    public void importAccounts(String data) throws JSONException {
+    public void importAccounts(String data) throws JSONException, ParseException {
         JSONObject json = new JSONObject(data);
         JSONArray accounts;
 
@@ -119,7 +122,7 @@ public class Controller {
             JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
             for (int j = 0; j < entries.length(); j++) {
                 JSONObject curEntry = entries.getJSONObject(j);
-                EntryBE entry = new EntryBE(curEntry.getInt(Const.JSON_TAG_ID), (float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION));
+                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDate(curEntry.getString(Const.JSON_TAG_TIME)));
                 curAcc.addEntry(entry);
             }
             model.payAccounts.add(curAcc);
@@ -136,7 +139,7 @@ public class Controller {
             JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
             for (int j = 0; j < entries.length(); j++) {
                 JSONObject curEntry = entries.getJSONObject(j);
-                EntryBE entry = new EntryBE(curEntry.getInt(Const.JSON_TAG_ID), (float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION));
+                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDate(curEntry.getString(Const.JSON_TAG_TIME)));
                 curAcc.addEntry(entry);
             }
             model.investAccounts.add(curAcc);
@@ -159,7 +162,7 @@ public class Controller {
     public String readFromInternal(String filename) throws IOException {
         String data = "";
 
-        File file = new File(context.getFilesDir(), filename + Const.ACCOUNTS_FILE_TYPE);
+        File file = new File(context.getFilesDir(), filename);
         FileReader fReader = new FileReader(file);
         BufferedReader reader = new BufferedReader(fReader);
         data = reader.readLine();
@@ -182,16 +185,16 @@ public class Controller {
         writeToInternal(payload, filename + Const.ACCOUNTS_FILE_TYPE);
     }
 
-    public void readAccountsFromInternal() throws JSONException, IOException{
+    public void readAccountsFromInternal() throws JSONException, IOException, ParseException{
         readAccountsFromInternal(Const.ACCOUNTS_FASTSAVE_FILE_NAME);
     }
 
-    public void readAccountsFromInternal(String filename) throws JSONException, IOException {
+    public void readAccountsFromInternal(String filename) throws JSONException, IOException, ParseException {
         String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
         importAccounts(payload);
     }
 
-    public void readEncryptedAccountsFromInternal(String filename, String password) throws JSONException, IOException {
+    public void readEncryptedAccountsFromInternal(String filename, String password) throws JSONException, IOException, ParseException {
         String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
         importAccounts(decryptData(payload, password));
     }
@@ -246,8 +249,9 @@ public class Controller {
     //endregion
 
     public void addEntry(String desc, float amount, AccountBE payAccount, AccountBE investAccount) {
-        EntryBE entryPay = new EntryBE(model.entrySequenceValue++, amount*(-1.0f), desc);
-        EntryBE entryInvest = new EntryBE(model.entrySequenceValue++, amount, desc);
+        Calendar calendar = Calendar.getInstance();
+        EntryBE entryPay = new EntryBE(amount*(-1.0f), desc, calendar.getTime());
+        EntryBE entryInvest = new EntryBE(amount, desc, calendar.getTime());
         payAccount.addEntry(entryPay);
         investAccount.addEntry(entryInvest);
     }

@@ -2,11 +2,8 @@ package View;
 
 import android.content.Context;
 import android.view.LayoutInflater;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.privat.pitz.financehelper.R;
@@ -28,7 +25,7 @@ public class AccountTableRow extends LinearLayout {
     }
 
     private void populateUI() {
-        RelativeLayout relative = (RelativeLayout) LayoutInflater.from(context).inflate(R.layout.layout_account_table_row, null);
+        RelativeLayout relative = (RelativeLayout) LayoutInflater.from(context).inflate(R.layout.table_row_account_list, null);
         TextView des = relative.findViewById(R.id.text_description);
         des.setText(description);
         TextView am = relative.findViewById(R.id.text_amount);

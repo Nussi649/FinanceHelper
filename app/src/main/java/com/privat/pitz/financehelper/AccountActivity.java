@@ -1,94 +1,85 @@
 package com.privat.pitz.financehelper;
 
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.res.Configuration;
 import android.os.Bundle;
-import android.support.v7.app.AlertDialog;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
+import android.widget.TextView;
 
-import View.AccountView;
+import Backend.Util;
 import Logic.AccountBE;
+import Logic.EntryBE;
 
-public abstract class AccountActivity extends AbstractActivity {
+public class AccountActivity extends AbstractActivity {
+    AccountBE mAccount;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_account);
+    }
+
+    @Override
+    protected void workingThread() {
+        mAccount = getModel().currentInspectedAccount;
     }
 
     @Override
     protected void endWorkingThread() {
+        setTitle(mAccount.getName());
         populateUI();
     }
 
-    abstract void populateUI();
-
-    protected void addAccountToUI(AccountBE acc) {
-        AccountView newAccountView = new AccountView(this, acc);
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
-            TableLayout table = findViewById(R.id.accountContainer);
-            newAccountView.setLayoutWidth(getWindowManager().getDefaultDisplay().getWidth()/2-60);
-            if (table.getChildCount() == 0) {
-                TableRow row = new TableRow(this);
-                row.addView(newAccountView);
-                table.addView(row);
-            } else {
-                TableRow lastRow = (TableRow) table.getChildAt(table.getChildCount() - 1);
-                if (lastRow.getChildCount() == 2) {
-                    TableRow newRow = new TableRow(this);
-                    newRow.addView(newAccountView);
-                    table.addView(newRow);
-                } else {
-                    lastRow.addView(newAccountView);
-                }
-            }
-        } else if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            LinearLayout linLay = findViewById(R.id.accountContainer);
-            linLay.addView(newAccountView);
-        } else {
-            showToast(R.string.toast_error_unknown);
-        }
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.menu_account, menu);
+        return super.onCreateOptionsMenu(menu);
     }
 
-    protected void reloadContent() {
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
-            TableLayout table = findViewById(R.id.accountContainer);
-            table.removeAllViews();
-        } else if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            LinearLayout linLay = findViewById(R.id.accountContainer);
-            linLay.removeAllViews();
-        } else {
-            showToast(R.string.toast_error_unknown);
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.item_delete_account:
+                deleteAccount();
+                break;
+            default:
+                break;
         }
-        for (AccountBE a : model.payAccounts) {
-            addAccountToUI(a);
-        }
+        return super.onOptionsItemSelected(item);
     }
 
-    protected void showNewAccountDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_new_account);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_new_account, null);
-        final EditText newAccountName = dialogView.findViewById(R.id.edit_new_account_name);
-        builder.setView(dialogView);
-        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                createAccount(newAccountName.getText().toString());
-            }
-        });
-        builder.show();
-        newAccountName.requestFocus();
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.showSoftInput(newAccountName, InputMethodManager.SHOW_IMPLICIT);
+    private void populateUI() {
+        if (mAccount.getEntries().size() == 0) {
+            findViewById(R.id.root_layout).setVisibility(View.GONE);
+            showToastLong(R.string.toast_error_no_entries);
+            return;
+        }
+        TableLayout tabLay = findViewById(R.id.contentTable);
+        for (EntryBE entr : mAccount.getEntries()) {
+            TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.table_row_account, tabLay, false);
+            TextView date = row.findViewById(R.id.label_time);
+            TextView description = row.findViewById(R.id.label_description);
+            TextView amount = row.findViewById(R.id.label_amount);
+            date.setText(Util.formatDate(entr.getDate()));
+            description.setText(entr.getDescription());
+            amount.setText(Util.formatFloat(entr.getAmount()));
+            tabLay.addView(row);
+        }
+        TextView sum = findViewById(R.id.display_sum);
+        sum.setText(Util.formatFloat(mAccount.getSum()));
     }
 
-    abstract void createAccount(String name);
+    private void deleteAccount() {
+        // TODO: ask for confirmation
+        if (getModel().payAccounts.contains(mAccount))
+            getModel().payAccounts.remove(mAccount);
+        if (getModel().investAccounts.contains(mAccount))
+            getModel().investAccounts.remove(mAccount);
+
+        startActivity(MainActivity.class);
+    }
 }

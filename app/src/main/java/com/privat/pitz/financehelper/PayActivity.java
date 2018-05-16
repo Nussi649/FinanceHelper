@@ -9,13 +9,14 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+
+import java.util.Calendar;
 
 import Backend.Util;
 import Logic.AccountBE;
 import Logic.EntryBE;
 
-public class PayActivity extends AccountActivity {
+public class PayActivity extends AccountListActivity {
 
     EditText addFundsAmount;
     EditText transferAmount;
@@ -24,11 +25,12 @@ public class PayActivity extends AccountActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_account);
+        setContentView(R.layout.activity_account_list);
     }
 
     @Override
     protected void populateUI() {
+        setTitle(R.string.label_pay_accounts);
         for (AccountBE a : model.payAccounts) {
             if (a.getIsActive())
                 addAccountToUI(a);
@@ -67,6 +69,7 @@ public class PayActivity extends AccountActivity {
         addAccountToUI(newAccount);
     }
 
+    //region show Dialog
     private void showAddFundsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_add_funds);
@@ -94,11 +97,6 @@ public class PayActivity extends AccountActivity {
         LinearLayout payAccounts = dialogView.findViewById(R.id.linLayPayAccounts);
         Util.populatePayAccountsList(this, payAccounts);
         builder.show();
-    }
-
-    private void addFunds(float amount, String desc) {
-        model.currentPayAcc.addEntry(new EntryBE(model.entrySequenceValue++, amount, desc));
-        reloadContent();
     }
 
     private void showTransferDialog() {
@@ -132,9 +130,17 @@ public class PayActivity extends AccountActivity {
 
         builder.show();
     }
+    //endregion
+
+    //region react to dialog
+    private void addFunds(float amount, String desc) {
+        model.currentPayAcc.addEntry(new EntryBE(amount, desc, Calendar.getInstance().getTime()));
+        reloadContent();
+    }
 
     private void transferFunds(float amount, String desc) {
         getController().addEntry(desc, amount, model.currentPayAcc, model.transferRecipientAcc);
         reloadContent();
     }
+    //endregion
 }

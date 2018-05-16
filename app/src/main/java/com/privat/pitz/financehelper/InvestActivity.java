@@ -7,12 +7,12 @@ import android.view.MenuItem;
 
 import Logic.AccountBE;
 
-public class InvestActivity extends AccountActivity {
+public class InvestActivity extends AccountListActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_account);
+        setContentView(R.layout.activity_account_list);
     }
 
     @Override
@@ -43,6 +43,7 @@ public class InvestActivity extends AccountActivity {
 
     @Override
     protected void populateUI() {
+        setTitle(R.string.label_invest_accounts);
         for (AccountBE a : model.investAccounts) {
             if (a.getIsActive())
                 addAccountToUI(a);

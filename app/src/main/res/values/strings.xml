@@ -5,6 +5,7 @@
     <string name="default_account_title">Account Title</string>
     <string name="loadingscreen_title">Loading</string>
     <string name="loadingscreen_body">Please wait...</string>
+    <string name="label_time">Datum</string>
     <string name="label_description">Bezeichnung</string>
     <string name="label_amount">Betrag</string>
     <string name="label_soll">Soll</string>
@@ -20,6 +21,7 @@
     <string name="label_encrypt">verschlüsseln</string>
     <string name="label_delete_fastsave">Standardspeicherstand löschen</string>
     <string name="label_delete">Löschen</string>
+    <string name="label_delete_account">Konto löschen</string>
     <string name="label_add_funds">Einkommen buchen</string>
     <string name="label_transfer">Umbuchung</string>
     <string name="label_new_accountname">Name:</string>
@@ -31,12 +33,9 @@
     <string name="label_settings">Einstellungen</string>
     <string name="label_export">Exportieren</string>
     <string name="label_import">Importieren</string>
-<<<<<<< HEAD
     <string name="label_enter_password">Passwort eingeben</string>
-=======
     <string name="label_are_u_sure">Sind Sie sicher?</string>
     <string name="question_delete_savefile">Wollen Sie wirklich den Speicherstand löschen?</string>
->>>>>>> a2ba2416e32beaab6252f1bf397fd1aad26b71fb
     <string name="sign_delete">-</string>
     <string name="toast_success_new_entry">neuer Eintrag erfolgreich hinzugefügt.</string>
     <string name="toast_success_accounts_saved">Die Konten wurden erfolgreich gespeichert.</string>
@@ -50,4 +49,6 @@
     <string name="toast_error_empty_description">Das Beschreibungsfeld ist leer</string>
     <string name="toast_error_empty_amount">Es ist kein Betrag angegeben</string>
     <string name="toast_error_NaN">Bitte geben Sie eine Zahl an.</string>
+    <string name="toast_error_parsing">Parsing Error</string>
+    <string name="toast_error_no_entries">Es gibt keine Einträge zum anzeigen.</string>
 </resources>

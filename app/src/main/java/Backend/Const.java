@@ -10,7 +10,7 @@ public class Const {
     public static String ACCOUNTS_HIDDEN_DIRECTORY = "hidden";
     public static String ACCOUNTS_FILE_TYPE = ".jso";
 
-    public static String JSON_TAG_ID = "id";
+    public static String JSON_TAG_TIME = "time";
     public static String JSON_TAG_ENTRIES = "entries";
     public static String JSON_TAG_NAME = "name";
     public static String JSON_TAG_AMOUNT = "amount";
@@ -34,5 +34,7 @@ public class Const {
     public static String ACCOUNT_BUS = "Busbudget";
 
     public static int KEY_BIT_LENGTH = 2048;
+
+    public static String DATE_FORMAT = "dd.MM. hh:mm";
 
 }

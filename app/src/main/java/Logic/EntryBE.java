@@ -1,14 +1,21 @@
 package Logic;
 
+import java.util.Date;
+
 public class EntryBE {
-    int mId;
     float mAmount;
     String mDescription;
+    Date mDate;
 
-    public EntryBE(int id, float amount, String description) {
-        mId = id;
+    public EntryBE(float amount, String description) {
         mAmount = amount;
         mDescription = description;
+    }
+
+    public EntryBE(float amount, String description, Date date) {
+        mAmount = amount;
+        mDescription = description;
+        mDate = date;
     }
 
     public float getAmount() {
@@ -19,12 +26,10 @@ public class EntryBE {
         return mDescription;
     }
 
+    public Date getDate() { return mDate; }
+
     @Override
     public String toString() {
         return getDescription();
-    }
-
-    public int getId() {
-        return mId;
     }
 }
