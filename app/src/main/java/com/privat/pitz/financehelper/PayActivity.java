@@ -12,6 +12,7 @@ import android.widget.LinearLayout;
 
 import java.util.Calendar;
 
+import Backend.Const;
 import Backend.Util;
 import Logic.AccountBE;
 import Logic.EntryBE;
@@ -125,8 +126,8 @@ public class PayActivity extends AccountListActivity {
         });
         LinearLayout payAccounts1 = dialogView.findViewById(R.id.linLayPayAccounts1);
         LinearLayout payAccounts2 = dialogView.findViewById(R.id.linLayPayAccounts2);
-        Util.populatePayAccountsList(this, payAccounts1, "-1");
-        Util.populatePayAccountsList(this, payAccounts2, "-2");
+        Util.populatePayAccountsList(this, payAccounts1, Const.APPENDIX_PAY_SENDER);
+        Util.populatePayAccountsList(this, payAccounts2, Const.APPENDIX_PAY_RECIPIENT);
 
         builder.show();
     }

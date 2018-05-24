@@ -73,20 +73,30 @@ public abstract class Util {
             tv.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimary));
-                    m.currentPayAcc = act.getController().getPayAccountByName((String)v.getTag());
-                    parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+                    String tag = (String) v.getTag();
+                    if (appendix == Const.APPENDIX_PAY_SENDER) {
+                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimary));
+                        m.currentPayAcc = act.getController().getPayAccountByName(tag.substring(0, tag.length() - appendix.length()));
+                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+                    } else if (appendix == Const.APPENDIX_PAY_RECIPIENT) {
+                        if (m.transferRecipientAcc != null)
+                            parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimary));
+                        m.transferRecipientAcc = act.getController().getPayAccountByName(tag.substring(0, tag.length() - appendix.length()));
+                        parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+                    }
                 }
             });
             parent.addView(tv);
         }
-        int i = 0;
-        if (m.currentPayAcc == null) {
-            while (parent.findViewWithTag(m.payAccounts.get(i).toString()) == null)
-                i++;
-            m.currentPayAcc = m.payAccounts.get(i);
+        if (appendix == Const.APPENDIX_PAY_SENDER) {
+            int i = 0;
+            if (m.currentPayAcc == null) {
+                while (parent.findViewWithTag(m.payAccounts.get(i).toString()) == null)
+                    i++;
+                m.currentPayAcc = m.payAccounts.get(i);
+            }
+            parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
         }
-        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
     }
 
     public static void populateInvestAccountsList(final AbstractActivity act, final LinearLayout parent) {

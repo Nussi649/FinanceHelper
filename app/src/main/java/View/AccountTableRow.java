@@ -24,12 +24,25 @@ public class AccountTableRow extends LinearLayout {
         populateUI();
     }
 
+    public AccountTableRow(Context context, String description) {
+        super(context);
+        this.context = context;
+        this.description = description;
+        this.amount = 0.0f;
+        populateUI();
+    }
+
     private void populateUI() {
         RelativeLayout relative = (RelativeLayout) LayoutInflater.from(context).inflate(R.layout.table_row_account_list, null);
         TextView des = relative.findViewById(R.id.text_description);
         des.setText(description);
-        TextView am = relative.findViewById(R.id.text_amount);
-        am.setText(Util.formatFloat(amount));
+        if (amount != 0.0f) {
+            TextView am = relative.findViewById(R.id.text_amount);
+            am.setText(Util.formatFloat(amount));
+        } else {
+            relative.findViewById(R.id.text_amount).setVisibility(GONE);
+            relative.findViewById(R.id.eurosign).setVisibility(GONE);
+        }
         addView(relative);
     }
 

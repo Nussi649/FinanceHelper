@@ -10,6 +10,9 @@ public class Const {
     public static String ACCOUNTS_HIDDEN_DIRECTORY = "hidden";
     public static String ACCOUNTS_FILE_TYPE = ".jso";
 
+    public static String APPENDIX_PAY_SENDER = "-1";
+    public static String APPENDIX_PAY_RECIPIENT = "-2";
+
     public static String JSON_TAG_TIME = "time";
     public static String JSON_TAG_ENTRIES = "entries";
     public static String JSON_TAG_NAME = "name";

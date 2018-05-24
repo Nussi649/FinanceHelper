@@ -39,9 +39,17 @@ public class AccountView extends LinearLayout {
         if (entries.size() == 0) {
             findViewById(R.id.sum_block).setVisibility(GONE);
         } else {
-            for (EntryBE e : entries) {
-                AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
-                content.addView(row);
+            if (entries.size() > 10) {
+                content.addView(new AccountTableRow(context, "..."));
+                for (EntryBE e : entries.subList(entries.size() - 10, entries.size())) {
+                    AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
+                    content.addView(row);
+                }
+            } else {
+                for (EntryBE e : entries) {
+                    AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
+                    content.addView(row);
+                }
             }
             TextView sum = findViewById(R.id.display_sum);
             sum.setText(Util.formatFloat(mAccount.getSum()));
