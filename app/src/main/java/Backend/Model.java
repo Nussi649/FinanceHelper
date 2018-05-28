@@ -13,5 +13,4 @@ public class Model {
     public AccountBE currentInspectedAccount;
     public String nextFileName;
     public boolean nextFileHidden;
-    public boolean needRefresh = false;
 }

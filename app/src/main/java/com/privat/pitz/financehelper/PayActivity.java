@@ -91,8 +91,15 @@ public class PayActivity extends AccountListActivity {
                     dialogInterface.dismiss();
                     showToast(R.string.toast_error_NaN);
                 }
-                if (amount != 0.0f && !(desc.equals("")))
+                if (amount == 0.0f) {
+                    showToastLong(R.string.toast_error_empty_amount);
+                    return;
+                } else if (desc.equals("")) {
+                    showToastLong(R.string.toast_error_empty_description);
+                    return;
+                } else {
                     addFunds(amount, desc);
+                }
             }
         });
         LinearLayout payAccounts = dialogView.findViewById(R.id.linLayPayAccounts);
