@@ -2,6 +2,7 @@ package com.privat.pitz.financehelper;
 
 import android.content.DialogInterface;
 import android.os.Bundle;
+import android.os.Looper;
 import android.support.v7.app.AlertDialog;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -19,6 +20,8 @@ import org.json.JSONException;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.time.Month;
+import java.util.Calendar;
 import java.util.List;
 
 import Backend.Const;
@@ -41,25 +44,14 @@ public class MainActivity extends AbstractActivity {
 
     @Override
     protected void workingThread() {
-        try {
-            if (model.payAccounts.size() == 0 || model.investAccounts.size() == 0)
-                controller.readAccountsFromInternal();
-        } catch (JSONException jsone) {
-            jsone.printStackTrace();
-            getController().initAccountLists();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-            getController().initAccountLists();
-        } catch (ParseException pe) {
-            pe.printStackTrace();
-            getController().initAccountLists();
-            showToastLong(R.string.toast_error_parsing);
-        }
+        Looper.prepare();
+        setupNewAccounts();
     }
 
     @Override
     protected void endWorkingThread() {
         populateUI();
+        setTitle(getResources().getString(R.string.app_name) + " - " + Util.cutFileNameIfNecessary(getModel().currentFileName));
     }
 
     @Override
@@ -80,6 +72,9 @@ public class MainActivity extends AbstractActivity {
                 break;
             case R.id.item_settings:
                 startActivity(SettingsActivity.class);
+                break;
+            case R.id.item_display_recurring_orders:
+                startActivity(RecurringOrderActivity.class);
                 break;
             default:
                 break;
@@ -110,12 +105,14 @@ public class MainActivity extends AbstractActivity {
 
         Util.populatePayAccountsList(this, payAccounts);
         Util.populateInvestAccountsList(this, investAccounts);
+        setTitle(getResources().getString(R.string.app_name) + " - " + Util.cutFileNameIfNecessary(getModel().currentFileName));
     }
 
     private void populateUI() {
         Button pay = findViewById(R.id.button_pay);
         Button invest = findViewById(R.id.button_invest);
         Button addEntry = findViewById(R.id.button_add_entry);
+        Button addRecurringOrder = findViewById(R.id.button_add_recurring_order);
         LinearLayout payAccounts = findViewById(R.id.linLayPayAccounts);
         LinearLayout investAccounts = findViewById(R.id.linLayInvestAccounts);
         newDescription = findViewById(R.id.edit_new_description);
@@ -153,6 +150,26 @@ public class MainActivity extends AbstractActivity {
                 newDescription.setText("");
                 newAmount.setText("");
                 showToastLong(R.string.toast_success_new_entry);
+            }
+        });
+
+        addRecurringOrder.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String des = newDescription.getText().toString();
+                String am = newAmount.getText().toString();
+                if (des.equals("")) {
+                    showToastLong(R.string.toast_error_empty_description);
+                    return;
+                }
+                if (am.equals("")) {
+                    showToastLong(R.string.toast_error_empty_amount);
+                    return;
+                }
+                controller.addRecurringOrder(model.currentPayAcc, model.currentInvestAcc, des, Float.valueOf(am));
+                newDescription.setText("");
+                newAmount.setText("");
+                showToastLong(R.string.toast_success_new_recurring_order);
             }
         });
 
@@ -362,4 +379,9 @@ public class MainActivity extends AbstractActivity {
         showToastLong(R.string.toast_success_accounts_saved);
     }
     //endregion
+
+    public void setupNewAccounts() {
+        if (!getController().setupAccounts(false))
+            showToastLong("New Sheet for Month " + Const.getDisplayableCurrentMonthName() + " created.");
+    }
 }

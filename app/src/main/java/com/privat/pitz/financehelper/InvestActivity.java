@@ -5,6 +5,8 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 
+import Backend.Const;
+import Backend.Util;
 import Logic.AccountBE;
 
 public class InvestActivity extends AccountListActivity {
@@ -43,7 +45,7 @@ public class InvestActivity extends AccountListActivity {
 
     @Override
     protected void populateUI() {
-        setTitle(R.string.label_invest_accounts);
+        setTitle(getResources().getString(R.string.label_invest_accounts) + " - " + Util.cutFileNameIfNecessary(getModel().currentFileName));
         for (AccountBE a : model.investAccounts) {
             if (a.getIsActive())
                 addAccountToUI(a);

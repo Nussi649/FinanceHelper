@@ -1,5 +1,7 @@
 package com.privat.pitz.financehelper;
 
+import android.app.Dialog;
+import android.content.DialogInterface;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -83,23 +85,32 @@ public class AccountActivity extends AbstractActivity {
     }
 
     private void deleteAccount() {
-        // TODO: ask for confirmation
-        if (getModel().payAccounts.contains(mAccount))
-            getModel().payAccounts.remove(mAccount);
-        if (getModel().investAccounts.contains(mAccount))
-            getModel().investAccounts.remove(mAccount);
-
-        startActivity(MainActivity.class);
+        Dialog.OnClickListener listener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                if (getModel().payAccounts.contains(mAccount))
+                    getModel().payAccounts.remove(mAccount);
+                if (getModel().investAccounts.contains(mAccount))
+                    getModel().investAccounts.remove(mAccount);
+                startActivity(MainActivity.class);
+            }
+        };
+        showConfirmDialog(R.string.question_delete_account, listener);
     }
 
-    private void removeAllEntries() {
+    protected void removeAllEntries() {
         TableLayout tabLay = findViewById(R.id.contentTable);
         while (tabLay.getChildCount() > 2) {
             tabLay.removeViewAt(2);
         }
     }
 
-    private void filterEntries(CharSequence filter) {
+    protected void refreshView() {
+        removeAllEntries();
+        filterEntries(null);
+    }
+
+    protected void filterEntries(CharSequence filter) {
         float sum = 0.0f;
         TableLayout tabLay = findViewById(R.id.contentTable);
         if (filter == null) {

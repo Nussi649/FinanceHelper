@@ -127,6 +127,7 @@ public abstract class AbstractActivity extends AppCompatActivity {
         model = controller.getModel();
         model.payAccounts = new ArrayList<>();
         model.investAccounts = new ArrayList<>();
+        model.recurringOrders = new ArrayList<>();
     }
 
     //region Permissions

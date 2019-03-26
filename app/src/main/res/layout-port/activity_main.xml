@@ -93,11 +93,27 @@
 
         </LinearLayout>
 
-        <Button
-            android:id="@+id/button_add_entry"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/label_add_entry" />
+            android:gravity="top"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/button_add_entry"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="@string/label_add_entry" />
+
+            <Button
+                android:id="@+id/button_add_recurring_order"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="right|top"
+                android:layout_weight="1.9"
+                android:text="@string/label_add_recurring_order" />
+        </LinearLayout>
 
     </LinearLayout>
 

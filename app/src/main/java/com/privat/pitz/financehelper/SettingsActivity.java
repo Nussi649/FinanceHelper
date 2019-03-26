@@ -8,7 +8,6 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
-import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 
@@ -82,7 +81,7 @@ public class SettingsActivity extends AbstractActivity {
                 AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        showToastLong(getController().deleteFastSave() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
+                        showToastLong(getController().deleteCurrentSave() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
                     }
                 };
                 showConfirmDialog(R.string.question_delete_savefile, listener);

@@ -182,4 +182,16 @@ public abstract class Util {
         byte[] bytes = b.toByteArray();
         return new String(bytes);
     }
+
+    public static String cutFileNameIfNecessary(String fileName) {
+        if (fileName == null || fileName.equals(""))
+            return null;
+        int year;
+        try {
+            year = Integer.parseInt(fileName.substring(fileName.length()-4));
+        } catch (NumberFormatException nfe) {
+            return fileName;
+        }
+        return fileName.substring(0,fileName.length() - 4);
+    }
 }

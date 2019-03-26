@@ -56,4 +56,9 @@ public class AccountBE {
     public void setActive(boolean active) {
         isActive = active;
     }
+
+    public void reset() {
+        mEntries = new ArrayList<>();
+        mSum = 0.0f;
+    }
 }

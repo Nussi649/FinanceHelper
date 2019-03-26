@@ -1,6 +1,9 @@
 package Backend;
 
+import android.accounts.Account;
 import android.content.Context;
+
+import com.privat.pitz.financehelper.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -14,11 +17,15 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import Logic.AccountBE;
 import Logic.EntryBE;
 import Logic.PrivateKey;
+import Logic.RecurringOrderBE;
 
 public class Controller {
     public static Controller instance;
@@ -55,6 +62,17 @@ public class Controller {
             model.investAccounts.add(new AccountBE(Const.ACCOUNT_DRUGS));
             model.investAccounts.add(new AccountBE(Const.ACCOUNT_NECESSARY));
             model.investAccounts.add(new AccountBE(Const.ACCOUNT_BUS));
+        }
+
+        getModel().currentFileName = Const.getCurrentMonthName();
+    }
+
+    public void resetAccounts() {
+        for (AccountBE a : getModel().payAccounts) {
+            a.reset();
+        }
+        for (AccountBE a : getModel().investAccounts) {
+            a.reset();
         }
     }
 
@@ -102,6 +120,19 @@ public class Controller {
         json.put(Const.JSON_TAG_IACCOUNTS, array);
         //endregion
 
+        // region save recurring Orders
+        array = new JSONArray();
+        for (RecurringOrderBE r : model.recurringOrders) {
+            JSONObject order = new JSONObject();
+            order.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(r.getAmount()));
+            order.put(Const.JSON_TAG_DESCRIPTION, r.getDescription());
+            order.put(Const.JSON_TAG_TIME, Util.formatDateSave(r.getDate()));
+            order.put(Const.JSON_TAG_PACCOUNT, r.getPayAccount());
+            order.put(Const.JSON_TAG_IACCOUNT, r.getInvestAccount());
+            array.put(order);
+        }
+        json.put(Const.JSON_TAG_RECURRING_ORDERS, array);
+        //endregion
         return json.toString();
     }
 
@@ -142,6 +173,16 @@ public class Controller {
             model.investAccounts.add(curAcc);
         }
         //endregion
+
+        //region get recurring Orders
+        model.recurringOrders = new ArrayList<>();
+        accounts = json.getJSONArray(Const.JSON_TAG_RECURRING_ORDERS);
+        for (int i = 0; i < accounts.length(); i++) {
+            JSONObject cur = accounts.getJSONObject(i);
+            RecurringOrderBE order = new RecurringOrderBE((float)cur.getDouble(Const.JSON_TAG_AMOUNT), cur.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(cur.getString(Const.JSON_TAG_TIME)), cur.getString(Const.JSON_TAG_PACCOUNT), cur.getString(Const.JSON_TAG_IACCOUNT));
+            model.recurringOrders.add(order);
+        }
+        //
     }
 
     public void writeToInternal(String data, String filename) throws IOException {
@@ -169,7 +210,7 @@ public class Controller {
     }
 
     public void saveAccountsToInternal() throws JSONException, IOException {
-        saveAccountsToInternal(Const.ACCOUNTS_FASTSAVE_FILE_NAME);
+        saveAccountsToInternal(getModel().currentFileName);
     }
 
     public void saveAccountsToInternal(String filename) throws JSONException, IOException {
@@ -183,12 +224,13 @@ public class Controller {
     }
 
     public void readAccountsFromInternal() throws JSONException, IOException, ParseException{
-        readAccountsFromInternal(Const.ACCOUNTS_FASTSAVE_FILE_NAME);
+        readAccountsFromInternal(Const.getCurrentMonthName());
     }
 
     public void readAccountsFromInternal(String filename) throws JSONException, IOException, ParseException {
         String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
         importAccounts(payload);
+        getModel().currentFileName = filename;
     }
 
     public void readEncryptedAccountsFromInternal(String filename, String password) throws JSONException, IOException, ParseException {
@@ -196,8 +238,9 @@ public class Controller {
         importAccounts(decryptData(payload, password));
     }
 
-    public boolean deleteFastSave() {
-        File file = new File(context.getFilesDir(), Const.ACCOUNTS_FASTSAVE_FILE_NAME + Const.ACCOUNTS_FILE_TYPE);
+    public boolean deleteCurrentSave() {
+        File file = new File(context.getFilesDir(), getModel().currentFileName + Const.ACCOUNTS_FILE_TYPE);
+        resetAccounts();
         return file.delete();
     }
 
@@ -275,5 +318,84 @@ public class Controller {
                 return a;
         }
         return null;
+    }
+
+    public boolean doNewMonthIfPossible() {
+        Calendar cal = Calendar.getInstance();
+        try {
+            readAccountsFromInternal(Const.getLastMonthName());
+        } catch (JSONException jsone) {
+            jsone.printStackTrace();
+        } catch (IOException ioe) {
+            return false;
+        } catch (ParseException pe) {
+            pe.printStackTrace();
+        }
+        Map<String, Float> oldPayValues = new HashMap<>();
+        for (AccountBE a : model.payAccounts) {
+            if (a.getSum() != 0.0f) {
+                oldPayValues.put(a.getName(), a.getSum());
+                a.addEntry(new EntryBE(a.getSum() * (-1.0f), Const.DESC_CLOSING, cal.getTime()));
+            }
+        }
+        try {
+            saveAccountsToInternal(Const.getLastMonthName());
+        } catch (JSONException jsone) {
+            jsone.printStackTrace();
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        resetAccounts();
+        for (String s : oldPayValues.keySet()) {
+            getPayAccountByName(s).addEntry(new EntryBE(oldPayValues.get(s), Const.DESC_OPENING, cal.getTime()));
+        }
+        getModel().currentFileName = Const.getCurrentMonthName();
+        triggerRecurringOrders();
+        return true;
+    }
+
+    public boolean setupAccounts(boolean blank) {
+        try {
+            if (!blank) {
+                readAccountsFromInternal();
+                return false;
+            }
+            else {
+                initAccountLists();
+                return true;
+            }
+        } catch (JSONException jsone) {
+            jsone.printStackTrace();
+            initAccountLists();
+            return true;
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            if (!doNewMonthIfPossible()) {
+                initAccountLists();
+                return true;
+            }
+            else {
+                return false;
+            }
+        } catch (ParseException pe) {
+            pe.printStackTrace();
+            initAccountLists();
+            return false;
+        }
+    }
+
+    public void addRecurringOrder(AccountBE pay, AccountBE invest, String desc, float amount) {
+        Calendar calendar = Calendar.getInstance();
+        RecurringOrderBE newOrder = new RecurringOrderBE(amount, desc, calendar.getTime(), pay.getName(), invest.getName());
+        getModel().recurringOrders.add(newOrder);
+    }
+
+    public void triggerRecurringOrders() {
+        for (RecurringOrderBE r : getModel().recurringOrders) {
+            AccountBE pay = getPayAccountByName(r.getPayAccount());
+            AccountBE invest = getInvestAccountByName(r.getInvestAccount());
+            pay.addEntry(new EntryBE(r.getAmount()*(-1.0f), r.getDescription()));
+            invest.addEntry(new EntryBE(r.getAmount(), r.getDescription()));
+        }
     }
 }

@@ -1,6 +1,8 @@
 package Backend;
 
 
+import java.util.Calendar;
+
 public class Const {
     public static int MARGIN_ACCOUNT_VIEW = 5;
     public static int ACOUNT_VIEW_LANDSCAPE_WIDTH = 500;
@@ -20,6 +22,9 @@ public class Const {
     public static String JSON_TAG_DESCRIPTION = "description";
     public static String JSON_TAG_PACCOUNTS = "paccounts";
     public static String JSON_TAG_IACCOUNTS = "iaccounts";
+    public static String JSON_TAG_RECURRING_ORDERS = "rorders";
+    public static String JSON_TAG_PACCOUNT = "pay";
+    public static String JSON_TAG_IACCOUNT = "invest";
     public static String JSON_TAG_ISACTIVE = "active";
 
     public static String ACCOUNT_BARGELD = "Bargeld";
@@ -40,5 +45,56 @@ public class Const {
 
     public static String DATE_FORMAT_DISPLAY = "dd.MM. HH:mm";
     public static String DATE_FORMAT_SAVE = "dd.MM.yyyy HH:mm";
+
+    public static String DESC_CLOSING = "Abschluss";
+    public static String DESC_OPENING = "Eröffnung";
+
+    public static String getMonthNameById(int month) {
+        if (month == 0)
+            return "January";
+        if (month == 1)
+            return "February";
+        if (month == 2)
+            return "March";
+        if (month == 3)
+            return "April";
+        if (month == 4)
+            return "May";
+        if (month == 5)
+            return "June";
+        if (month == 6)
+            return "July";
+        if (month == 7)
+            return "August";
+        if (month == 8)
+            return "September";
+        if (month == 9)
+            return "October";
+        if (month == 10)
+            return "November";
+        if (month == 11)
+            return "December";
+        return null;
+    }
+
+    public static String getCurrentMonthName() {
+        Calendar cal = Calendar.getInstance();
+        return getMonthNameById(cal.get(Calendar.MONTH)) + cal.get(Calendar.YEAR);
+    }
+
+    public static String getDisplayableCurrentMonthName() {
+        Calendar cal = Calendar.getInstance();
+        return getMonthNameById(cal.get(Calendar.MONTH));
+    }
+
+    public static String getLastMonthName() {
+        Calendar cal = Calendar.getInstance();
+        int lastMonth = cal.get(Calendar.MONTH) - 1 % 12;
+        if (lastMonth < 11) {
+            return getMonthNameById(lastMonth) + cal.get(Calendar.YEAR);
+        } else {
+            return getMonthNameById(lastMonth) + (cal.get(Calendar.YEAR) - 1);
+        }
+    }
 
 }
