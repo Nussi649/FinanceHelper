@@ -1,5 +1,6 @@
 package Backend;
 
+import android.content.res.Resources;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -21,6 +22,7 @@ public abstract class Util {
 
     public static void populatePayAccountsList(final AbstractActivity act, final LinearLayout parent) {
         final Model m = act.model;
+        final Resources resources = act.getResources();
         parent.removeAllViews();
         if (m.payAccounts == null) {
             return;
@@ -38,9 +40,9 @@ public abstract class Util {
             tv.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundColor(act.getResources().getColor(R.color.colorPrimary));
+                    parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_default);
                     m.currentPayAcc = act.getController().getPayAccountByName((String)v.getTag());
-                    parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+                    parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
                 }
             });
             parent.addView(tv);
@@ -51,7 +53,7 @@ public abstract class Util {
                 i++;
             m.currentPayAcc = m.payAccounts.get(i);
         }
-        parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+        parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
     }
 
     public static void populatePayAccountsList(final AbstractActivity act, final LinearLayout parent, final String appendix) {
@@ -75,14 +77,14 @@ public abstract class Util {
                 public void onClick(View v) {
                     String tag = (String) v.getTag();
                     if (appendix == Const.APPENDIX_PAY_SENDER) {
-                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimary));
+                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_default);
                         m.currentPayAcc = act.getController().getPayAccountByName(tag.substring(0, tag.length() - appendix.length()));
-                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
                     } else if (appendix == Const.APPENDIX_PAY_RECIPIENT) {
                         if (m.transferRecipientAcc != null)
-                            parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimary));
+                            parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_default);
                         m.transferRecipientAcc = act.getController().getPayAccountByName(tag.substring(0, tag.length() - appendix.length()));
-                        parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+                        parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
                     }
                 }
             });
@@ -95,7 +97,7 @@ public abstract class Util {
                     i++;
                 m.currentPayAcc = m.payAccounts.get(i);
             }
-            parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+            parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
         }
     }
 
@@ -119,9 +121,9 @@ public abstract class Util {
             tv.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundColor(act.getResources().getColor(R.color.colorPrimary));
+                    parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_default);
                     m.currentInvestAcc = act.getController().getInvestAccountByName((String)v.getTag());
-                    parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+                    parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
                 }
             });
             parent.addView(tv);
@@ -132,7 +134,7 @@ public abstract class Util {
                 i++;
             m.currentInvestAcc = m.investAccounts.get(i);
         }
-        parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundColor(act.getResources().getColor(R.color.colorPrimaryDark));
+        parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
     }
 
     public static String formatFloat(float input) {

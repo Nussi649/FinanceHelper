@@ -12,7 +12,7 @@ import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 
-import View.AccountView;
+import View.AccountWidget;
 import Logic.AccountBE;
 
 public abstract class AccountListActivity extends AbstractActivity {
@@ -30,8 +30,8 @@ public abstract class AccountListActivity extends AbstractActivity {
     abstract void populateUI();
 
     protected void addAccountToUI(final AccountBE acc) {
-        AccountView newAccountView = new AccountView(this, acc);
-        newAccountView.setOnClickListener(new View.OnClickListener() {
+        AccountWidget newAccountWidget = new AccountWidget(this, acc);
+        newAccountWidget.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 getModel().currentInspectedAccount = acc;
@@ -40,24 +40,24 @@ public abstract class AccountListActivity extends AbstractActivity {
         });
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_PORTRAIT) {
             TableLayout table = findViewById(R.id.accountContainer);
-            newAccountView.setLayoutWidth(getWindowManager().getDefaultDisplay().getWidth()/2-60);
+            newAccountWidget.setLayoutWidth(getWindowManager().getDefaultDisplay().getWidth()/2-60);
             if (table.getChildCount() == 0) {
                 TableRow row = new TableRow(this);
-                row.addView(newAccountView);
+                row.addView(newAccountWidget);
                 table.addView(row);
             } else {
                 TableRow lastRow = (TableRow) table.getChildAt(table.getChildCount() - 1);
                 if (lastRow.getChildCount() == 2) {
                     TableRow newRow = new TableRow(this);
-                    newRow.addView(newAccountView);
+                    newRow.addView(newAccountWidget);
                     table.addView(newRow);
                 } else {
-                    lastRow.addView(newAccountView);
+                    lastRow.addView(newAccountWidget);
                 }
             }
         } else if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
             LinearLayout linLay = findViewById(R.id.accountContainer);
-            linLay.addView(newAccountView);
+            linLay.addView(newAccountWidget);
         } else {
             showToast(R.string.toast_error_unknown);
         }

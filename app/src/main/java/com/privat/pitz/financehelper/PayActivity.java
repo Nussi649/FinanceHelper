@@ -143,6 +143,7 @@ public class PayActivity extends AccountListActivity {
     //region react to dialog
     private void addFunds(float amount, String desc) {
         model.currentPayAcc.addEntry(new EntryBE(amount, desc, Calendar.getInstance().getTime()));
+        model.incomeList.add(new EntryBE(amount, desc, Calendar.getInstance().getTime()));
         reloadContent();
     }
 

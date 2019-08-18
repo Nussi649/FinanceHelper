@@ -10,13 +10,13 @@ import com.privat.pitz.financehelper.R;
 
 import Backend.Util;
 
-public class AccountTableRow extends LinearLayout {
+public class AccountWidgetRow extends LinearLayout {
 
     Context context;
     String description;
     float amount;
 
-    public AccountTableRow(Context context, String description, float amount) {
+    public AccountWidgetRow(Context context, String description, float amount) {
         super(context);
         this.context = context;
         this.description = description;
@@ -24,7 +24,7 @@ public class AccountTableRow extends LinearLayout {
         populateUI();
     }
 
-    public AccountTableRow(Context context, String description) {
+    public AccountWidgetRow(Context context, String description) {
         super(context);
         this.context = context;
         this.description = description;

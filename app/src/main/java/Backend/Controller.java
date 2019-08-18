@@ -76,6 +76,10 @@ public class Controller {
         }
     }
 
+    private void resetIncomeList() {
+        model.incomeList = new ArrayList<>();
+    }
+
     //region Import/Export Account Saves
     public String exportAccounts() throws JSONException {
         JSONObject json = new JSONObject();
@@ -133,6 +137,18 @@ public class Controller {
         }
         json.put(Const.JSON_TAG_RECURRING_ORDERS, array);
         //endregion
+
+        //region save income list
+        array = new JSONArray();
+        for (EntryBE e : model.incomeList) {
+            JSONObject entry = new JSONObject();
+            entry.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
+            entry.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
+            entry.put(Const.JSON_TAG_TIME, Util.formatDateSave(e.getDate()));
+            array.put(entry);
+        }
+        json.put(Const.JSON_TAG_INCOME_LIST, array);
+        //endregion
         return json.toString();
     }
 
@@ -182,7 +198,17 @@ public class Controller {
             RecurringOrderBE order = new RecurringOrderBE((float)cur.getDouble(Const.JSON_TAG_AMOUNT), cur.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(cur.getString(Const.JSON_TAG_TIME)), cur.getString(Const.JSON_TAG_PACCOUNT), cur.getString(Const.JSON_TAG_IACCOUNT));
             model.recurringOrders.add(order);
         }
-        //
+        //endregion
+
+        //region get income List
+        model.incomeList = new ArrayList<>();
+        accounts = json.getJSONArray(Const.JSON_TAG_INCOME_LIST);
+        for (int i = 0; i < accounts.length(); i++) {
+            JSONObject cur = accounts.getJSONObject(i);
+            EntryBE curEntry = new EntryBE((float)cur.getDouble(Const.JSON_TAG_AMOUNT), cur.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(cur.getString(Const.JSON_TAG_TIME)));
+            model.incomeList.add(curEntry);
+        }
+        //endregion
     }
 
     public void writeToInternal(String data, String filename) throws IOException {
@@ -346,6 +372,7 @@ public class Controller {
             ioe.printStackTrace();
         }
         resetAccounts();
+        resetIncomeList();
         for (String s : oldPayValues.keySet()) {
             getPayAccountByName(s).addEntry(new EntryBE(oldPayValues.get(s), Const.DESC_OPENING, cal.getTime()));
         }

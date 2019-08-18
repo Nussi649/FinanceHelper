@@ -12,6 +12,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
@@ -26,6 +27,7 @@ import java.util.List;
 
 import Backend.Const;
 import Backend.Util;
+import View.IncomeListDialog;
 
 public class MainActivity extends AbstractActivity {
 
@@ -64,6 +66,9 @@ public class MainActivity extends AbstractActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
+            case R.id.item_show_income_list:
+                showIncomeListDialog();
+                break;
             case R.id.item_save_accounts:
                 showSaveAccountsDialog();
                 break;
@@ -178,6 +183,20 @@ public class MainActivity extends AbstractActivity {
     }
 
     //region show Dialog
+    private void showIncomeListDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_income_list);
+        ScrollView dialogView = new IncomeListDialog(this, model.incomeList);
+        builder.setView(dialogView);
+        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                dialogInterface.dismiss();
+            }
+        });
+        builder.show();
+    }
+
     private void showSaveAccountsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_save_accounts);

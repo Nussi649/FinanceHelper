@@ -1,29 +1,23 @@
 package View;
 
 import android.content.Context;
-import android.content.res.Configuration;
 import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.privat.pitz.financehelper.R;
 
 import java.util.List;
 
-import Backend.Const;
 import Backend.Util;
 import Logic.AccountBE;
 import Logic.EntryBE;
 
-public class AccountView extends LinearLayout {
+public class AccountWidget extends LinearLayout {
     Context context;
     AccountBE mAccount;
 
-    public AccountView(Context context, AccountBE acc) {
+    public AccountWidget(Context context, AccountBE acc) {
         super(context);
         this.context = context;
         mAccount = acc;
@@ -40,14 +34,14 @@ public class AccountView extends LinearLayout {
             findViewById(R.id.sum_block).setVisibility(GONE);
         } else {
             if (entries.size() > 10) {
-                content.addView(new AccountTableRow(context, "..."));
+                content.addView(new AccountWidgetRow(context, "..."));
                 for (EntryBE e : entries.subList(entries.size() - 10, entries.size())) {
-                    AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
+                    AccountWidgetRow row = new AccountWidgetRow(context, e.getDescription(), e.getAmount());
                     content.addView(row);
                 }
             } else {
                 for (EntryBE e : entries) {
-                    AccountTableRow row = new AccountTableRow(context, e.getDescription(), e.getAmount());
+                    AccountWidgetRow row = new AccountWidgetRow(context, e.getDescription(), e.getAmount());
                     content.addView(row);
                 }
             }
@@ -63,7 +57,7 @@ public class AccountView extends LinearLayout {
         root.setLayoutParams(params);
         LinearLayout content = findViewById(R.id.contentTable);
         for (int i = 0; i < content.getChildCount(); i++) {
-            ((AccountTableRow) content.getChildAt(i)).setWidth(width);
+            ((AccountWidgetRow) content.getChildAt(i)).setWidth(width);
         }
     }
 }

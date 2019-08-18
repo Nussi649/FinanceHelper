@@ -4,7 +4,7 @@
     <string name="accept">Annehmen</string>
     <string name="default_account_title">Account Title</string>
     <string name="loadingscreen_title">Loading</string>
-    <string name="loadingscreen_body">Please wait...</string>
+    <string name="loadingscreen_body">Please wait…</string>
     <string name="label_time">Datum</string>
     <string name="label_recurring_orders">Daueraufträge</string>
     <string name="label_display_recurring_orders">Daueraufträge anzeigen</string>
@@ -16,7 +16,7 @@
     <string name="label_add_recurring_order">Dauerauftrag\n speichern</string>
     <string name="label_sum">Summe:</string>
     <string name="label_currency">€</string>
-    <string name="label_arrow">  --></string>
+    <string name="label_arrow"><![CDATA[  —>]]></string>
     <string name="label_save_accounts">Konten Speichern</string>
     <string name="label_load_accounts">Konten Laden</string>
     <string name="label_fast_save">Schnellspeichern</string>
@@ -35,11 +35,13 @@
     <string name="label_file_name">Dateiname:</string>
     <string name="label_or_file_name">oder:\nDateiname:</string>
     <string name="label_settings">Einstellungen</string>
+    <string name="label_show_income_list">Einkommen anzeigen</string>
+    <string name="label_income_list">Einkommensliste</string>
     <string name="label_export">Exportieren</string>
     <string name="label_import">Importieren</string>
     <string name="label_enter_password">Passwort eingeben</string>
     <string name="label_are_u_sure">Sind Sie sicher?</string>
-    <string name="label_filter">Filtern...</string>
+    <string name="label_filter">Filtern…</string>
     <string name="question_delete_savefile">Wollen Sie wirklich den aktuellen Speicherstand löschen?</string>
     <string name="question_delete_account">Wollen Sie wirklich das Konto löschen?</string>
     <string name="question_delete_recurring_order">Wollen Sie wirklich den Dauerauftrag löschen?</string>

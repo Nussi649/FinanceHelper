@@ -23,6 +23,7 @@ public class Const {
     public static String JSON_TAG_PACCOUNTS = "paccounts";
     public static String JSON_TAG_IACCOUNTS = "iaccounts";
     public static String JSON_TAG_RECURRING_ORDERS = "rorders";
+    public static String JSON_TAG_INCOME_LIST = "incomel";
     public static String JSON_TAG_PACCOUNT = "pay";
     public static String JSON_TAG_IACCOUNT = "invest";
     public static String JSON_TAG_ISACTIVE = "active";

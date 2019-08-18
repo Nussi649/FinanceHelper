@@ -100,19 +100,20 @@
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/button_add_entry"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:text="@string/label_add_entry" />
-
-            <Button
                 android:id="@+id/button_add_recurring_order"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_gravity="right|top"
                 android:layout_weight="1.6"
                 android:text="@string/label_add_recurring_order" />
+
+            <Button
+                android:id="@+id/button_add_entry"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:text="@string/label_add_entry" />
+
         </LinearLayout>
 
     </LinearLayout>

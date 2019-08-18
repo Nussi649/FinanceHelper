@@ -8,4 +8,4 @@
     android:paddingLeft="10dp"
     android:paddingRight="10dp"
     android:textSize="10pt"
-    android:background="@color/colorPrimary"/>
+    android:background="@drawable/bg_accountlist_item_default"/>
