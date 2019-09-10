@@ -12,6 +12,7 @@ import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.ScrollView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
@@ -21,18 +22,18 @@ import org.json.JSONException;
 
 import java.io.IOException;
 import java.text.ParseException;
-import java.time.Month;
-import java.util.Calendar;
 import java.util.List;
+import java.util.Map;
 
 import Backend.Const;
+import Backend.Controller;
+import Backend.PastMonth;
 import Backend.Util;
 import View.IncomeListDialog;
 
 public class MainActivity extends AbstractActivity {
 
 
-    public EditText passwordInput;
     public EditText newDescription;
     public EditText newAmount;
 
@@ -53,7 +54,16 @@ public class MainActivity extends AbstractActivity {
     @Override
     protected void endWorkingThread() {
         populateUI();
-        setTitle(getResources().getString(R.string.app_name) + " - " + Util.cutFileNameIfNecessary(getModel().currentFileName));
+        String cut = Util.cutFileNameIfNecessary(getModel().currentFileName);
+        String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1);
+        setTitle(getResources().getString(R.string.app_name) + " - " + title);
+//        if (fn != null)
+//            if (!fn.equals(""))
+//            else
+//                setTitle(getResources().getString(R.string.app_name));
+//        else
+//            setTitle(getResources().getString(R.string.app_name));
+
     }
 
     @Override
@@ -90,7 +100,8 @@ public class MainActivity extends AbstractActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        reloadAccountLists();
+        if (getModel().currentFileName != null)
+            reloadAccountLists();
     }
 
     @Override
@@ -110,7 +121,9 @@ public class MainActivity extends AbstractActivity {
 
         Util.populatePayAccountsList(this, payAccounts);
         Util.populateInvestAccountsList(this, investAccounts);
-        setTitle(getResources().getString(R.string.app_name) + " - " + Util.cutFileNameIfNecessary(getModel().currentFileName));
+        String cut = Util.cutFileNameIfNecessary(getModel().currentFileName);
+        String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1);
+        setTitle(getResources().getString(R.string.app_name) + " - " + title);
     }
 
     private void populateUI() {
@@ -154,7 +167,12 @@ public class MainActivity extends AbstractActivity {
                 controller.addEntry(des, Float.valueOf(am), model.currentPayAcc, model.currentInvestAcc);
                 newDescription.setText("");
                 newAmount.setText("");
-                showToastLong(R.string.toast_success_new_entry);
+                try {
+                    controller.saveAccountsToInternal();
+                    showToastLong(R.string.toast_success_new_entry);
+                } catch (Exception e) {
+                    showToastLong(R.string.toast_error_files);
+                }
             }
         });
 
@@ -204,7 +222,6 @@ public class MainActivity extends AbstractActivity {
         final EditText saveName = dialogView.findViewById(R.id.edit_save_name);
         final Button exportButton = dialogView.findViewById(R.id.button_export);
         final CheckBox hiddenCheck = dialogView.findViewById(R.id.check_hidden);
-        final CheckBox encryptedCheck = dialogView.findViewById(R.id.check_encrypt);
         exportButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -216,34 +233,12 @@ public class MainActivity extends AbstractActivity {
         builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                if (encryptedCheck.isChecked()) {
-                    getModel().nextFileName = saveName.getText().toString();
-                    getModel().nextFileHidden = hiddenCheck.isChecked();
-                    showSavePasswordDialog();
-                    dialogInterface.dismiss();
-                } else {
-                    saveAccountsByName(saveName.getText().toString(), hiddenCheck.isChecked());
+                saveAccountsByName(saveName.getText().toString(), hiddenCheck.isChecked());{
                 }
             }
         });
         builder.show();
         saveName.requestFocus();
-    }
-
-    private void showSavePasswordDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_enter_password);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_enter_password, null);
-        final EditText password = dialogView.findViewById(R.id.edit_password);
-        builder.setView(dialogView);
-        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                saveEncryptedAccountsByName(getModel().nextFileName, password.getText().toString(), getModel().nextFileHidden);
-            }
-        });
-        builder.show();
     }
 
     private void showLoadAccountsDialog() {
@@ -319,10 +314,6 @@ public class MainActivity extends AbstractActivity {
         builder.show();
     }
 
-    private void showPasswordInputDialog() {
-
-    }
-
     private void showExportDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_export);
@@ -361,26 +352,32 @@ public class MainActivity extends AbstractActivity {
         });
         builder.show();
     }
+
+    private void showLastMonthSummaryDialog() {
+        PastMonth lastMonth = model.history.get(model.history.size() - 1);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+//        builder.setTitle(getString(R.string.label_last_month_summary));
+        LinearLayout dialogView = (LinearLayout) getLayoutInflater().inflate(R.layout.dialog_summary, null);
+        final TextView title = dialogView.findViewById(R.id.label_account);
+        title.setText(getString(R.string.desc_last_month_summary));
+        LinearLayout content = dialogView.findViewById(R.id.contentTable);
+        for (Map.Entry<String, Float> e : lastMonth.getAccountList().entrySet()) {
+            RelativeLayout row = (RelativeLayout) getLayoutInflater().inflate(R.layout.table_row_account_list, content, false);
+            TextView desc = row.findViewById(R.id.text_description);
+            TextView amount = row.findViewById(R.id.text_amount);
+            desc.setText(e.getKey());
+            amount.setText(String.valueOf(e.getValue()));
+            content.addView(row);
+        }
+        TextView sum = dialogView.findViewById(R.id.display_sum);
+        sum.setText(String.valueOf(lastMonth.getTotalSum()));
+        builder.setView(dialogView);
+        builder.setPositiveButton(R.string.accept, getDoNothingClickListener());
+        builder.show();
+    }
     //endregion
 
     //region react to dialog
-    private void saveEncryptedAccountsByName(String name, String password, boolean hidden) {
-        try {
-            if (hidden) {
-                getController().saveEncryptedAccountsToInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + name, password);
-            } else {
-                getController().saveEncryptedAccountsToInternal(name, password);
-            }
-        } catch (JSONException json) {
-            showToastLong(R.string.toast_error_encryption);
-            return;
-        } catch (IOException ioe) {
-            showToastLong(R.string.toast_error_unknown);
-            return;
-        }
-        showToastLong(R.string.toast_success_accounts_saved);
-    }
-
     private void saveAccountsByName(String name, boolean hidden) {
         try {
             if (hidden) {
@@ -388,10 +385,7 @@ public class MainActivity extends AbstractActivity {
             } else {
                 getController().saveAccountsToInternal(name);
             }
-        } catch (JSONException json) {
-            showToastLong(R.string.toast_error_unknown);
-            return;
-        } catch (IOException ioe) {
+        } catch (JSONException | IOException ex) {
             showToastLong(R.string.toast_error_unknown);
             return;
         }
@@ -400,7 +394,12 @@ public class MainActivity extends AbstractActivity {
     //endregion
 
     public void setupNewAccounts() {
-        if (!getController().setupAccounts(false))
+        int response = getController().setupAccounts(false);
+        if (response == Controller.LOADED_NEW_MONTH) {
             showToastLong("New Sheet for Month " + Const.getDisplayableCurrentMonthName() + " created.");
+            showLastMonthSummaryDialog();
+        }
+        if (response == Controller.CREATED_BLANK)
+            showToastLong(getString(R.string.toast_blank_accounts));
     }
 }

@@ -15,11 +15,11 @@ public class Const {
     public static String APPENDIX_PAY_SENDER = "-1";
     public static String APPENDIX_PAY_RECIPIENT = "-2";
 
-    public static String JSON_TAG_TIME = "time";
+    public static String JSON_TAG_TIME = "t";
     public static String JSON_TAG_ENTRIES = "entries";
     public static String JSON_TAG_NAME = "name";
-    public static String JSON_TAG_AMOUNT = "amount";
-    public static String JSON_TAG_DESCRIPTION = "description";
+    public static String JSON_TAG_AMOUNT = "a";
+    public static String JSON_TAG_DESCRIPTION = "d";
     public static String JSON_TAG_PACCOUNTS = "paccounts";
     public static String JSON_TAG_IACCOUNTS = "iaccounts";
     public static String JSON_TAG_RECURRING_ORDERS = "rorders";
@@ -33,6 +33,7 @@ public class Const {
     public static String ACCOUNT_SAVINGS = "Sparkonto";
     public static String ACCOUNT_CREDIT_CARD = "Kreditkarte";
     public static String ACCOUNT_UNI = "Mensakarte";
+    public static String ACCOUNT_DEBTS = "Schulden";
 
     public static String ACCOUNT_INVESTMENTS = "Anschaffungen";
     public static String ACCOUNT_GROCERIES = "Lebensmittel";
@@ -80,7 +81,7 @@ public class Const {
 
     public static String getCurrentMonthName() {
         Calendar cal = Calendar.getInstance();
-        return getMonthNameById(cal.get(Calendar.MONTH)) + cal.get(Calendar.YEAR);
+        return (cal.get(Calendar.MONTH) + 1) + "." + cal.get(Calendar.YEAR);
     }
 
     public static String getDisplayableCurrentMonthName() {
@@ -90,12 +91,21 @@ public class Const {
 
     public static String getLastMonthName() {
         Calendar cal = Calendar.getInstance();
-        int lastMonth = cal.get(Calendar.MONTH) - 1 % 12;
+        int lastMonth = cal.get(Calendar.MONTH) - 1 % 12 + 1;
         if (lastMonth < 11) {
-            return getMonthNameById(lastMonth) + cal.get(Calendar.YEAR);
+            return lastMonth + "." + cal.get(Calendar.YEAR);
         } else {
-            return getMonthNameById(lastMonth) + (cal.get(Calendar.YEAR) - 1);
+            return lastMonth + "." + (cal.get(Calendar.YEAR) - 1);
         }
+    }
+
+    public static Calendar getFirstOfMonth() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.DAY_OF_MONTH, 1);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.clear(Calendar.MINUTE);
+        calendar.clear(Calendar.SECOND);
+        return calendar;
     }
 
 }

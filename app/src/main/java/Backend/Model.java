@@ -11,6 +11,7 @@ public class Model {
     public List<AccountBE> investAccounts;
     public List<RecurringOrderBE> recurringOrders;
     public List<EntryBE> incomeList;
+    public List<PastMonth> history;
     public AccountBE currentPayAcc;
     public AccountBE currentInvestAcc;
     public AccountBE transferRecipientAcc;
@@ -18,4 +19,12 @@ public class Model {
     public String currentFileName;
     public String nextFileName;
     public boolean nextFileHidden;
+
+    public float sumAllExpenses() {
+        float sum = 0.0f;
+        for (AccountBE a : investAccounts) {
+            sum += a.getSum();
+        }
+        return sum;
+    }
 }

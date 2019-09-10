@@ -1,9 +1,6 @@
 package Backend;
 
-import android.accounts.Account;
 import android.content.Context;
-
-import com.privat.pitz.financehelper.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -17,20 +14,22 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import Logic.AccountBE;
 import Logic.EntryBE;
-import Logic.PrivateKey;
 import Logic.RecurringOrderBE;
 
 public class Controller {
     public static Controller instance;
     Model model;
     Context context;
+
+    public static int LOADED_ACCOUNTS = 10;
+    public static int LOADED_NEW_MONTH = 11;
+    public static int CREATED_BLANK = 12;
 
     private Controller(Context context) { this.context = context; }
 
@@ -52,6 +51,7 @@ public class Controller {
             model.payAccounts.add(new AccountBE(Const.ACCOUNT_BANK));
             model.payAccounts.add(new AccountBE(Const.ACCOUNT_CREDIT_CARD));
             model.payAccounts.add(new AccountBE(Const.ACCOUNT_SAVINGS));
+            model.payAccounts.add(new AccountBE(Const.ACCOUNT_DEBTS));
         }
 
         if (model.investAccounts.size() == 0) {
@@ -69,6 +69,8 @@ public class Controller {
 
     public void resetAccounts() {
         for (AccountBE a : getModel().payAccounts) {
+            if (a.getName().equals(Const.ACCOUNT_DEBTS))
+                continue;
             a.reset();
         }
         for (AccountBE a : getModel().investAccounts) {
@@ -244,11 +246,6 @@ public class Controller {
         writeToInternal(payload, filename + Const.ACCOUNTS_FILE_TYPE);
     }
 
-    public void saveEncryptedAccountsToInternal(String filename, String password) throws  JSONException, IOException {
-        String payload = encryptData(exportAccounts(), password);
-        writeToInternal(payload, filename + Const.ACCOUNTS_FILE_TYPE);
-    }
-
     public void readAccountsFromInternal() throws JSONException, IOException, ParseException{
         readAccountsFromInternal(Const.getCurrentMonthName());
     }
@@ -257,11 +254,6 @@ public class Controller {
         String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
         importAccounts(payload);
         getModel().currentFileName = filename;
-    }
-
-    public void readEncryptedAccountsFromInternal(String filename, String password) throws JSONException, IOException, ParseException {
-        String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
-        importAccounts(decryptData(payload, password));
     }
 
     public boolean deleteCurrentSave() {
@@ -302,18 +294,6 @@ public class Controller {
     }
     //endregion
 
-    //region encryption
-    private String encryptData(String data, String decryptionKey) {
-        PrivateKey priv = PrivateKey.generateSpecificKey(decryptionKey);
-        return priv.publicKey.encrypt(data);
-    }
-
-    private String decryptData(String data, String decryptionKey) {
-        PrivateKey priv = PrivateKey.generateSpecificKey(decryptionKey);
-        return priv.decrypt(data);
-    }
-    //endregion
-
     public void addEntry(String desc, float amount, AccountBE payAccount, AccountBE investAccount) {
         Calendar calendar = Calendar.getInstance();
         EntryBE entryPay = new EntryBE(amount*(-1.0f), desc, calendar.getTime());
@@ -346,6 +326,9 @@ public class Controller {
         return null;
     }
 
+    // sets up accounts for new month by loading last month, closing all accounts, and transferring the balances to new month´s accounts
+    // returns true if transfer finalized successfully
+    // returns false if couldn't read last month (e.g. there is no file of last month´s accounts)
     public boolean doNewMonthIfPossible() {
         Calendar cal = Calendar.getInstance();
         try {
@@ -357,8 +340,11 @@ public class Controller {
         } catch (ParseException pe) {
             pe.printStackTrace();
         }
+        model.history.add(new PastMonth(Const.getLastMonthName(), model.investAccounts));
         Map<String, Float> oldPayValues = new HashMap<>();
         for (AccountBE a : model.payAccounts) {
+            if (a.getName().equals(Const.ACCOUNT_DEBTS))
+                continue;
             if (a.getSum() != 0.0f) {
                 oldPayValues.put(a.getName(), a.getSum());
                 a.addEntry(new EntryBE(a.getSum() * (-1.0f), Const.DESC_CLOSING, cal.getTime()));
@@ -373,41 +359,42 @@ public class Controller {
         }
         resetAccounts();
         resetIncomeList();
+        triggerRecurringOrders();
         for (String s : oldPayValues.keySet()) {
             getPayAccountByName(s).addEntry(new EntryBE(oldPayValues.get(s), Const.DESC_OPENING, cal.getTime()));
         }
         getModel().currentFileName = Const.getCurrentMonthName();
-        triggerRecurringOrders();
         return true;
     }
 
-    public boolean setupAccounts(boolean blank) {
+    // sets up the lists investAccounts and payAccounts
+    // @params
+    // blank: if true makes new accounts, if false tries to load saved accounts and starts new month if there´s no save file for current month
+    // returns CREATED_BLANK if blank accounts were created
+    // returns LOADED_ACCOUNTS if saved accounts have been loaded
+    // returns LOADED_NEW_MONTH if new month accounts have been created
+    public int setupAccounts(boolean blank) {
         try {
-            if (!blank) {
-                readAccountsFromInternal();
-                return false;
+            if (blank) {
+                initAccountLists();
+                return CREATED_BLANK;
             }
             else {
-                initAccountLists();
-                return true;
+                readAccountsFromInternal();
+                return LOADED_ACCOUNTS;
             }
-        } catch (JSONException jsone) {
-            jsone.printStackTrace();
+        } catch (JSONException | ParseException ex) {
+            ex.printStackTrace();
             initAccountLists();
-            return true;
+            return CREATED_BLANK;
         } catch (IOException ioe) {
             ioe.printStackTrace();
-            if (!doNewMonthIfPossible()) {
-                initAccountLists();
-                return true;
-            }
+            if (doNewMonthIfPossible())
+                return LOADED_NEW_MONTH;
             else {
-                return false;
+                initAccountLists();
+                return CREATED_BLANK;
             }
-        } catch (ParseException pe) {
-            pe.printStackTrace();
-            initAccountLists();
-            return false;
         }
     }
 
@@ -417,12 +404,13 @@ public class Controller {
         getModel().recurringOrders.add(newOrder);
     }
 
-    public void triggerRecurringOrders() {
+    private void triggerRecurringOrders() {
+        Calendar fom = Const.getFirstOfMonth();
         for (RecurringOrderBE r : getModel().recurringOrders) {
             AccountBE pay = getPayAccountByName(r.getPayAccount());
             AccountBE invest = getInvestAccountByName(r.getInvestAccount());
-            pay.addEntry(new EntryBE(r.getAmount()*(-1.0f), r.getDescription()));
-            invest.addEntry(new EntryBE(r.getAmount(), r.getDescription()));
+            pay.addEntry(new EntryBE(r.getAmount()*(-1.0f), r.getDescription(), fom.getTime()));
+            invest.addEntry(new EntryBE(r.getAmount(), r.getDescription(), fom.getTime()));
         }
     }
 }

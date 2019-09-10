@@ -2,21 +2,14 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
-    <TableLayout
-        android:id="@+id/layout_available_files"
-        android:layout_marginTop="10dp"
-        android:layout_marginBottom="10dp"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:layout_centerHorizontal="true"
-        android:background="@drawable/border1dp"/>
+
     <Button
         android:id="@+id/button_import"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:text="@string/label_import"
-        android:layout_below="@id/layout_available_files"/>
+        android:layout_below="@id/scrollView"/>
     <TextView
         android:id="@+id/text_load_name"
         android:layout_width="wrap_content"
@@ -31,4 +24,20 @@
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
         android:layout_below="@id/text_load_name"/>
+
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:layout_centerHorizontal="true"
+        android:background="@drawable/border1dp">
+
+        <TableLayout
+            android:id="@+id/layout_available_files"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+    </ScrollView>
+
 </RelativeLayout>

@@ -31,7 +31,9 @@ public class PayActivity extends AccountListActivity {
 
     @Override
     protected void populateUI() {
-        setTitle(getResources().getString(R.string.label_pay_accounts) + " - " + Util.cutFileNameIfNecessary(getModel().currentFileName));
+        String cut = Util.cutFileNameIfNecessary(getModel().currentFileName);
+        String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1);
+        setTitle(title);
         for (AccountBE a : model.payAccounts) {
             if (a.getIsActive())
                 addAccountToUI(a);

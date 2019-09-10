@@ -36,6 +36,7 @@
     <string name="label_or_file_name">oder:\nDateiname:</string>
     <string name="label_settings">Einstellungen</string>
     <string name="label_show_income_list">Einkommen anzeigen</string>
+    <string name="label_last_month_summary">Zusammenfassung</string>
     <string name="label_income_list">Einkommensliste</string>
     <string name="label_export">Exportieren</string>
     <string name="label_import">Importieren</string>
@@ -55,11 +56,13 @@
     <string name="toast_error_unknown">ein unbekannter Fehler ist aufgetreten</string>
     <string name="toast_error_invalid_filename">Die angegebene Datei existiert nicht.</string>
     <string name="toast_error_invalid_import">Syntaxfehler in den Daten.</string>
-    <string name="toast_error_encryption">Verschlüsselungsfehler</string>
+    <string name="toast_error_files">Fehler mit dem Dateisystem</string>
     <string name="toast_error_empty_description">Das Beschreibungsfeld ist leer</string>
     <string name="toast_error_empty_amount">Es ist kein Betrag angegeben</string>
     <string name="toast_error_NaN">Bitte geben Sie eine Zahl an.</string>
     <string name="toast_error_parsing">Parsing Error</string>
     <string name="toast_error_no_entries">Es gibt keine Einträge zum anzeigen.</string>
+    <string name="toast_blank_accounts">Es wurden leere Konten geladen.</string>
+    <string name="desc_last_month_summary">Übersicht der Investitionskonten des letzten Monats:</string>
     <string name="desc_transfer">Übertrag</string>
 </resources>

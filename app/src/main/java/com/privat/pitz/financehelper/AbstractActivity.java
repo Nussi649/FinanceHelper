@@ -106,6 +106,11 @@ public abstract class AbstractActivity extends AppCompatActivity {
 
     protected void startActivity(Class<? extends AbstractActivity> target) {
         Intent intent = new Intent(this, target);
+        try {
+            controller.saveAccountsToInternal();
+        } catch (Exception e) {
+            showToastLong(R.string.toast_error_files);
+        }
         startActivity(intent);
     }
 
@@ -129,6 +134,7 @@ public abstract class AbstractActivity extends AppCompatActivity {
         model.investAccounts = new ArrayList<>();
         model.recurringOrders = new ArrayList<>();
         model.incomeList = new ArrayList<>();
+        model.history = new ArrayList<>();
     }
 
     //region Permissions

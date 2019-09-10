@@ -34,7 +34,7 @@ public abstract class Util {
             if (!a.getIsActive()) {
                 continue;
             }
-            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.textview_accountselect, parent, false);
+            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.account_selection_label, parent, false);
             tv.setText(a.getName());
             tv.setTag(a.getName());
             tv.setOnClickListener(new View.OnClickListener() {
@@ -69,7 +69,7 @@ public abstract class Util {
             if (!a.getIsActive()) {
                 continue;
             }
-            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.textview_accountselect, parent, false);
+            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.account_selection_label, parent, false);
             tv.setText(a.getName());
             tv.setTag(a.getName() + appendix);
             tv.setOnClickListener(new View.OnClickListener() {
@@ -114,7 +114,7 @@ public abstract class Util {
             if (!a.getIsActive()) {
                 continue;
             }
-            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.textview_accountselect, parent, false);
+            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.account_selection_label, parent, false);
             tv.setText(a.getName());
             tv.setTag(a.getName());
             tv.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
