@@ -29,13 +29,13 @@
     <string name="label_add_funds">Einkommen buchen</string>
     <string name="label_transfer">Umbuchung</string>
     <string name="label_new_accountname">Name:</string>
-    <string name="label_pay_accounts">Zahlungskonten</string>
-    <string name="label_invest_accounts">Investitionskonten</string>
+    <string name="label_pay_accounts">Bestandskonten</string>
+    <string name="label_invest_accounts">Aufwandskonten</string>
     <string name="label_filter_accounts">Kontofilter</string>
     <string name="label_file_name">Dateiname:</string>
     <string name="label_or_file_name">oder:\nDateiname:</string>
     <string name="label_settings">Einstellungen</string>
-    <string name="label_show_income_list">Einkommen anzeigen</string>
+    <string name="label_show_income_list">Ertragskonto</string>
     <string name="label_last_month_summary">Zusammenfassung</string>
     <string name="label_income_list">Einkommensliste</string>
     <string name="label_export">Exportieren</string>

@@ -397,7 +397,7 @@ public class MainActivity extends AbstractActivity {
         int response = getController().setupAccounts(false);
         if (response == Controller.LOADED_NEW_MONTH) {
             showToastLong("New Sheet for Month " + Const.getDisplayableCurrentMonthName() + " created.");
-            showLastMonthSummaryDialog();
+//            showLastMonthSummaryDialog();
         }
         if (response == Controller.CREATED_BLANK)
             showToastLong(getString(R.string.toast_blank_accounts));

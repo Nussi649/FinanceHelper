@@ -41,7 +41,7 @@ public class Const {
     public static String ACCOUNT_GO_OUT = "Ausgehen";
     public static String ACCOUNT_DRUGS = "Drogen";
     public static String ACCOUNT_NECESSARY = "Notwendige";
-    public static String ACCOUNT_BUS = "Busbudget";
+    public static String ACCOUNT_MOBILITY = "Mobilität";
 
     public static int KEY_BIT_LENGTH = 2048;
 

@@ -10,6 +10,9 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 
+import org.json.JSONException;
+
+import java.io.IOException;
 import java.util.Calendar;
 
 import Backend.Const;
@@ -113,7 +116,7 @@ public class PayActivity extends AccountListActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_transfer);
         final View dialogView = getLayoutInflater().inflate(R.layout.dialog_transfer, null);
-        addFundsAmount = dialogView.findViewById(R.id.edit_amount);
+        transferAmount = dialogView.findViewById(R.id.edit_amount);
         descriptionText = dialogView.findViewById(R.id.edit_new_description);
         builder.setView(dialogView);
         builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
@@ -123,7 +126,7 @@ public class PayActivity extends AccountListActivity {
                 float amount = 0.0f;
                 String desc = "";
                 try {
-                    amount = Float.parseFloat(addFundsAmount.getText().toString());
+                    amount = Float.parseFloat(transferAmount.getText().toString());
                     desc = descriptionText.getText().toString();
                 } catch (Exception e) {
                     dialogInterface.dismiss();
@@ -146,11 +149,25 @@ public class PayActivity extends AccountListActivity {
     private void addFunds(float amount, String desc) {
         model.currentPayAcc.addEntry(new EntryBE(amount, desc, Calendar.getInstance().getTime()));
         model.incomeList.add(new EntryBE(amount, desc, Calendar.getInstance().getTime()));
+        try {
+            controller.saveAccountsToInternal();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         reloadContent();
     }
 
     private void transferFunds(float amount, String desc) {
         getController().addEntry(desc, amount, model.currentPayAcc, model.transferRecipientAcc);
+        try {
+            controller.saveAccountsToInternal();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         reloadContent();
     }
     //endregion

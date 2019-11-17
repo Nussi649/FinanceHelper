@@ -61,7 +61,7 @@ public class Controller {
             model.investAccounts.add(new AccountBE(Const.ACCOUNT_GO_OUT));
             model.investAccounts.add(new AccountBE(Const.ACCOUNT_DRUGS));
             model.investAccounts.add(new AccountBE(Const.ACCOUNT_NECESSARY));
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_BUS));
+            model.investAccounts.add(new AccountBE(Const.ACCOUNT_MOBILITY));
         }
 
         getModel().currentFileName = Const.getCurrentMonthName();
