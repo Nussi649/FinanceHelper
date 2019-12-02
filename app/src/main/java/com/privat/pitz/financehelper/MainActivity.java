@@ -256,6 +256,8 @@ public class MainActivity extends AbstractActivity {
         });
         final List<String> availableFiles = getController().getAvailableSaveFiles();
         for (String s : availableFiles) {
+            if (s.equals("stats"))
+                continue;
             TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.tablerow_file_list, availableFilesLayout, false);
             row.setTag(s);
             final TextView name = row.findViewById(R.id.text_filename);

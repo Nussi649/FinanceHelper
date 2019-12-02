@@ -340,6 +340,7 @@ public class Controller {
         } catch (ParseException pe) {
             pe.printStackTrace();
         }
+        updateStats();
         model.history.add(new PastMonth(Const.getLastMonthName(), model.investAccounts));
         Map<String, Float> oldPayValues = new HashMap<>();
         for (AccountBE a : model.payAccounts) {
@@ -412,5 +413,63 @@ public class Controller {
             pay.addEntry(new EntryBE(r.getAmount()*(-1.0f), r.getDescription(), fom.getTime()));
             invest.addEntry(new EntryBE(r.getAmount(), r.getDescription(), fom.getTime()));
         }
+    }
+
+    public boolean updateStats() {
+        JSONObject statsObject;
+        try {
+            String payload = readFromInternal(Const.STATS_FILE_NAME);
+            statsObject = new JSONObject(payload);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            statsObject = new JSONObject();
+            try {
+                statsObject.put(Const.STATS_TAG_NETWORTH, new JSONArray());
+                statsObject.put(Const.STATS_TAG_EXPENSES, new JSONArray());
+            } catch (JSONException jsone) {
+                return false;
+            }
+        }
+        try {
+            boolean hasCurWorth = false;
+            JSONArray worthArray = statsObject.getJSONArray(Const.STATS_TAG_NETWORTH);
+            for (int i = 0; i < worthArray.length(); i++) {
+                JSONObject curWorth = (JSONObject) worthArray.get(i);
+                if (curWorth.get(Const.STATS_TAG_MONTH) == model.currentFileName) {
+                    hasCurWorth = true;
+                    curWorth.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllStocks()));
+                }
+            }
+            if (!hasCurWorth) {
+                JSONObject netWorth = new JSONObject();
+                netWorth.put(Const.STATS_TAG_MONTH, model.currentFileName);
+                netWorth.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllStocks()));
+                statsObject.getJSONArray(Const.STATS_TAG_NETWORTH).put(netWorth);
+            }
+            boolean hasCurExpenses = false;
+            JSONArray expensesArray = statsObject.getJSONArray(Const.STATS_TAG_EXPENSES);
+            for (int i = 0; i < expensesArray.length(); i++) {
+                JSONObject curExpenses = (JSONObject) expensesArray.get(i);
+                if (curExpenses.get(Const.STATS_TAG_MONTH) == model.currentFileName) {
+                    hasCurExpenses = true;
+                    curExpenses.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllExpenses()));
+                }
+            }
+            if (!hasCurExpenses) {
+                JSONObject expenses = new JSONObject();
+                expenses.put(Const.STATS_TAG_MONTH, model.currentFileName);
+                expenses.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllExpenses()));
+                statsObject.getJSONArray(Const.STATS_TAG_EXPENSES).put(expenses);
+            }
+        } catch (JSONException jsone) {
+            return false;
+        }
+        try {
+            writeToInternal(statsObject.toString(), Const.STATS_FILE_NAME);
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+            return false;
+        }
+        return true;
     }
 }

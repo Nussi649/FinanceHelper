@@ -6,6 +6,7 @@
     <string name="loadingscreen_title">Loading</string>
     <string name="loadingscreen_body">Please wait…</string>
     <string name="label_time">Datum</string>
+    <string name="label_save">Speichern</string>
     <string name="label_recurring_orders">Daueraufträge</string>
     <string name="label_display_recurring_orders">Daueraufträge anzeigen</string>
     <string name="label_description">Bezeichnung</string>
@@ -24,6 +25,7 @@
     <string name="label_hidden">verstecken</string>
     <string name="label_encrypt">verschlüsseln</string>
     <string name="label_delete_current_save">Aktuellen Speicherstand löschen</string>
+    <string name="label_save_stats">Statistiken speichern</string>
     <string name="label_delete">Löschen</string>
     <string name="label_delete_account">Konto löschen</string>
     <string name="label_add_funds">Einkommen buchen</string>
@@ -53,6 +55,7 @@
     <string name="toast_success_accounts_deleted">Der Speicherstand der Konten wurde erfolgreich gelöscht. Nach einem Neustart der App ist alles leer.</string>
     <string name="toast_success_file_deleted">Die Datei wurde gelöscht.</string>
     <string name="toast_success_accounts_imported">Accounts erfolgreich importiert.</string>
+    <string name="toast_success_save_stats">Statistiken erfolgreich gespeichert.</string>
     <string name="toast_error_unknown">ein unbekannter Fehler ist aufgetreten</string>
     <string name="toast_error_invalid_filename">Die angegebene Datei existiert nicht.</string>
     <string name="toast_error_invalid_import">Syntaxfehler in den Daten.</string>

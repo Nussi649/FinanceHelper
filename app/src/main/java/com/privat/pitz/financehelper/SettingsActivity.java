@@ -30,7 +30,7 @@ public class SettingsActivity extends AbstractActivity {
 
     private void populateUI() {
         TableLayout content = findViewById(R.id.layout_filter_container);
-        Button deleteFastsaveButton = findViewById(R.id.button_delete_fastsave);
+        Button saveStatsButton = findViewById(R.id.button_delete_fastsave);
         List<AccountBE> allAccounts = new ArrayList<>();
         allAccounts.addAll(model.payAccounts);
         allAccounts.addAll(model.investAccounts);
@@ -75,16 +75,10 @@ public class SettingsActivity extends AbstractActivity {
             row.addView(check);
             content.addView(row);
         }
-        deleteFastsaveButton.setOnClickListener(new View.OnClickListener() {
+        saveStatsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        showToastLong(getController().deleteCurrentSave() ? R.string.toast_success_accounts_deleted : R.string.toast_error_unknown);
-                    }
-                };
-                showConfirmDialog(R.string.question_delete_savefile, listener);
+                showToastLong(getController().updateStats() ? R.string.toast_success_save_stats : R.string.toast_error_unknown);
             }
         });
     }

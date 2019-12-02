@@ -17,8 +17,6 @@ public class Model {
     public AccountBE transferRecipientAcc;
     public AccountBE currentInspectedAccount;
     public String currentFileName;
-    public String nextFileName;
-    public boolean nextFileHidden;
 
     public float sumAllExpenses() {
         float sum = 0.0f;
@@ -31,7 +29,7 @@ public class Model {
     public float sumAllStocks() {
         float sum = 0.0f;
         for (AccountBE a: payAccounts) {
-            sum += a.getSum();
+            sum += a.getSumRefreshed();
         }
         return sum;
     }

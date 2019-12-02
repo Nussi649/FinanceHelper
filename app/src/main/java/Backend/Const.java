@@ -11,6 +11,7 @@ public class Const {
     public static String ACCOUNTS_FASTSAVE_FILE_NAME = ACCOUNTS_FASTSAVE_DIRECTORY_NAME + "/accounts";
     public static String ACCOUNTS_HIDDEN_DIRECTORY = "hidden";
     public static String ACCOUNTS_FILE_TYPE = ".jso";
+    public static String STATS_FILE_NAME = "stats" + ACCOUNTS_FILE_TYPE;
 
     public static String APPENDIX_PAY_SENDER = "-1";
     public static String APPENDIX_PAY_RECIPIENT = "-2";
@@ -27,6 +28,12 @@ public class Const {
     public static String JSON_TAG_PACCOUNT = "pay";
     public static String JSON_TAG_IACCOUNT = "invest";
     public static String JSON_TAG_ISACTIVE = "active";
+    public static String JSON_TAG_NETWORTH = "netWorth";
+
+    public static String STATS_TAG_NETWORTH = "nWorthH";
+    public static String STATS_TAG_EXPENSES = "expensesH";
+    public static String STATS_TAG_MONTH = "month";
+    public static String STATS_TAG_AMOUNT = "amount";
 
     public static String ACCOUNT_BARGELD = "Bargeld";
     public static String ACCOUNT_BANK = "Sichteinlagen";

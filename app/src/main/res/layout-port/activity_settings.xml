@@ -25,23 +25,25 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"/>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
             android:layout_marginStart="10dp"
-            android:text="@string/label_delete_current_save"
-            android:textAppearance="@style/TitleStyle"/>
+            android:layout_marginTop="10dp"
+            android:text="@string/label_save_stats"
+            android:textAppearance="@style/TitleStyle" />
         <View
             android:layout_width="match_parent"
             android:layout_height="2dp"
             android:background="?android:attr/listDivider" />
+
         <Button
             android:id="@+id/button_delete_fastsave"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/label_delete"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="20dp"
-            android:layout_gravity="center_horizontal"/>
+            android:text="@string/label_save" />
     </LinearLayout>
 </ScrollView>
