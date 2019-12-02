@@ -27,4 +27,20 @@ public class Model {
         }
         return sum;
     }
+
+    public float sumAllStocks() {
+        float sum = 0.0f;
+        for (AccountBE a: payAccounts) {
+            sum += a.getSum();
+        }
+        return sum;
+    }
+
+    public float sumAllIncome() {
+        float sum = 0.0f;
+        for (EntryBE e: incomeList) {
+            sum += e.getAmount();
+        }
+        return sum;
+    }
 }

@@ -91,11 +91,11 @@ public class Const {
 
     public static String getLastMonthName() {
         Calendar cal = Calendar.getInstance();
-        int lastMonth = cal.get(Calendar.MONTH) - 1 % 12 + 1;
+        int lastMonth = cal.get(Calendar.MONTH) - 1 % 12;
         if (lastMonth < 11) {
-            return lastMonth + "." + cal.get(Calendar.YEAR);
+            return (lastMonth + 1) + "." + cal.get(Calendar.YEAR);
         } else {
-            return lastMonth + "." + (cal.get(Calendar.YEAR) - 1);
+            return (lastMonth + 1) + "." + (cal.get(Calendar.YEAR) - 1);
         }
     }
 

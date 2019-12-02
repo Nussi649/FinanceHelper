@@ -46,7 +46,7 @@ public class InvestActivity extends AccountListActivity {
     @Override
     protected void populateUI() {
         String cut = Util.cutFileNameIfNecessary(getModel().currentFileName);
-        String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1) + " - " + getModel().sumAllExpenses() + "€";
+        String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1) + " (" + String.format("%.2f", getModel().sumAllExpenses()) + "€)";
         setTitle(title);
         for (AccountBE a : model.investAccounts) {
             if (a.getIsActive())
