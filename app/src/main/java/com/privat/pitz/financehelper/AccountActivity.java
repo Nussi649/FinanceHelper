@@ -13,6 +13,9 @@ import android.widget.EditText;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
+import android.widget.ViewSwitcher;
+
+import org.json.JSONException;
 
 import Backend.Util;
 import Logic.AccountBE;
@@ -20,6 +23,7 @@ import Logic.EntryBE;
 
 public class AccountActivity extends AbstractActivity {
     AccountBE mAccount;
+    boolean isPayAccount;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -35,6 +39,7 @@ public class AccountActivity extends AbstractActivity {
     @Override
     protected void endWorkingThread() {
         setTitle(mAccount.getName());
+        isPayAccount = model.payAccounts.contains(mAccount);
         populateUI();
     }
 
@@ -98,6 +103,23 @@ public class AccountActivity extends AbstractActivity {
         showConfirmDialog(R.string.question_delete_account, listener);
     }
 
+    private void deleteEntry(final EntryBE toDelete) {
+        Dialog.OnClickListener listener = new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                if (mAccount.getEntries().contains(toDelete)) {
+                    mAccount.removeEntry(toDelete);
+                    showToastLong(R.string.toast_success_delete_entry);
+                    try {
+                        controller.saveAccountsToInternal();
+                    } catch (Exception ex) { }
+                    refreshView();
+                }
+            }
+        };
+        showConfirmDialog(R.string.question_delete_entry, listener);
+    }
+
     protected void removeAllEntries() {
         TableLayout tabLay = findViewById(R.id.contentTable);
         while (tabLay.getChildCount() > 2) {
@@ -114,27 +136,134 @@ public class AccountActivity extends AbstractActivity {
         float sum = 0.0f;
         TableLayout tabLay = findViewById(R.id.contentTable);
         if (filter == null) {
-            for (EntryBE entr : mAccount.getEntries()) {
+            for (final EntryBE entr : mAccount.getEntries()) {
                 TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.table_row_account, tabLay, false);
                 TextView date = row.findViewById(R.id.label_time);
-                TextView description = row.findViewById(R.id.label_description);
-                TextView amount = row.findViewById(R.id.label_amount);
+                final TextView labelDescription = row.findViewById(R.id.label_description);
+                final EditText editDescription = row.findViewById(R.id.edit_text_description);
+                final ViewSwitcher switcherDesc = row.findViewById(R.id.viewSwitcher_description);
+                final TextView labelAmount = row.findViewById(R.id.label_amount);
+                final EditText editAmount = row.findViewById(R.id.edit_text_amount);
+                final ViewSwitcher switcherAmount = row.findViewById(R.id.viewSwitcher_amount);
                 date.setText(Util.formatDateDisplay(entr.getDate()));
-                description.setText(entr.getDescription());
-                amount.setText(Util.formatFloat(entr.getAmount()));
+                date.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        deleteEntry(entr);
+                        return true;
+                    }
+                });
+                labelDescription.setText(entr.getDescription());
+                labelDescription.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        String desc = labelDescription.getText().toString();
+                        switcherDesc.showNext();
+                        editDescription.setText(desc);
+                        return true;
+                    }
+                });
+                editDescription.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        String desc = editDescription.getText().toString();
+                        if (controller.updateEntry(entr.getDate(), entr.getDescription(), mAccount, isPayAccount, desc)) {
+                            labelDescription.setText(desc);
+                            showToast(R.string.toast_success_update_entries);
+                        } else {
+                            showToastLong(R.string.toast_error_update_entries);
+                        }
+                        switcherDesc.showNext();
+                        return true;
+                    }
+                });
+                labelAmount.setText(Util.formatFloat(entr.getAmount()));
+                labelAmount.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        float am = Float.parseFloat(labelAmount.getText().toString());
+                        switcherAmount.showNext();
+                        editAmount.setText(String.valueOf(am));
+                        return true;
+                    }
+                });
+                editAmount.setOnLongClickListener(new View.OnLongClickListener() {
+                    @Override
+                    public boolean onLongClick(View v) {
+                        float am = Float.parseFloat(editAmount.getText().toString());
+                        if (controller.updateEntry(entr.getDate(), entr.getDescription(), mAccount, isPayAccount, am)) {
+                            labelAmount.setText(String.valueOf(am));
+                            showToast(R.string.toast_success_update_entries);
+                        } else {
+                            showToastLong(R.string.toast_error_update_entries);
+                        }
+                        switcherAmount.showNext();
+                        return true;
+                    }
+                });
                 sum += entr.getAmount();
                 tabLay.addView(row);
             }
         } else {
-            for (EntryBE entr : mAccount.getEntries()) {
+            for (final EntryBE entr : mAccount.getEntries()) {
                 if (entr.getDescription().contains(filter)) {
                     TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.table_row_account, tabLay, false);
                     TextView date = row.findViewById(R.id.label_time);
-                    TextView description = row.findViewById(R.id.label_description);
-                    TextView amount = row.findViewById(R.id.label_amount);
+                    final TextView labelDescription = row.findViewById(R.id.label_description);
+                    final EditText editDescription = row.findViewById(R.id.edit_text_description);
+                    final ViewSwitcher switcherDesc = row.findViewById(R.id.viewSwitcher_description);
+                    final TextView labelAmount = row.findViewById(R.id.label_amount);
+                    final EditText editAmount = row.findViewById(R.id.edit_text_amount);
+                    final ViewSwitcher switcherAmount = row.findViewById(R.id.viewSwitcher_amount);
                     date.setText(Util.formatDateDisplay(entr.getDate()));
-                    description.setText(entr.getDescription());
-                    amount.setText(Util.formatFloat(entr.getAmount()));
+                    labelDescription.setText(entr.getDescription());
+                    labelDescription.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override
+                        public boolean onLongClick(View v) {
+                            String desc = labelDescription.getText().toString();
+                            switcherDesc.showNext();
+                            editDescription.setText(desc);
+                            return true;
+                        }
+                    });
+                    editDescription.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override
+                        public boolean onLongClick(View v) {
+                            String desc = editDescription.getText().toString();
+                            if (controller.updateEntry(entr.getDate(), entr.getDescription(), mAccount, isPayAccount, desc)) {
+                                labelDescription.setText(desc);
+                                showToast(R.string.toast_success_update_entries);
+                            } else {
+                                showToastLong(R.string.toast_error_update_entries);
+                            }
+                            switcherDesc.showNext();
+                            return true;
+                        }
+                    });
+                    labelAmount.setText(Util.formatFloat(entr.getAmount()));
+                    labelAmount.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override
+                        public boolean onLongClick(View v) {
+                            float am = Float.parseFloat(labelAmount.getText().toString());
+                            switcherAmount.showNext();
+                            editAmount.setText(String.valueOf(am));
+                            return true;
+                        }
+                    });
+                    editAmount.setOnLongClickListener(new View.OnLongClickListener() {
+                        @Override
+                        public boolean onLongClick(View v) {
+                            float am = Float.parseFloat(editAmount.getText().toString());
+                            if (controller.updateEntry(entr.getDate(), entr.getDescription(), mAccount, isPayAccount, am)) {
+                                labelAmount.setText(String.valueOf(am));
+                                showToast(R.string.toast_success_update_entries);
+                            } else {
+                                showToastLong(R.string.toast_error_update_entries);
+                            }
+                            switcherAmount.showNext();
+                            return true;
+                        }
+                    });
                     sum += entr.getAmount();
                     tabLay.addView(row);
                 }

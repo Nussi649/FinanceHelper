@@ -37,7 +37,7 @@ public class AccountBE {
         return mSum;
     }
 
-    public float getSumRefreshed() {
+    public float getSumWithoutClosing() {
         float sum = 0.0f;
         for (EntryBE e: mEntries) {
             if (e.getDescription().equals(Const.DESC_CLOSING))
@@ -59,9 +59,14 @@ public class AccountBE {
     public boolean getIsActive() { return isActive;}
     //endregion
 
-    //region add entries
+    //region add/remove entries
     public void addEntry(EntryBE newEntry) {
         mEntries.add(newEntry);
+        refreshSum();
+    }
+
+    public void removeEntry(EntryBE toRemove) {
+        mEntries.remove(toRemove);
         refreshSum();
     }
     //endregion

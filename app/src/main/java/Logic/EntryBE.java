@@ -7,11 +7,6 @@ public class EntryBE {
     String mDescription;
     Date mDate;
 
-    public EntryBE(float amount, String description) {
-        mAmount = amount;
-        mDescription = description;
-    }
-
     public EntryBE(float amount, String description, Date date) {
         mAmount = amount;
         mDescription = description;
@@ -27,6 +22,10 @@ public class EntryBE {
     }
 
     public Date getDate() { return mDate; }
+
+    public void setAmount(float newAmount) { mAmount = newAmount; }
+
+    public void setDescription(String newDesc) { mDescription = newDesc; }
 
     @Override
     public String toString() {

@@ -29,7 +29,7 @@ public class Model {
     public float sumAllStocks() {
         float sum = 0.0f;
         for (AccountBE a: payAccounts) {
-            sum += a.getSumRefreshed();
+            sum += a.getSumWithoutClosing();
         }
         return sum;
     }

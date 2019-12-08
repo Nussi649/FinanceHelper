@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -471,5 +472,75 @@ public class Controller {
             return false;
         }
         return true;
+    }
+
+    public boolean updateEntry(Date date, String description, AccountBE source, boolean pay, float newAmount) {
+        EntryBE sourceEntry = null;
+        for (EntryBE e : source.getEntries()) {
+            if (e.getDate().equals(date) && e.getDescription().equals(description)) {
+                sourceEntry = e;
+            }
+        }
+        if (sourceEntry == null)
+            return false;
+        List<AccountBE> toSearch;
+        if (pay)
+            toSearch = model.investAccounts;
+        else
+            toSearch = model.payAccounts;
+        boolean otherFound = false;
+        for (AccountBE a : toSearch) {
+            for (EntryBE e : a.getEntries()) {
+                if (e.getDate().equals(date) && e.getDescription().equals(description)) {
+                    e.setAmount(newAmount * (-1.0f));
+                    a.refreshSum();
+                    otherFound = true;
+                }
+            }
+        }
+        if (otherFound) {
+            sourceEntry.setAmount(newAmount);
+            source.refreshSum();
+            try {
+                saveAccountsToInternal();
+            } catch (Exception e) { }
+            return true;
+        }
+        return false;
+    }
+
+    public boolean updateEntry(Date date, String description, AccountBE source, boolean pay, String newDescription) {
+        EntryBE sourceEntry = null;
+        for (EntryBE e : source.getEntries()) {
+            if (e.getDate().equals(date) && e.getDescription().equals(description)) {
+                sourceEntry = e;
+            }
+        }
+        if (sourceEntry == null)
+            return false;
+        List<AccountBE> toSearch;
+        if (pay)
+            toSearch = model.investAccounts;
+        else
+            toSearch = model.payAccounts;
+        boolean otherFound = false;
+        for (AccountBE a : toSearch) {
+            for (EntryBE e : a.getEntries()) {
+                if (e.getDate().equals(date) && e.getDescription().equals(description)) {
+                    e.setDescription(newDescription);
+                    a.refreshSum();
+                    otherFound = true;
+                }
+            }
+        }
+        if (otherFound) {
+            sourceEntry.setDescription(newDescription);
+            source.refreshSum();
+            try {
+                saveAccountsToInternal();
+            } catch (Exception e) { }
+            return true;
+        }
+        return false;
     }
 }

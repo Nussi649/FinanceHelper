@@ -56,7 +56,7 @@ public class MainActivity extends AbstractActivity {
         populateUI();
         String cut = Util.cutFileNameIfNecessary(getModel().currentFileName);
         String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1);
-        setTitle(title + " (" +  (model.sumAllIncome() - model.sumAllExpenses()) + "€)");
+        setTitle(title + " (" +  String.format("%.2f", (model.sumAllIncome() - model.sumAllExpenses())) + "€)");
 //        if (fn != null)
 //            if (!fn.equals(""))
 //            else
