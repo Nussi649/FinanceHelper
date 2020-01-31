@@ -98,12 +98,12 @@ public class Const {
 
     public static String getLastMonthName() {
         Calendar cal = Calendar.getInstance();
-        int lastMonth = cal.get(Calendar.MONTH) - 1 % 12;
-        if (lastMonth < 11) {
-            return (lastMonth + 1) + "." + cal.get(Calendar.YEAR);
-        } else {
-            return (lastMonth + 1) + "." + (cal.get(Calendar.YEAR) - 1);
-        }
+        int thisMonth = cal.get(Calendar.MONTH);
+        if (thisMonth == 0)
+            return "12." + (cal.get(Calendar.YEAR) - 1);
+        else
+            // index of thisMonth = name of last month
+            return thisMonth + "." + cal.get(Calendar.YEAR);
     }
 
     public static Calendar getFirstOfMonth() {
