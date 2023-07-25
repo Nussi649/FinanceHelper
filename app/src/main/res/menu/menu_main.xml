@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/item_show_income_list"
-        android:title="@string/label_show_income_list"/>
+        android:id="@+id/item_add_funds"
+        android:icon="@drawable/ic_plus_24"
+        android:title="@string/label_add_funds"/>
     <item
         android:id="@+id/item_display_recurring_orders"
         android:title="@string/label_display_recurring_orders"/>
@@ -12,6 +13,9 @@
     <item
         android:id="@+id/item_load_accounts"
         android:title="@string/label_load_accounts" />
+    <item
+        android:id="@+id/item_edit"
+        android:title="@string/label_edit_savefile" />
     <item
         android:id="@+id/item_settings"
         android:title="@string/label_settings"/>

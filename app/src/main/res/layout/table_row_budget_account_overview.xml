@@ -1,0 +1,108 @@
+<View.BudgetAccountTableRow xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical">
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent">
+
+        <!-- Transparent View for indentation -->
+        <View
+            android:id="@+id/indent_view"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_alignParentStart="true" />
+
+        <!-- View for displaying the straight down line -->
+        <View
+            android:id="@+id/vertical_line"
+            android:layout_width="3dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="2dp"
+            android:layout_toEndOf="@+id/indent_view"
+            android:layout_alignParentTop="true"
+            android:background="#000000" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_toEndOf="@id/vertical_line"
+            android:layout_centerVertical="true"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <!-- View for displaying the line splitting away -->
+            <View
+                android:layout_width="10dp"
+                android:layout_height="3dp"
+                android:background="#000000" />
+
+            <!-- Button for toggling the children visibility -->
+            <Button
+                android:id="@+id/toggle_button"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:text="@string/sign_contract"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:background="@drawable/round_button" />
+        </LinearLayout>
+    </RelativeLayout>
+
+    <!-- Label for displaying the item's name -->
+    <TextView
+        android:id="@+id/item_name_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dummy_account_name"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp" />
+
+    <!-- Label for displaying the account's current value -->
+    <TextView
+        android:id="@+id/item_value_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dummy_current_value"
+        android:gravity="end"
+        android:textSize="16sp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp" />
+
+    <!-- Label for displaying the account's current budget -->
+    <TextView
+        android:id="@+id/item_current_percentage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dummy_current_percentage"
+        android:gravity="end"
+        android:textStyle="italic"
+        android:textSize="16sp"
+        android:paddingEnd="2dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp" />
+
+    <!-- Label for displaying the account's yearly budget -->
+    <TextView
+        android:id="@+id/item_yearly_budget"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/dummy_yearly_budget"
+        android:gravity="end"
+        android:textSize="16sp"
+        android:paddingEnd="2dp"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="6dp"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp" />
+
+</View.BudgetAccountTableRow>

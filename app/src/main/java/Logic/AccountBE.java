@@ -6,40 +6,36 @@ import java.util.List;
 import Backend.Const;
 
 public class AccountBE {
-    private String mName;
-    private List<EntryBE> mEntries;
-    private float mSum;
-    private boolean isActive;
+    protected String name;
+    protected List<TxBE> txList;
+    protected boolean isActive;
+    private boolean isProfitNeutral;
+    // toOtherEntity specifies if payments received on this account should be accounted for as income on another financial entity
+    // can be left empty ("")
 
     public AccountBE(String name) {
-        mName = name;
-        mEntries = new ArrayList<>();
-        mSum = 0.0f;
+        this.name = name;
+        txList = new ArrayList<>();
         isActive = true;
-    }
-
-    public float refreshSum() {
-        float sum = 0.0f;
-        for (EntryBE e: mEntries) {
-            sum += e.getAmount();
-        }
-        return mSum = sum;
+        isProfitNeutral = false;
     }
 
     //region get
-    public List<EntryBE> getEntries() {
-        return mEntries;
+    public List<TxBE> getTxList() {
+        return txList;
     }
 
     public float getSum() {
-        if (mSum == 0.0f)
-            return refreshSum();
-        return mSum;
+        float sum = 0.0f;
+        for (TxBE e: txList) {
+            sum += e.getAmount();
+        }
+        return sum;
     }
 
     public float getSumWithoutClosing() {
         float sum = 0.0f;
-        for (EntryBE e: mEntries) {
+        for (TxBE e: txList) {
             if (e.getDescription().equals(Const.DESC_CLOSING))
                 continue;
             sum += e.getAmount();
@@ -48,7 +44,7 @@ public class AccountBE {
     }
 
     public String getName() {
-        return mName;
+        return name;
     }
 
     @Override
@@ -57,26 +53,40 @@ public class AccountBE {
     }
 
     public boolean getIsActive() { return isActive;}
+    public boolean getIsProfitNeutral() { return isProfitNeutral;}
     //endregion
 
     //region add/remove entries
-    public void addEntry(EntryBE newEntry) {
-        mEntries.add(newEntry);
-        refreshSum();
+    public void addTx(TxBE newEntry) {
+        txList.add(newEntry);
     }
 
-    public void removeEntry(EntryBE toRemove) {
-        mEntries.remove(toRemove);
-        refreshSum();
+    public void removeTx(TxBE toRemove) {
+        txList.remove(toRemove);
+    }
+
+    public void dropLastTx() {
+        if (txList.size() == 0)
+            return;
+        txList.remove(txList.size() -1);
     }
     //endregion
 
     public void setActive(boolean active) {
         isActive = active;
     }
+    public void setProfitNeutral(boolean profitNeutral) {
+        isProfitNeutral = profitNeutral;
+    }
 
+    // normal reset, used for starting new reporting period. only empty tx list if account is not profit neutral
     public void reset() {
-        mEntries = new ArrayList<>();
-        mSum = 0.0f;
+        if (isProfitNeutral)
+            return;
+        txList = new ArrayList<>();
+    }
+
+    public void forceReset() {
+        txList = new ArrayList<>();
     }
 }

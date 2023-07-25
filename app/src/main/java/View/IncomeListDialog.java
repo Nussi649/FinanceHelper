@@ -1,51 +1,90 @@
 package View;
 
-import android.content.Context;
 import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.appcompat.widget.SearchView;
+
+import com.privat.pitz.financehelper.AbstractActivity;
 import com.privat.pitz.financehelper.R;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import Backend.TxListAdapter;
 import Backend.Util;
-import Logic.EntryBE;
+import Logic.TxBE;
 
-public class IncomeListDialog extends ScrollView {
-    List<EntryBE> mIncomeList;
-    Context mContext;
+public class IncomeListDialog extends LinearLayout {
+    List<TxBE> mIncomeList;
+    AbstractActivity parent;
+    TxListAdapter listAdapter;
 
-    public IncomeListDialog(Context context, List<EntryBE> incomeList) {
-        super(context);
-        mIncomeList = incomeList;
-        mContext = context;
+    public IncomeListDialog(AbstractActivity parent, List<TxBE> incomeList) {
+        super(parent);
+        this.mIncomeList = incomeList;
+        this.parent = parent;
         populateUI();
     }
 
     private void populateUI() {
-        LayoutInflater inflater = LayoutInflater.from(mContext);
-        ScrollView load = (ScrollView) inflater.inflate(R.layout.activity_account, null);
-        LinearLayout rootLayout = (LinearLayout) load.findViewById(R.id.root_layout);
-        load.removeAllViews();
-        addView(rootLayout);
-        float sum = 0.0f;
-        TableLayout content = findViewById(R.id.contentTable);
-        for (EntryBE e : mIncomeList) {
-            TableRow row = (TableRow) inflater.inflate(R.layout.table_row_account, content, false);
-            TextView date = row.findViewById(R.id.label_time);
-            TextView description = row.findViewById(R.id.label_description);
-            TextView amount = row.findViewById(R.id.label_amount);
-            date.setText(Util.formatDateDisplay(e.getDate()));
-            description.setText(e.getDescription());
-            amount.setText(Util.formatFloat(e.getAmount()));
-            sum += e.getAmount();
-            content.addView(row);
+        LayoutInflater inflater = LayoutInflater.from(parent);
+        inflater.inflate(R.layout.activity_asset_account_details, this, true);
+        // Now this is the LinearLayout as defined in the inflated layout
+
+        if (mIncomeList.size() == 0) {
+            this.setVisibility(View.GONE);
+            parent.showToastLong(R.string.toast_error_no_entries);
+            return;
         }
+
+        RecyclerView recyclerView = findViewById(R.id.recyclerView);
+        listAdapter = new TxListAdapter();
+        recyclerView.setLayoutManager(new LinearLayoutManager(parent));
+        recyclerView.setAdapter(listAdapter);
+
+        filterEntries(null);
+
+        SearchView searchView = findViewById(R.id.search_filter);
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                filterEntries(newText);
+                return true;
+            }
+
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+        });
+    }
+
+    private void filterEntries(CharSequence filter) {
+        float sum = 0.0f;
+        List<TxBE> entries;
+        if (filter == null) {
+            entries = mIncomeList;
+        } else {
+            entries = new ArrayList<>();
+            for (TxBE entr : mIncomeList) {
+                if (entr.getDescription().toUpperCase().contains(filter.toString().toUpperCase())) {
+                    entries.add(entr);
+                }
+            }
+        }
+
+        for (TxBE entr : entries) {
+            sum += entr.getAmount();
+        }
+
         TextView textSum = findViewById(R.id.display_sum);
-        textSum.setText(Util.formatFloat(sum));
+        textSum.setText(Util.formatLargeFloatDisplay(sum));
+
+        listAdapter.setEntries(entries);
     }
 }

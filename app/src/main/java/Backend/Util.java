@@ -1,199 +1,632 @@
 package Backend;
 
-import android.content.res.Resources;
-import android.view.View;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.annotation.SuppressLint;
+import android.graphics.drawable.GradientDrawable;
+import android.util.Log;
+import android.widget.RadioButton;
+import android.widget.TableLayout;
 
-import com.privat.pitz.financehelper.AbstractActivity;
-import com.privat.pitz.financehelper.R;
+import androidx.core.graphics.ColorUtils;
 
-import java.math.BigInteger;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import com.privat.pitz.financehelper.MainActivity;
+
+import View.AccountPreviewTableRow;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 import Logic.AccountBE;
+import Logic.BudgetAccountBE;
+import Logic.TxBE;
+import Logic.RecurringTxBE;
 
 public abstract class Util {
+    public static class FileNameParts {
+        public final int year;
+        public final int month;
+        public final String entityName;
 
-
-    public static void populatePayAccountsList(final AbstractActivity act, final LinearLayout parent) {
-        final Model m = act.model;
-        final Resources resources = act.getResources();
-        parent.removeAllViews();
-        if (m.payAccounts == null) {
-            return;
-        }
-        if (m.payAccounts.size() == 0) {
-            return;
-        }
-        for (AccountBE a : m.payAccounts) {
-            if (!a.getIsActive()) {
-                continue;
-            }
-            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.account_selection_label, parent, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName());
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_default);
-                    m.currentPayAcc = act.getController().getPayAccountByName((String)v.getTag());
-                    parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
-                }
-            });
-            parent.addView(tv);
-        }
-        int i = 0;
-        if (m.currentPayAcc == null) {
-            while (parent.findViewWithTag(m.payAccounts.get(i).toString()) == null)
-                i++;
-            m.currentPayAcc = m.payAccounts.get(i);
-        }
-        parent.findViewWithTag(m.currentPayAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
-    }
-
-    public static void populatePayAccountsList(final AbstractActivity act, final LinearLayout parent, final String appendix) {
-        final Model m = act.model;
-        parent.removeAllViews();
-        if (m.payAccounts == null) {
-            return;
-        }
-        if (m.payAccounts.size() == 0) {
-            return;
-        }
-        for (AccountBE a : m.payAccounts) {
-            if (!a.getIsActive()) {
-                continue;
-            }
-            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.account_selection_label, parent, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName() + appendix);
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    String tag = (String) v.getTag();
-                    if (appendix == Const.APPENDIX_PAY_SENDER) {
-                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_default);
-                        m.currentPayAcc = act.getController().getPayAccountByName(tag.substring(0, tag.length() - appendix.length()));
-                        parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
-                    } else if (appendix == Const.APPENDIX_PAY_RECIPIENT) {
-                        if (m.transferRecipientAcc != null)
-                            parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_default);
-                        m.transferRecipientAcc = act.getController().getPayAccountByName(tag.substring(0, tag.length() - appendix.length()));
-                        parent.findViewWithTag(m.transferRecipientAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
-                    }
-                }
-            });
-            parent.addView(tv);
-        }
-        if (appendix == Const.APPENDIX_PAY_SENDER) {
-            int i = 0;
-            if (m.currentPayAcc == null) {
-                while (parent.findViewWithTag(m.payAccounts.get(i).toString()) == null)
-                    i++;
-                m.currentPayAcc = m.payAccounts.get(i);
-            }
-            parent.findViewWithTag(m.currentPayAcc.getName() + appendix).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
+        public FileNameParts(int year, int month, String entityName) {
+            this.year = year;
+            this.month = month;
+            this.entityName = entityName;
         }
     }
 
-    public static void populateInvestAccountsList(final AbstractActivity act, final LinearLayout parent) {
-        final Model m = act.model;
-        parent.removeAllViews();
-        if (m.investAccounts == null) {
+    // Create DateFormat instances
+    @SuppressLint("SimpleDateFormat")
+    private static final DateFormat DISPLAY_DATE_FORMAT = new SimpleDateFormat(Const.DATE_FORMAT_DISPLAY);
+    @SuppressLint("SimpleDateFormat")
+    private static final DateFormat SAVE_DATE_FORMAT = new SimpleDateFormat(Const.DATE_FORMAT_SAVE);
+
+    // region populate AccountsPreview TableLayouts with Account lists
+    public static void populateBudgetAccountsPreview(final List<BudgetAccountBE> accounts,
+                                               final MainActivity parentActivity,
+                                               final TableLayout parentLayout,
+                                               final RbAccountManager receiverManager) {
+        assert accounts != null;
+
+        // first clean up target TableLayout
+        parentLayout.removeAllViews();
+
+        // then get number of accounts
+        int count = accounts.size();
+        if (count == 0)
             return;
-        }
-        if (m.investAccounts.size() == 0) {
-            return;
-        }
-        for (AccountBE a : m.investAccounts) {
-            if (!a.getIsActive()) {
+        // iterate through all accounts given as argument
+        for (int index = 0; index < accounts.size(); index++) {
+            AccountBE currentAccount = accounts.get(index);
+            // skip if account is marked as inactive
+            if (!currentAccount.getIsActive())
                 continue;
-            }
-            TextView tv = (TextView) act.getLayoutInflater().inflate(R.layout.account_selection_label, parent, false);
-            tv.setText(a.getName());
-            tv.setTag(a.getName());
-            tv.setTextAlignment(View.TEXT_ALIGNMENT_TEXT_END);
-            tv.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_default);
-                    m.currentInvestAcc = act.getController().getInvestAccountByName((String)v.getTag());
-                    parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
-                }
+            // create TableRow object with is_last = (index == count-1)
+            AccountPreviewTableRow newRow = new AccountPreviewTableRow(parentActivity,
+                    currentAccount);
+            parentLayout.addView(newRow);
+            newRow.setRefreshListener(parentActivity);
+            newRow.getRefreshLiveData().observe(parentActivity, refresh -> {
+                if (refresh)
+                    parentActivity.onRefresh();
             });
-            parent.addView(tv);
+            RadioButton rbReceive = newRow.getRBReceiver();
+            assert rbReceive != null;
+            receiverManager.addRadioButton(rbReceive, currentAccount);
+
+            // check if TableRow has children. If so, add them
+            List<AccountPreviewTableRow> children = newRow.getChildren();
+            if (children.size() == 0)
+                continue;
+            for (AccountPreviewTableRow child : children) {
+                parentLayout.addView(child);
+                child.setRefreshListener(parentActivity);
+                child.getRefreshLiveData().observe(parentActivity, refresh -> {
+                    if (refresh)
+                        parentActivity.onRefresh();
+                });
+            }
         }
-        int i = 0;
-        if (m.currentInvestAcc == null) {
-            while (parent.findViewWithTag(m.investAccounts.get(i).toString()) == null)
-                i++;
-            m.currentInvestAcc = m.investAccounts.get(i);
-        }
-        parent.findViewWithTag(m.currentInvestAcc.getName()).setBackgroundResource(R.drawable.bg_accountlist_item_selected);
     }
 
-    public static String formatFloat(float input) {
+    public static void populateAssetAccountsPreview(final List<AccountBE> accounts,
+                                               final MainActivity parentActivity,
+                                               final TableLayout parentLayout,
+                                               final RbAccountManager receiverManager,
+                                               final RbAccountManager senderManager) {
+        assert accounts != null;
+
+        // first clean up target TableLayout
+        parentLayout.removeAllViews();
+
+        // then get number of accounts
+        int count = accounts.size();
+        if (count == 0)
+            return;
+        // iterate through all accounts given as argument
+        for (int index = 0; index < accounts.size(); index++) {
+            AccountBE currentAccount = accounts.get(index);
+            // skip if account is marked as inactive
+            if (!currentAccount.getIsActive())
+                continue;
+            // create TableRow object with is_last = (index == count-1)
+            AccountPreviewTableRow newRow = new AccountPreviewTableRow(parentActivity,
+                    currentAccount);
+            parentLayout.addView(newRow);
+            newRow.setRefreshListener(parentActivity);
+            newRow.getRefreshLiveData().observe(parentActivity, refresh -> {
+                if (refresh)
+                    parentActivity.onRefresh();
+            });
+            RadioButton rbReceive = newRow.getRBReceiver();
+            assert rbReceive != null;
+            receiverManager.addRadioButton(rbReceive, currentAccount);
+
+            // check if currentAccount is AssetAccount, only then add rbSend
+            if (!(currentAccount instanceof BudgetAccountBE)) {
+                RadioButton rbSend = newRow.getRBSender();
+                assert rbSend != null;
+                senderManager.addRadioButton(rbSend, currentAccount);
+            }
+
+            // check if TableRow has children. If so, add them
+            List<AccountPreviewTableRow> children = newRow.getChildren();
+            if (children.size() == 0)
+                continue;
+            for (AccountPreviewTableRow child : children) {
+                parentLayout.addView(child);
+                child.setRefreshListener(parentActivity);
+                child.getRefreshLiveData().observe(parentActivity, refresh -> {
+                    if (refresh)
+                        parentActivity.onRefresh();
+                });
+            }
+        }
+    }
+    // endregion
+
+    /**
+     * Formats a float to a string with two decimal places for saving i.e. using '.' as decimal separator.
+     *
+     * @param input The float to format.
+     * @return The formatted string.
+     */
+    @SuppressLint("DefaultLocale")
+    public static String formatFloatSave(float input) {
         return String.format("%.2f", input).replace(',','.');
     }
 
+    /**
+     * Formats a float to a string with two decimal places for display i.e. using ',' as decimal separator.
+     *
+     * @param input The float to format.
+     * @return The formatted string.
+     */
+    @SuppressLint("DefaultLocale")
+    public static String formatFloatDisplay(float input) {
+        return String.format("%.2f", input);
+    }
+
+    /**
+     * Formats a float to a string with two decimal places for display and with thousands separator.
+     *
+     * @param input The float to format.
+     * @return The formatted string.
+     */
+    public static String formatLargeFloatDisplay(float input) {
+        return String.format(Locale.getDefault(), "%,.2f", input).replace(" ", ".");
+    }
+
+    /**
+     * Formats a float to a string with no decimal places for display and with thousands separator.
+     *
+     * @param input The float to format.
+     * @return The formatted string.
+     */
+    public static String formatLargeFloatShort(float input) {
+        return String.format(Locale.getDefault(), "%,.0f", input).replace(" ", ".");
+    }
+
+    /**
+     * Formats a Date object into a string for display.
+     *
+     * @param input The Date object to format.
+     * @return The formatted string.
+     */
     public static String formatDateDisplay(Date input) {
-        android.text.format.DateFormat df = new android.text.format.DateFormat();
-        return df.format(Const.DATE_FORMAT_DISPLAY, input).toString();
+        return DISPLAY_DATE_FORMAT.format(input);
     }
 
+    /**
+     * Formats a Date object into a string for saving.
+     *
+     * @param input The Date object to format.
+     * @return The formatted string.
+     */
     public static String formatDateSave(Date input) {
-        android.text.format.DateFormat df = new android.text.format.DateFormat();
-        return df.format(Const.DATE_FORMAT_SAVE, input).toString();
+        return SAVE_DATE_FORMAT.format(input);
     }
 
+    public static String formatToFixedLength(String input, int desiredLength) {
+        if (input.length() >= desiredLength) {
+            return input;
+        }
+        int lengthDiff = 2 * (desiredLength - input.length());
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < lengthDiff; i++) {
+            sb.append(' ');
+        }
+        sb.append(input);
+        return sb.toString();
+    }
+
+    public static char evaluatePercentage(float percentage) {
+        LocalDate today = LocalDate.now();
+        YearMonth yearMonthObject = YearMonth.of(today.getYear(), today.getMonth());
+        int daysInMonth = yearMonthObject.lengthOfMonth();
+        float monthProgress = (float) today.getDayOfMonth() / daysInMonth;
+
+        if (percentage > monthProgress + 0.1) {
+            return '+';
+        } else if (percentage < monthProgress - 0.1) {
+            return '-';
+        } else {
+            return 'O';
+        }
+    }
+
+    public static GradientDrawable createBackground(int color) {
+        GradientDrawable drawable = new GradientDrawable();
+        drawable.setShape(GradientDrawable.RECTANGLE);
+        drawable.setCornerRadius(7); // 7dp rounded corners
+        drawable.setColor(ColorUtils.setAlphaComponent(color, (int) (255 * 0.6))); // 60% opacity
+        return drawable;
+    }
+
+    /**
+     * Parses a string into a Date object.
+     *
+     * @param input The string to parse.
+     * @return The parsed Date object.
+     * @throws ParseException If the string cannot be parsed.
+     */
     public static Date parseDateSave(String input) throws ParseException {
-        SimpleDateFormat df = new SimpleDateFormat(Const.DATE_FORMAT_SAVE);
-        return df.parse(input);
-    }
-
-    public static String sha256(String s) {
-        try {
-            // Create SHA-256 Hash
-            MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
-            digest.update(s.getBytes());
-            byte messageDigest[] = digest.digest();
-
-            // Create Hex String
-            StringBuffer hexString = new StringBuffer();
-            for (int i=0; i<messageDigest.length; i++)
-                hexString.append(Integer.toHexString(0xFF & messageDigest[i]));
-            return hexString.toString();
-
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+        Date date = SAVE_DATE_FORMAT.parse(input);
+        if (date == null) {
+            throw new ParseException("Could not parse date: " + input, 0);
         }
-        return "";
+        return date;
     }
 
-    public static BigInteger stringToBigInt(String s) {
-        byte[] bytes = s.getBytes();
-        return new BigInteger(bytes);
+    @SuppressLint("DefaultLocale")
+    public static String serializeFileName(FileNameParts parts) {
+        // Check for null
+        if (parts == null) {
+            throw new IllegalArgumentException("FileNameParts cannot be null");
+        }
+
+        // Extract entity Name
+        String entityName = parts.entityName;
+
+        // Check if the entityName is null or empty
+        if (entityName == null || entityName.isEmpty()) {
+            throw new IllegalArgumentException("Entity name cannot be null or empty");
+        }
+
+        // Return the formatted filename
+        return String.format("%04d-%02d-%s.jso", parts.year, parts.month, entityName);
     }
 
-    public static String bigIntToString(BigInteger b) {
-        byte[] bytes = b.toByteArray();
-        return new String(bytes);
-    }
 
-    public static String cutFileNameIfNecessary(String fileName) {
-        if (fileName == null || fileName.equals(""))
-            return null;
+    public static FileNameParts parseFileName(String fileName) {
+        // Check for null or empty string
+        if (fileName == null || fileName.isEmpty()) {
+            throw new IllegalArgumentException("Filename cannot be null or empty");
+        }
+
+        // Split the string into parts
+        String[] parts = fileName.split("[.-]");
+
+        // Check if the filename has the correct format
+        if (parts.length != 4 || !parts[3].equals("jso")) {
+            throw new IllegalArgumentException("Invalid filename format");
+        }
+
+        // Parse the year, month, and entity name
         int year;
+        int month;
         try {
-            year = Integer.parseInt(fileName.substring(fileName.length()-4));
-        } catch (NumberFormatException nfe) {
-            return fileName;
+            year = Integer.parseInt(parts[0]);
+            month = Integer.parseInt(parts[1]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid year or month in filename", e);
         }
-        return fileName.substring(0,fileName.length() - 4);
+        String entityName = parts[2];
+
+        // Return the parts in a FileNameParts object
+        return new FileNameParts(year, month, entityName);
     }
+
+    // region parse JSON to BE objects
+    public static Model.Settings parseJSON_Settings(JSONObject json_in) throws JSONException {
+        Model.Settings settings = new Model.Settings();
+        try {
+            settings.defaultEntityName = json_in.getString(Const.JSON_TAG_DEFAULT_ENTITY);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_settings",
+                    String.format("Error parsing Settings: %s", e));
+            throw e;
+        }
+        // try reading sender. If tag cannot be found, ignore it
+        try {
+            settings.defaultSender = json_in.getString(Const.JSON_TAG_SENDER);
+        } catch (JSONException e) {
+            settings.defaultSender = "";
+        }
+        // try reading receiver. If tag cannot be found, ignore it
+        try {
+            settings.defaultReceiver = json_in.getString(Const.JSON_TAG_RECEIVER);
+        } catch (JSONException e) {
+            settings.defaultReceiver = "";
+        }
+        return settings;
+    }
+
+    public static TxBE parseJSON_Entry(JSONObject json_in) {
+        try {
+            float amount = (float) json_in.getDouble(Const.JSON_TAG_AMOUNT);
+            String description = json_in.getString(Const.JSON_TAG_DESCRIPTION);
+            Date time = parseDateSave(json_in.getString(Const.JSON_TAG_TIME));
+            return new TxBE(amount, description, time);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_entry",
+                    String.format("Error parsing entry! %s", e));
+        } catch (ParseException e) {
+            Log.println(Log.ERROR, "parse_entry",
+                    String.format("Error parsing entry Date time of entry! %s", e));
+        }
+        return null;
+    }
+
+    public static AccountBE parseJSON_Account(JSONObject json_in) {
+        AccountBE new_account;
+        // try reading obligatory attributes
+        try {
+            String account_name = json_in.getString(Const.JSON_TAG_NAME);
+            boolean is_active = json_in.getBoolean(Const.JSON_TAG_ISACTIVE);
+            boolean profit_neutral = json_in.getBoolean(Const.JSON_TAG_PROFIT_NEUTRAL);
+            new_account = new AccountBE(account_name);
+            new_account.setActive(is_active);
+            new_account.setProfitNeutral(profit_neutral);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_account",
+                    String.format("Error parsing account: key does not exist! %s", e));
+            return null;
+        }
+
+        // read entries
+        try {
+            JSONArray entries = json_in.getJSONArray(Const.JSON_TAG_TRANSACTIONS);
+            for (int i = 0; i < entries.length(); i++) {
+                JSONObject curEntry = entries.getJSONObject(i);
+                TxBE new_entry = parseJSON_Entry(curEntry);
+                if (new_entry != null)
+                    new_account.addTx(new_entry);
+            }
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_account",
+                    String.format("Error parsing account %s: key does not exist! %s",
+                            new_account.getName(), e));
+            return null;
+        }
+        return new_account;
+    }
+
+    public static BudgetAccountBE parseJSON_BudgetAccount(JSONObject json_in) {
+        AccountBE parsed_account = parseJSON_Account(json_in);
+        if (parsed_account == null)
+                return null;
+        BudgetAccountBE new_account = new BudgetAccountBE(parsed_account);
+
+        // try reading obligatory attributes
+        try {
+            float yearly_budget = (float)json_in.getDouble(Const.JSON_TAG_YEARLY_BUDGET);
+            new_account.setIndivYearlyBudget(yearly_budget);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_budget_account",
+                    String.format("Error parsing budget account %s: key does not exist! %s",
+                            new_account.getName(), e));
+            return null;
+        } catch (NumberFormatException e) {
+            Log.println(Log.ERROR, "parse_budget_account",
+                    String.format("Error parsing budget account %s: yearly budget could not be parsed! %s",
+                            new_account.getName(), e));
+            return null;
+        }
+
+        // try reading current budget
+        float current_budget = -1f;
+        try {
+            current_budget = (float)json_in.getDouble(Const.JSON_TAG_CURRENT_BUDGET);
+        } catch (JSONException e) {
+            Log.println(Log.INFO, "parse_budget_account",
+                    String.format("No current budget for account: %s", new_account.getName()));
+            current_budget = new_account.indivYearlyBudget / 12;
+        } finally {
+            new_account.setIndivCurrentBudget(current_budget);
+        }
+
+        // try reading target entity
+        try {
+            String other_entity = json_in.getString(Const.JSON_TAG_TO_OTHER);
+            new_account.setToOtherEntity(other_entity);
+        } catch (JSONException e) {
+            Log.println(Log.INFO, "parse_budget_account",
+                    String.format("No target entity for account: %s", new_account.getName()));
+        }
+
+        // read sub budgets
+        try {
+            JSONArray sub_budgets_json = json_in.getJSONArray(Const.JSON_TAG_SUB_BUDGETS);
+            List<BudgetAccountBE> sub_budgets = new ArrayList<>();
+            for (int i = 0; i < sub_budgets_json.length(); i++) {
+                JSONObject current_sub_budget_json = sub_budgets_json.getJSONObject(i);
+                BudgetAccountBE current_sub_budget = parseJSON_BudgetAccount(current_sub_budget_json);
+                if (current_sub_budget != null)
+                    sub_budgets.add(current_sub_budget);
+            }
+            new_account.setSubBudgets(sub_budgets);
+        } catch (JSONException e) {
+            Log.println(Log.INFO, "parse_budget_account",
+                    String.format("No sub budgets for account: %s", new_account.getName()));
+        }
+        return new_account;
+    }
+
+    public static RecurringTxBE parseJSON_RecurringOrder(JSONObject json_in) {
+        String description = "";
+        try {
+            description = json_in.getString(Const.JSON_TAG_DESCRIPTION);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_recur_order",
+                    String.format("Error parsing description of recurring order: key does not exist! %s", e));
+            return null;
+        }
+        try {
+            float amount = (float)json_in.getDouble(Const.JSON_TAG_AMOUNT);
+            Date time = parseDateSave(json_in.getString(Const.JSON_TAG_TIME));
+            String from_account = json_in.getString(Const.JSON_TAG_SENDER);
+            String to_account = json_in.getString(Const.JSON_TAG_RECEIVER);
+            return new RecurringTxBE(amount,
+                    description,
+                    time,
+                    from_account,
+                    to_account);
+
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_recur_order",
+                    String.format("Error parsing recurring order %s: key does not exist! %s",
+                            description, e));
+        } catch (NumberFormatException e) {
+            Log.println(Log.ERROR, "parse_recur_order",
+                    String.format("Error parsing recurring order %s: yearly budget could not be parsed! %s",
+                            description, e));
+        } catch (ParseException e) {
+            Log.println(Log.ERROR, "parse_recur_order",
+                    String.format("Error parsing entry Date time of recurring order %s! %s",
+                            description, e));
+        }
+        return null;
+    }
+
+    public static List<TxBE> parseJSON_IncomeList(JSONArray json_in) {
+        List<TxBE> new_income_list = new ArrayList<>();
+        for (int i = 0; i < json_in.length(); i++) {
+            try {
+                TxBE current_income_entry = parseJSON_Entry(json_in.getJSONObject(i));
+                if (current_income_entry != null)
+                    new_income_list.add(current_income_entry);
+            } catch (JSONException e) {
+                Log.println(Log.ERROR, "parse_income_list",
+                        String.format("Error retrieving Income Entry from JSONArray: %s", e));
+            }
+        }
+        return new_income_list;
+    }
+    // endregion
+
+    // region serialise BE to JSON objects
+    public static JSONObject serialise_Settings(Model.Settings settings) throws JSONException {
+        JSONObject settingsJSON = new JSONObject();
+        try {
+            settingsJSON.put(Const.JSON_TAG_DEFAULT_ENTITY, settings.defaultEntityName);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_settings",
+                    String.format("Error serialising Settings: %s", e));
+            throw e;
+        }
+        try {
+            if (!settings.defaultSender.equals(""))
+                settingsJSON.put(Const.JSON_TAG_SENDER, settings.defaultSender);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_settings",
+                    String.format("Error serialising Settings: %s", e));
+        }
+        try {
+            if (!settings.defaultReceiver.equals(""))
+                settingsJSON.put(Const.JSON_TAG_RECEIVER, settings.defaultReceiver);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_settings",
+                    String.format("Error serialising Settings: %s", e));
+        }
+        return settingsJSON;
+    }
+    public static JSONObject serialise_Entry(TxBE entry_in) {
+        try {
+            JSONObject new_entry = new JSONObject();
+            new_entry.put(Const.JSON_TAG_DESCRIPTION, entry_in.getDescription());
+            new_entry.put(Const.JSON_TAG_AMOUNT, Util.formatFloatSave(entry_in.getAmount()));
+            new_entry.put(Const.JSON_TAG_TIME, Util.formatDateSave(entry_in.getDate()));
+            return new_entry;
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_entry",
+                    String.format("Error serialising EntryBE: %s", e));
+        }
+        return null;
+    }
+
+    public static JSONObject serialise_Account(AccountBE account_in) {
+        try {
+            JSONObject serialised_account = new JSONObject();
+            serialised_account.put(Const.JSON_TAG_NAME, account_in.getName());
+            serialised_account.put(Const.JSON_TAG_ISACTIVE, account_in.getIsActive());
+            serialised_account.put(Const.JSON_TAG_PROFIT_NEUTRAL, account_in.getIsProfitNeutral());
+            JSONArray entries = new JSONArray();
+            for (TxBE current_entry : account_in.getTxList()) {
+                JSONObject serialised_entry = serialise_Entry(current_entry);
+                if (serialised_entry != null)
+                    entries.put(serialised_entry);
+            }
+            serialised_account.put(Const.JSON_TAG_TRANSACTIONS, entries);
+            return serialised_account;
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_Account",
+                    String.format("Error serialising AccountBE %s: %s", account_in.getName(), e));
+        }
+        return null;
+    }
+
+    @SuppressLint("DefaultLocale")
+    public static JSONObject serialise_BudgetAccount(BudgetAccountBE budgetAccount_in) {
+        JSONObject new_account = serialise_Account(budgetAccount_in);
+        if (new_account == null)
+            return null;
+
+        // add BudgetAccount specific attributes
+        try {
+            String otherEntity = budgetAccount_in.getOtherEntity();
+            new_account.put(Const.JSON_TAG_YEARLY_BUDGET, Util.formatFloatSave(budgetAccount_in.indivYearlyBudget));
+            new_account.put(Const.JSON_TAG_TO_OTHER, otherEntity == null ? "" : otherEntity);
+            float current_budget = budgetAccount_in.indivCurrentBudget;
+            if (current_budget != -1.0f)
+                new_account.put(Const.JSON_TAG_CURRENT_BUDGET, Util.formatFloatSave(current_budget));
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_BudgetAccount",
+                    String.format("Error serialising AccountBE %s: %s", budgetAccount_in.getName(), e));
+        }
+
+        // add sub budgets
+        List<BudgetAccountBE> sub_budgets = budgetAccount_in.getDirectSubBudgets();
+        if (sub_budgets != null && sub_budgets.size() > 0) {
+            JSONArray sub_budgets_json = new JSONArray();
+            for (BudgetAccountBE sub_budget : sub_budgets) {
+                JSONObject sub_budget_json = serialise_BudgetAccount(sub_budget);
+                if (sub_budget_json != null)
+                    sub_budgets_json.put(sub_budget_json);
+            }
+            try {
+                new_account.put(Const.JSON_TAG_SUB_BUDGETS, sub_budgets_json);
+            } catch (JSONException e) {
+                Log.println(Log.ERROR, "serialise_BudgetAccount",
+                        String.format("Error serialising AccountBE %s: %s", budgetAccount_in.getName(), e));
+            }
+        }
+        return new_account;
+    }
+
+    public static JSONObject serialise_RecurringOrder(RecurringTxBE recurringOrder_in) {
+        try {
+            JSONObject new_order = new JSONObject();
+            new_order.put(Const.JSON_TAG_AMOUNT, Util.formatFloatSave(recurringOrder_in.getAmount()));
+            new_order.put(Const.JSON_TAG_DESCRIPTION, recurringOrder_in.getDescription());
+            new_order.put(Const.JSON_TAG_TIME, Util.formatDateSave(recurringOrder_in.getDate()));
+            new_order.put(Const.JSON_TAG_SENDER, recurringOrder_in.getSenderStr());
+            new_order.put(Const.JSON_TAG_RECEIVER, recurringOrder_in.getReceiverStr());
+            return new_order;
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_RecurrOrder",
+                    String.format("Error serialising RecurringOrderBE %s: %s", recurringOrder_in.getDescription(), e));
+        }
+        return null;
+    }
+
+    public static JSONArray serialise_Income(List<TxBE> income_in) {
+        JSONArray new_income_list_json = new JSONArray();
+        for (TxBE income : income_in) {
+            JSONObject income_json = serialise_Entry(income);
+            if (income_json != null)
+                new_income_list_json.put(income_json);
+        }
+        return new_income_list_json;
+    }
+    // endregion
 }

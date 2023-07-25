@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="colorPrimary">#4F61CA</color>
+    <color name="colorPrimaryLight">#95A0DF</color>
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
+    <color name="colorSubtleDistinction">#D3D3D3</color>
+    <color name="colorSubtleDistinction2">#C3C3C3</color>
+    <color name="colorPositive">#B397FA89</color>
+    <color name="colorNeutral">#B3F4FA89</color>
+    <color name="colorNegative">#B3FA7272</color>
     <color name="red">#FF2020</color>
 </resources>

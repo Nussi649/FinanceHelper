@@ -1,56 +1,53 @@
 package Backend;
 
-
 import java.util.Calendar;
 
 public class Const {
     public static int MARGIN_ACCOUNT_VIEW = 5;
     public static int ACOUNT_VIEW_LANDSCAPE_WIDTH = 500;
 
+    // File related
     public static String ACCOUNTS_FASTSAVE_DIRECTORY_NAME = "fastsave";
     public static String ACCOUNTS_FASTSAVE_FILE_NAME = ACCOUNTS_FASTSAVE_DIRECTORY_NAME + "/accounts";
     public static String ACCOUNTS_HIDDEN_DIRECTORY = "hidden";
+    public static String APPLICATION_SETTINGS_FILENAME = "settings.json";
     public static String ACCOUNTS_FILE_TYPE = ".jso";
     public static String STATS_FILE_NAME = "stats" + ACCOUNTS_FILE_TYPE;
 
     public static String APPENDIX_PAY_SENDER = "-1";
     public static String APPENDIX_PAY_RECIPIENT = "-2";
 
-    public static String JSON_TAG_TIME = "t";
-    public static String JSON_TAG_ENTRIES = "entries";
+    // Top Level JSON Tags
+    public static String JSON_TAG_ASSET_ACCOUNTS = "assets";
+    public static String JSON_TAG_BUDGET_ACCOUNTS = "budgets";
+    public static String JSON_TAG_RECURRING_TX = "recur_tx";
+    public static String JSON_TAG_CURRENT_INCOME = "income";
+
+    // Account Level JSON Tags
+    public static String JSON_TAG_TRANSACTIONS = "tx";
     public static String JSON_TAG_NAME = "name";
+    public static String JSON_TAG_ISACTIVE = "active";
+    public static String JSON_TAG_PROFIT_NEUTRAL = "profit_neutral";
+    public static String JSON_TAG_TO_OTHER = "to_other_entity";
+    public static String JSON_TAG_YEARLY_BUDGET = "budget_year";
+    public static String JSON_TAG_CURRENT_BUDGET = "budget_cur";
+    public static String JSON_TAG_SUB_BUDGETS = "sub_budgets";
+
+    // Transaction Level JSON Tags
+    public static String JSON_TAG_TIME = "t";
     public static String JSON_TAG_AMOUNT = "a";
     public static String JSON_TAG_DESCRIPTION = "d";
-    public static String JSON_TAG_PACCOUNTS = "paccounts";
-    public static String JSON_TAG_IACCOUNTS = "iaccounts";
-    public static String JSON_TAG_RECURRING_ORDERS = "rorders";
-    public static String JSON_TAG_INCOME_LIST = "incomel";
-    public static String JSON_TAG_PACCOUNT = "pay";
-    public static String JSON_TAG_IACCOUNT = "invest";
-    public static String JSON_TAG_ISACTIVE = "active";
-    public static String JSON_TAG_NETWORTH = "netWorth";
 
-    public static String STATS_TAG_NETWORTH = "nWorthH";
-    public static String STATS_TAG_EXPENSES = "expensesH";
-    public static String STATS_TAG_MONTH = "month";
-    public static String STATS_TAG_AMOUNT = "amount";
+    // Recurring Order JSON Tags
+    public static String JSON_TAG_SENDER = "sender";
+    public static String JSON_TAG_RECEIVER = "receiver";
 
-    public static String ACCOUNT_BARGELD = "Bargeld";
-    public static String ACCOUNT_BANK = "Sichteinlagen";
-    public static String ACCOUNT_SAVINGS = "Sparkonto";
-    public static String ACCOUNT_CREDIT_CARD = "Kreditkarte";
-    public static String ACCOUNT_UNI = "Mensakarte";
-    public static String ACCOUNT_DEBTS = "Schulden";
+    // Application Settings JSON Tags
+    public static String JSON_TAG_DEFAULT_ENTITY = "defaultEntity";
 
-    public static String ACCOUNT_INVESTMENTS = "Anschaffungen";
-    public static String ACCOUNT_GROCERIES = "Lebensmittel";
-    public static String ACCOUNT_COSMETICS = "Kosmetik";
-    public static String ACCOUNT_GO_OUT = "Ausgehen";
-    public static String ACCOUNT_DRUGS = "Drogen";
-    public static String ACCOUNT_NECESSARY = "Notwendige";
-    public static String ACCOUNT_MOBILITY = "Mobilität";
-
-    public static int KEY_BIT_LENGTH = 2048;
+    // Selection Groups
+    public static String GROUP_SENDER = JSON_TAG_SENDER;
+    public static String GROUP_RECEIVER = JSON_TAG_RECEIVER;
 
     public static String DATE_FORMAT_DISPLAY = "dd.MM. HH:mm";
     public static String DATE_FORMAT_SAVE = "dd.MM.yyyy HH:mm";
@@ -86,9 +83,34 @@ public class Const {
         return null;
     }
 
-    public static String getCurrentMonthName() {
+    public static String getCurrentMonthFileName(String entityName) {
         Calendar cal = Calendar.getInstance();
-        return (cal.get(Calendar.MONTH) + 1) + "." + cal.get(Calendar.YEAR);
+        Util.FileNameParts parts = new Util.FileNameParts(
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH) + 1,
+                entityName);
+        return Util.serializeFileName(parts);
+    }
+
+    public static String getLastMonthFileName(String entityName) {
+        Calendar cal = Calendar.getInstance();
+        int thisMonth = cal.get(Calendar.MONTH);
+        int thisYear = cal.get(Calendar.YEAR);
+        int newMonth;
+        int newYear;
+        // remember: thisMonth is indexed at 0, newMonth is indexed at 1
+        if (thisMonth == 0) {
+            newYear = thisYear - 1;
+            newMonth = 12;
+        } else {
+            newYear = thisYear;
+            newMonth = thisMonth;
+        }
+        Util.FileNameParts parts = new Util.FileNameParts(
+                newYear,
+                newMonth,
+                entityName);
+        return Util.serializeFileName(parts);
     }
 
     public static String getDisplayableCurrentMonthName() {

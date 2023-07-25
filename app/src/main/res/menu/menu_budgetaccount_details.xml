@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/item_set_yearly_budget"
+        android:title="@string/label_yearly_budget" />
+    <item
+        android:id="@+id/item_transfer_budget"
+        android:title="@string/label_transfer_budget" />
+    <item
+        android:id="@+id/item_new_sub_budget"
+        android:title="@string/label_new_sub_budget" />
+</menu>

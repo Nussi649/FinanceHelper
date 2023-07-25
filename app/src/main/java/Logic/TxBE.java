@@ -2,12 +2,14 @@ package Logic;
 
 import java.util.Date;
 
-public class EntryBE {
-    float mAmount;
-    String mDescription;
-    Date mDate;
+import Backend.Util;
 
-    public EntryBE(float amount, String description, Date date) {
+public class TxBE {
+    private float mAmount;
+    private String mDescription;
+    private Date mDate;
+
+    public TxBE(float amount, String description, Date date) {
         mAmount = amount;
         mDescription = description;
         mDate = date;
@@ -29,6 +31,6 @@ public class EntryBE {
 
     @Override
     public String toString() {
-        return getDescription();
+        return String.format("%s: %s",mDescription, Util.formatFloatDisplay(mAmount));
     }
 }

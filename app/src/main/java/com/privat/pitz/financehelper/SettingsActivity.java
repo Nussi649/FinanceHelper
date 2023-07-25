@@ -1,7 +1,5 @@
 package com.privat.pitz.financehelper;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,10 +28,9 @@ public class SettingsActivity extends AbstractActivity {
 
     private void populateUI() {
         TableLayout content = findViewById(R.id.layout_filter_container);
-        Button saveStatsButton = findViewById(R.id.button_delete_fastsave);
         List<AccountBE> allAccounts = new ArrayList<>();
-        allAccounts.addAll(model.payAccounts);
-        allAccounts.addAll(model.investAccounts);
+        allAccounts.addAll(model.asset_accounts);
+        allAccounts.addAll(model.budget_accounts);
         int size = allAccounts.size();
         for (int i = 0; i<size/2; i++) {
             final CheckBox check1 = new CheckBox(this);
@@ -42,7 +39,7 @@ public class SettingsActivity extends AbstractActivity {
             check1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    controller.getAccountByName(check1.getText().toString()).setActive(b);
+                    model.getAccountByName(check1.getText().toString()).setActive(b);
                 }
             });
             check1.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0.5f));
@@ -52,7 +49,7 @@ public class SettingsActivity extends AbstractActivity {
             check2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    controller.getAccountByName(check2.getText().toString()).setActive(b);
+                    model.getAccountByName(check2.getText().toString()).setActive(b);
                 }
             });
             check2.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0.5f));
@@ -68,18 +65,17 @@ public class SettingsActivity extends AbstractActivity {
             check.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    controller.getAccountByName(check.getText().toString()).setActive(b);
+                    model.getAccountByName(check.getText().toString()).setActive(b);
                 }
             });
             TableRow row = new TableRow(this);
             row.addView(check);
             content.addView(row);
         }
-        saveStatsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showToastLong(getController().updateStats() ? R.string.toast_success_save_stats : R.string.toast_error_unknown);
-            }
-        });
+    }
+
+    @Override
+    public void onRefresh() {
+
     }
 }

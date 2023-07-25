@@ -1,33 +1,38 @@
 package com.privat.pitz.financehelper;
 
+import android.annotation.SuppressLint;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Looper;
-import android.support.v7.app.AlertDialog;
+import android.app.AlertDialog;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
-import android.widget.ScrollView;
+import android.widget.RadioButton;
+import android.widget.Spinner;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import Backend.Const;
 import Backend.Controller;
-import Backend.PastMonth;
+import Backend.RbAccountManager;
 import Backend.Util;
 import View.IncomeListDialog;
 
@@ -36,63 +41,55 @@ public class MainActivity extends AbstractActivity {
 
     public EditText newDescription;
     public EditText newAmount;
+    RbAccountManager rbSender;
+    RbAccountManager rbReceiver;
 
     //region overridden activity methods
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         onAppStartup();
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
     }
 
     @Override
     protected void workingThread() {
+        // Call Looper.prepare() to be able to send Toasts
         Looper.prepare();
-        setupNewAccounts();
+        initiateAccounts();
     }
 
+    @SuppressLint("DefaultLocale")
     @Override
     protected void endWorkingThread() {
+        setContentView(R.layout.activity_main);
         populateUI();
-        String cut = Util.cutFileNameIfNecessary(getModel().currentFileName);
-        String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1);
-        setTitle(title + " (" +  String.format("%.2f", (model.sumAllIncome() - model.sumAllExpenses())) + "€)");
-//        if (fn != null)
-//            if (!fn.equals(""))
-//            else
-//                setTitle(getResources().getString(R.string.app_name));
-//        else
-//            setTitle(getResources().getString(R.string.app_name));
-
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_main, menu);
+
+        // show add funds item as extra icon on menu bar
+        menu.findItem(R.id.item_add_funds).setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
         return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.item_show_income_list:
-                showIncomeListDialog();
-                break;
-            case R.id.item_save_accounts:
-                showSaveAccountsDialog();
-                break;
-            case R.id.item_load_accounts:
-                showLoadAccountsDialog();
-                break;
-            case R.id.item_settings:
-                startActivity(SettingsActivity.class);
-                break;
-            case R.id.item_display_recurring_orders:
-                startActivity(RecurringOrderActivity.class);
-                break;
-            default:
-                break;
+        int itemId = item.getItemId();
+        if (itemId == R.id.item_add_funds) {
+            showAddFundsDialog();
+        } else if (itemId == R.id.item_save_accounts) {
+            showSaveAccountsDialog();
+        } else if (itemId == R.id.item_load_accounts) {
+            showLoadAccountsDialog();
+        } else if (itemId == R.id.item_edit) {
+            showEditSavefileDialog();
+        } else if (itemId == R.id.item_settings) {
+            startActivity(SettingsActivity.class);
+        } else if (itemId == R.id.item_display_recurring_orders) {
+            startActivity(RecurringTxActivity.class);
         }
         return super.onOptionsItemSelected(item);
     }
@@ -100,14 +97,23 @@ public class MainActivity extends AbstractActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        if (getModel().currentFileName != null)
-            reloadAccountLists();
+        // only act, if activity has already been visited before
+        if (!passedOnCreate) {
+            if (getModel().currentFileName != null)
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        onRefresh();
+                    }
+                });
+        }
     }
 
     @Override
     protected void onStop() {
         try {
             controller.saveAccountsToInternal();
+            controller.saveAppSettings();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -115,41 +121,59 @@ public class MainActivity extends AbstractActivity {
     }
     //endregion
 
+    @SuppressLint("DefaultLocale")
     private void reloadAccountLists() {
-        LinearLayout payAccounts = findViewById(R.id.linLayPayAccounts);
-        LinearLayout investAccounts = findViewById(R.id.linLayInvestAccounts);
+        TableLayout tv_AssetAccounts = findViewById(R.id.treeView_Assets);
+        TableLayout tv_BudgetAccounts = findViewById(R.id.treeView_Budgets);
 
-        Util.populatePayAccountsList(this, payAccounts);
-        Util.populateInvestAccountsList(this, investAccounts);
-        String cut = Util.cutFileNameIfNecessary(getModel().currentFileName);
-        String title = Const.getMonthNameById(Integer.valueOf(cut.substring(0, cut.length() - 1)) - 1);
-        setTitle(title + " (" +  String.format("%.2f", (model.sumAllIncome() - model.sumAllExpenses())) + "€)");
+        Util.populateAssetAccountsPreview(model.asset_accounts,
+                this,
+                tv_AssetAccounts,
+                rbReceiver,
+                rbSender);
+        Util.populateBudgetAccountsPreview(model.budget_accounts,
+                this,
+                tv_BudgetAccounts,
+                rbReceiver);
+        RadioButton currentSender = rbSender.getRadioButtonForAccount(model.currentSender);
+        if (currentSender != null)
+            currentSender.setActivated(true);
+        RadioButton currentReceiver = rbReceiver.getRadioButtonForAccount(model.currentReceiver);
+        if (currentReceiver != null)
+            currentReceiver.setActivated(true);
     }
 
     private void populateUI() {
-        Button pay = findViewById(R.id.button_pay);
-        Button invest = findViewById(R.id.button_invest);
+        Button open_assets_detailed = findViewById(R.id.button_assets_overview);
+        Button open_budgets_detailed = findViewById(R.id.button_budgets_overview);
+        Button open_income_detailed = findViewById(R.id.button_income_overview);
         Button addEntry = findViewById(R.id.button_add_entry);
         Button addRecurringOrder = findViewById(R.id.button_add_recurring_order);
-        LinearLayout payAccounts = findViewById(R.id.linLayPayAccounts);
-        LinearLayout investAccounts = findViewById(R.id.linLayInvestAccounts);
         newDescription = findViewById(R.id.edit_new_description);
         newAmount = findViewById(R.id.edit_new_amount);
 
-        pay.setOnClickListener(new View.OnClickListener() {
+        open_assets_detailed.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startActivity(PayActivity.class);
+                startActivity(AssetsActivity.class);
             }
         });
 
-        invest.setOnClickListener(new View.OnClickListener() {
+        open_budgets_detailed.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                startActivity(InvestActivity.class);
+                startActivity(BudgetsActivity.class);
             }
         });
 
+        open_income_detailed.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                showIncomeListDialog();
+            }
+        });
+
+        MainActivity parent = this;
         addEntry.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -164,14 +188,28 @@ public class MainActivity extends AbstractActivity {
                     showToastLong(R.string.toast_error_empty_amount);
                     return;
                 }
-                controller.addEntry(des, Float.valueOf(am), model.currentPayAcc, model.currentInvestAcc);
-                newDescription.setText("");
-                newAmount.setText("");
+                float amount = 0.0f;
                 try {
-                    controller.saveAccountsToInternal();
+                    amount = Float.parseFloat(am);
+                } catch (NumberFormatException e) {
+                    showToastLong(R.string.toast_error_invalid_amount);
+                    return;
+                }
+                // try creating a transaction and wait for result
+                boolean result = false;
+                try {
+                    result = controller.createTx(parent, des, amount);
+                } catch (JSONException e) {
+                    showToastLong(R.string.toast_error_JSONError);
+                } catch (IOException e) {
+                    showToastLong(R.string.toast_error_IOError);
+                }
+                // if transaction was created successfully, clear input fields and show toast
+                if (result) {
+                    newDescription.setText("");
+                    newAmount.setText("");
+                    onRefresh();
                     showToastLong(R.string.toast_success_new_entry);
-                } catch (Exception e) {
-                    showToastLong(R.string.toast_error_files);
                 }
             }
         });
@@ -179,32 +217,164 @@ public class MainActivity extends AbstractActivity {
         addRecurringOrder.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String des = newDescription.getText().toString();
-                String am = newAmount.getText().toString();
-                if (des.equals("")) {
-                    showToastLong(R.string.toast_error_empty_description);
-                    return;
-                }
-                if (am.equals("")) {
+                String amountString = newAmount.getText().toString().trim();
+                String description = newDescription.getText().toString().trim();
+                if (amountString.isEmpty()) {
                     showToastLong(R.string.toast_error_empty_amount);
                     return;
                 }
-                controller.addRecurringOrder(model.currentPayAcc, model.currentInvestAcc, des, Float.valueOf(am));
-                newDescription.setText("");
-                newAmount.setText("");
-                showToastLong(R.string.toast_success_new_recurring_order);
+                if (description.isEmpty()) {
+                    showToastLong(R.string.toast_error_empty_description);
+                    return;
+                }
+
+                try {
+                    float amount = Float.parseFloat(amountString);
+                    boolean result = controller.addRecurringTx(parent, description, amount);
+                    if (result) {
+                        showToast(R.string.toast_success_new_recurring_tx);
+                        newDescription.setText("");
+                        newAmount.setText("");
+                    } else {
+                        showToastLong(R.string.toast_error_unknown);
+                    }
+                } catch (NumberFormatException e) {
+                    showToast(R.string.toast_error_NaN);
+                } catch (JSONException e) {
+                    showToastLong(R.string.toast_error_JSONError);
+                } catch (IOException e) {
+                    showToastLong(R.string.toast_error_IOError);
+                }
             }
         });
 
-        Util.populatePayAccountsList(this, payAccounts);
-        Util.populateInvestAccountsList(this, investAccounts);
+        onRefresh();
     }
 
     //region show Dialog
+    private void showAddFundsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.label_add_funds);
+
+        // Inflate the dialog_add_funds layout
+        final View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_funds, null);
+        builder.setView(dialogView);
+
+        // Get references to EditText views
+        final EditText addFundsAmount = dialogView.findViewById(R.id.edit_amount);
+        final EditText descriptionText = dialogView.findViewById(R.id.edit_new_description);
+
+        // Set negative button with cancel action
+        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
+
+        // Set positive button with add funds action
+        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String amountString = addFundsAmount.getText().toString().trim();
+                String description = descriptionText.getText().toString().trim();
+                if (amountString.isEmpty()) {
+                    showToastLong(R.string.toast_error_empty_amount);
+                    return;
+                }
+                if (description.isEmpty()) {
+                    showToastLong(R.string.toast_error_empty_description);
+                    return;
+                }
+
+                try {
+                    float amount = Float.parseFloat(amountString);
+                    boolean result = controller.addFunds(amount, description);
+                    if (result) {
+                        showToast(R.string.toast_success_new_income);
+                        onRefresh();
+                        dialog.dismiss();
+                    } else {
+                        showToastLong(R.string.toast_error_no_receiver_selected);
+                    }
+                } catch (NumberFormatException e) {
+                    showToast(R.string.toast_error_NaN);
+                } catch (JSONException e) {
+                    showToastLong(R.string.toast_error_JSONError);
+                } catch (IOException e) {
+                    showToastLong(R.string.toast_error_IOError);
+                }
+            }
+        });
+
+        // Show the dialog
+        builder.show();
+    }
+
+    public void getTransactionRedirectionInput(String targetFileName, JSONObject fileContent, String desc, float amount, JSONArray allAccounts) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select an account for transaction redirection");
+
+        // Layout for the dialog
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tx_redirection_input, null);
+
+        // Get the TextViews and Spinner from the layout
+        TextView descriptionTextView = dialogView.findViewById(R.id.descriptionTextView);
+        TextView amountTextView = dialogView.findViewById(R.id.amountTextView);
+        Spinner accountSpinner = dialogView.findViewById(R.id.accountSpinner);
+
+        // Set the description and amount
+        descriptionTextView.setText(desc);
+        amountTextView.setText(String.valueOf(amount));
+
+        // Create an ArrayAdapter using the string array and a default spinner layout
+        List<String> accountNames = new ArrayList<>();
+        for (int i = 0; i < allAccounts.length(); i++) {
+            try {
+                JSONObject account = allAccounts.getJSONObject(i);
+                if (account.getBoolean(Const.JSON_TAG_ISACTIVE))
+                    accountNames.add(account.getString(Const.JSON_TAG_NAME));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, accountNames);
+
+        // Specify the layout to use when the list of choices appears
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        // Apply the adapter to the spinner
+        accountSpinner.setAdapter(adapter);
+
+        builder.setView(dialogView);
+        builder.setNegativeButton("Cancel", null);
+        builder.setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String selectedAccountName = accountSpinner.getSelectedItem().toString();
+                boolean success = false;
+                try {
+                    success = controller.completeTxRedirection(targetFileName, model.currentFileAttributes.entityName, desc, amount, selectedAccountName, fileContent);
+                } catch (JSONException e) {
+                    showToastLong(R.string.toast_error_JSONError);
+                } catch (IOException e) {
+                    showToastLong(R.string.toast_error_IOError);
+                }
+                if (success) {
+                    showToastLong("Transaction redirection completed successfully.");
+                } else {
+                    showToastLong("Error while completing transaction redirection.");
+                }
+            }
+        });
+
+        builder.show();
+    }
+
     private void showIncomeListDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.label_income_list);
-        ScrollView dialogView = new IncomeListDialog(this, model.incomeList);
+        LinearLayout dialogView = new IncomeListDialog(this, model.currentIncome);
         builder.setView(dialogView);
         builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
             @Override
@@ -296,10 +466,10 @@ public class MainActivity extends AbstractActivity {
                 try {
                     if (availableFiles.contains(filenameEdit.getText().toString())) {
                         getController().readAccountsFromInternal(filenameEdit.getText().toString());
-                        reloadAccountLists();
+                        onRefresh();
                     } else {
                         getController().readAccountsFromInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + filenameEdit.getText().toString());
-                        reloadAccountLists();
+                        onRefresh();
                     }
                 } catch (JSONException jsone) {
                     dialog.dismiss();
@@ -317,31 +487,32 @@ public class MainActivity extends AbstractActivity {
     }
 
     private void showExportDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_export);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_show_export, null);
-        final EditText showExport = dialogView.findViewById(R.id.edit_show_export);
+        AlertDialog dialog = getBasicEditDialog();
+        dialog.setTitle(R.string.label_export);
+        dialog.show();
+        EditText showExport = dialog.findViewById(R.id.edit_text);
         try {
             showExport.setText(getController().exportAccounts());
         } catch (JSONException jsone) {
             showToast(R.string.toast_error_unknown);
             return;
         }
-        builder.setView(dialogView);
-        builder.setPositiveButton(R.string.accept, getDoNothingClickListener());
-        builder.show();
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.accept), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.dismiss();
+            }
+        });
     }
 
     private void showImportDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_import);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_show_import, null);
-        final EditText showImport = dialogView.findViewById(R.id.edit_show_import);
-        builder.setView(dialogView);
-        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.label_import, new DialogInterface.OnClickListener() {
+        AlertDialog dialog = getBasicEditDialog();
+        dialog.setTitle(R.string.label_import);
+        dialog.show();
+        EditText showImport = dialog.findViewById(R.id.edit_text);
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.label_import), new DialogInterface.OnClickListener() {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
+            public void onClick(DialogInterface dialogInterface, int i) {
                 try {
                     getController().importAccounts(showImport.getText().toString());
                     showToast(R.string.toast_success_accounts_imported);
@@ -350,32 +521,36 @@ public class MainActivity extends AbstractActivity {
                 } catch (ParseException pe) {
                     showToastLong(R.string.toast_error_parsing);
                 }
+                dialog.dismiss();
             }
         });
-        builder.show();
     }
 
-    private void showLastMonthSummaryDialog() {
-        PastMonth lastMonth = model.history.get(model.history.size() - 1);
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//        builder.setTitle(getString(R.string.label_last_month_summary));
-        LinearLayout dialogView = (LinearLayout) getLayoutInflater().inflate(R.layout.dialog_summary, null);
-        final TextView title = dialogView.findViewById(R.id.label_account);
-        title.setText(getString(R.string.desc_last_month_summary));
-        LinearLayout content = dialogView.findViewById(R.id.contentTable);
-        for (Map.Entry<String, Float> e : lastMonth.getAccountList().entrySet()) {
-            RelativeLayout row = (RelativeLayout) getLayoutInflater().inflate(R.layout.table_row_account_list, content, false);
-            TextView desc = row.findViewById(R.id.text_description);
-            TextView amount = row.findViewById(R.id.text_amount);
-            desc.setText(e.getKey());
-            amount.setText(String.valueOf(e.getValue()));
-            content.addView(row);
+    private void showEditSavefileDialog() {
+        AlertDialog dialog = getBasicEditDialog();
+        dialog.setTitle(R.string.label_edit_savefile);
+        dialog.show();
+        EditText showSavefile = dialog.findViewById(R.id.edit_text);
+        try {
+            showSavefile.setText(getController().exportAccounts());
+        } catch (JSONException jsone) {
+            showToast(R.string.toast_error_unknown);
+            return;
         }
-        TextView sum = dialogView.findViewById(R.id.display_sum);
-        sum.setText(String.valueOf(lastMonth.getTotalSum()));
-        builder.setView(dialogView);
-        builder.setPositiveButton(R.string.accept, getDoNothingClickListener());
-        builder.show();
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.accept), new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                try {
+                    getController().importAccounts(showSavefile.getText().toString());
+                    showToast(R.string.toast_success_accounts_imported);
+                } catch (JSONException jsone) {
+                    showToastLong(R.string.toast_error_invalid_import);
+                } catch (ParseException pe) {
+                    showToastLong(R.string.toast_error_parsing);
+                }
+                dialog.dismiss();
+            }
+        });
     }
     //endregion
 
@@ -391,17 +566,35 @@ public class MainActivity extends AbstractActivity {
             showToastLong(R.string.toast_error_unknown);
             return;
         }
-        showToastLong(R.string.toast_success_accounts_saved);
+        showToastLong(R.string.toast_success_write_save_file);
     }
     //endregion
 
-    public void setupNewAccounts() {
+    public void initiateAccounts() {
         int response = getController().setupAccounts(false);
         if (response == Controller.LOADED_NEW_MONTH) {
             showToastLong("New Sheet for Month " + Const.getDisplayableCurrentMonthName() + " created.");
-//            showLastMonthSummaryDialog();
         }
         if (response == Controller.CREATED_BLANK)
             showToastLong(getString(R.string.toast_blank_accounts));
+        rbSender = new RbAccountManager(Const.GROUP_SENDER, controller);
+        rbReceiver = new RbAccountManager(Const.GROUP_RECEIVER, controller);
+    }
+
+    @Override
+    public void onRefresh() {
+        reloadAccountLists();
+        try {
+            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
+            String monthName = Const.getMonthNameById(parts.month - 1);
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    setTitle(String.format("%s (%s)", parts.entityName, monthName));
+                }
+            });
+        } catch (IllegalArgumentException e) {
+            Log.println(Log.ERROR, "parse_file_name", e.toString());
+        }
     }
 }

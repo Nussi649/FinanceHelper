@@ -1,6 +1,10 @@
 package Backend;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.util.Log;
+
+import com.privat.pitz.financehelper.MainActivity;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -8,10 +12,13 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.security.InvalidParameterException;
 import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -20,8 +27,9 @@ import java.util.List;
 import java.util.Map;
 
 import Logic.AccountBE;
-import Logic.EntryBE;
-import Logic.RecurringOrderBE;
+import Logic.BudgetAccountBE;
+import Logic.TxBE;
+import Logic.RecurringTxBE;
 
 public class Controller {
     public static Controller instance;
@@ -36,6 +44,11 @@ public class Controller {
 
     private void initController() {
         model = new Model();
+        loadAppSettings();
+        model.asset_accounts = new ArrayList<>();
+        model.budget_accounts = new ArrayList<>();
+        model.recurringTx = new ArrayList<>();
+        model.currentIncome = new ArrayList<>();
     }
 
     public static void createInstance(Context context) {
@@ -45,113 +58,76 @@ public class Controller {
 
     public Model getModel() { return model; }
 
-    public void initAccountLists() {
-        if (model.payAccounts.size() == 0) {
-            model.payAccounts.add(new AccountBE(Const.ACCOUNT_BARGELD));
-            model.payAccounts.add(new AccountBE(Const.ACCOUNT_UNI));
-            model.payAccounts.add(new AccountBE(Const.ACCOUNT_BANK));
-            model.payAccounts.add(new AccountBE(Const.ACCOUNT_CREDIT_CARD));
-            model.payAccounts.add(new AccountBE(Const.ACCOUNT_SAVINGS));
-            model.payAccounts.add(new AccountBE(Const.ACCOUNT_DEBTS));
-        }
+    // resets all account lists
+    public void resetAccountLists() {
+        model.asset_accounts = new ArrayList<>();
+        model.budget_accounts = new ArrayList<>();
+        model.recurringTx = new ArrayList<>();
+        model.currentIncome = new ArrayList<>();
+        setCurrentFileName(Const.getCurrentMonthFileName(model.nameFinancialEntity));
+    }
 
-        if (model.investAccounts.size() == 0) {
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_INVESTMENTS));
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_GROCERIES));
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_COSMETICS));
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_GO_OUT));
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_DRUGS));
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_NECESSARY));
-            model.investAccounts.add(new AccountBE(Const.ACCOUNT_MOBILITY));
+    public boolean setCurrentFileName(String newFileName) {
+        try {
+            model.currentFileAttributes = Util.parseFileName(newFileName);
+        } catch (IllegalArgumentException e) {
+            Log.println(Log.ERROR, "parse_file_name",
+                    String.format("Tried parsing illegal file name: %s", e));
+            return false;
         }
-
-        getModel().currentFileName = Const.getCurrentMonthName();
+        model.currentFileName = newFileName;
+        return true;
     }
 
     public void resetAccounts() {
-        for (AccountBE a : getModel().payAccounts) {
-            if (a.getName().equals(Const.ACCOUNT_DEBTS))
+        for (AccountBE account : getModel().asset_accounts) {
+            if (account.getIsProfitNeutral())
                 continue;
-            a.reset();
+            account.reset();
         }
-        for (AccountBE a : getModel().investAccounts) {
-            a.reset();
+        for (BudgetAccountBE budgetAccount : getModel().budget_accounts) {
+            budgetAccount.reset();
         }
     }
 
-    private void resetIncomeList() {
-        model.incomeList = new ArrayList<>();
+    private void resetCurrentIncome() {
+        model.currentIncome = new ArrayList<>();
     }
 
     //region Import/Export Account Saves
     public String exportAccounts() throws JSONException {
         JSONObject json = new JSONObject();
-        JSONArray array = new JSONArray();
 
-        //region save payAccounts
-        for (AccountBE a : model.payAccounts) {
-            JSONObject acc = new JSONObject();
-            acc.put(Const.JSON_TAG_NAME, a.getName());
-            acc.put(Const.JSON_TAG_ISACTIVE, a.getIsActive());
-            JSONArray entries = new JSONArray();
-            for (EntryBE e : a.getEntries()) {
-                JSONObject entr = new JSONObject();
-                entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
-                entr.put(Const.JSON_TAG_TIME, Util.formatDateSave(e.getDate()));
-                entries.put(entr);
-            }
-            acc.put(Const.JSON_TAG_ENTRIES, entries);
-            array.put(acc);
+        // save Asset accounts
+        JSONArray asset_accounts_json = new JSONArray();
+        for (AccountBE account : model.asset_accounts) {
+            JSONObject new_account_json = Util.serialise_Account(account);
+            if (new_account_json != null)
+                asset_accounts_json.put(new_account_json);
         }
-        json.put(Const.JSON_TAG_PACCOUNTS, array);
-        //endregion
+        json.put(Const.JSON_TAG_ASSET_ACCOUNTS, asset_accounts_json);
 
-        //region save investAccounts
-        array = new JSONArray();
-        for (AccountBE a : model.investAccounts) {
-            JSONObject acc = new JSONObject();
-            acc.put(Const.JSON_TAG_NAME, a.getName());
-            acc.put(Const.JSON_TAG_ISACTIVE, a.getIsActive());
-            JSONArray entries = new JSONArray();
-            for (EntryBE e : a.getEntries()) {
-                JSONObject entr = new JSONObject();
-                entr.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-                entr.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
-                entr.put(Const.JSON_TAG_TIME, Util.formatDateSave(e.getDate()));
-                entries.put(entr);
-            }
-            acc.put(Const.JSON_TAG_ENTRIES, entries);
-            array.put(acc);
+        // save Budget accounts
+        JSONArray budget_accounts_json = new JSONArray();
+        for (BudgetAccountBE budget_account : model.budget_accounts) {
+            JSONObject new_budget_account_json = Util.serialise_BudgetAccount(budget_account);
+            if (new_budget_account_json != null)
+                budget_accounts_json.put(new_budget_account_json);
         }
-        json.put(Const.JSON_TAG_IACCOUNTS, array);
-        //endregion
+        json.put(Const.JSON_TAG_BUDGET_ACCOUNTS, budget_accounts_json);
 
-        // region save recurring Orders
-        array = new JSONArray();
-        for (RecurringOrderBE r : model.recurringOrders) {
-            JSONObject order = new JSONObject();
-            order.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(r.getAmount()));
-            order.put(Const.JSON_TAG_DESCRIPTION, r.getDescription());
-            order.put(Const.JSON_TAG_TIME, Util.formatDateSave(r.getDate()));
-            order.put(Const.JSON_TAG_PACCOUNT, r.getPayAccount());
-            order.put(Const.JSON_TAG_IACCOUNT, r.getInvestAccount());
-            array.put(order);
+        // save Recurring Orders
+        JSONArray recurring_orders_json = new JSONArray();
+        for (RecurringTxBE recurring_order : model.recurringTx) {
+            JSONObject new_recurring_order_json = Util.serialise_RecurringOrder(recurring_order);
+            if (new_recurring_order_json != null)
+                recurring_orders_json.put(new_recurring_order_json);
         }
-        json.put(Const.JSON_TAG_RECURRING_ORDERS, array);
-        //endregion
+        json.put(Const.JSON_TAG_RECURRING_TX, recurring_orders_json);
 
-        //region save income list
-        array = new JSONArray();
-        for (EntryBE e : model.incomeList) {
-            JSONObject entry = new JSONObject();
-            entry.put(Const.JSON_TAG_AMOUNT, Util.formatFloat(e.getAmount()));
-            entry.put(Const.JSON_TAG_DESCRIPTION, e.getDescription());
-            entry.put(Const.JSON_TAG_TIME, Util.formatDateSave(e.getDate()));
-            array.put(entry);
-        }
-        json.put(Const.JSON_TAG_INCOME_LIST, array);
-        //endregion
+        // save Income list
+        JSONArray income_list_json = Util.serialise_Income(model.currentIncome);
+        json.put(Const.JSON_TAG_CURRENT_INCOME, income_list_json);
         return json.toString();
     }
 
@@ -159,59 +135,52 @@ public class Controller {
         JSONObject json = new JSONObject(data);
         JSONArray accounts;
 
-        //region get pay accounts
-        model.payAccounts = new ArrayList<>();
-        accounts = json.getJSONArray(Const.JSON_TAG_PACCOUNTS);
-        for (int i = 0; i < accounts.length(); i++) {
-            JSONObject cur = accounts.getJSONObject(i);
-            AccountBE curAcc = new AccountBE(cur.getString(Const.JSON_TAG_NAME));
-            curAcc.setActive(cur.getBoolean(Const.JSON_TAG_ISACTIVE));
-            JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
-            for (int j = 0; j < entries.length(); j++) {
-                JSONObject curEntry = entries.getJSONObject(j);
-                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(curEntry.getString(Const.JSON_TAG_TIME)));
-                curAcc.addEntry(entry);
+        // get asset accounts
+        model.asset_accounts = new ArrayList<>();
+        JSONArray asset_accounts_json = json.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
+        for (int i = 0; i < asset_accounts_json.length(); i++) {
+            // get JSONObject of current account
+            JSONObject current_account_json = asset_accounts_json.getJSONObject(i);
+            // parse new account using parse function in Util
+            AccountBE new_account = Util.parseJSON_Account(current_account_json);
+            if (new_account != null) {
+                model.asset_accounts.add(new_account);
+                // check if account is default Sender account
+                if (model.settings.defaultSender.equals(new_account.toString()))
+                    model.currentSender = new_account;
+                // check if account is default Receiver account
+                if (model.settings.defaultReceiver.equals(new_account.toString()))
+                    model.currentReceiver = new_account;
             }
-            model.payAccounts.add(curAcc);
         }
-        //endregion
 
-        //region get invest accounts
-        model.investAccounts = new ArrayList<>();
-        accounts = json.getJSONArray(Const.JSON_TAG_IACCOUNTS);
-        for (int i = 0; i < accounts.length(); i++) {
-            JSONObject cur = accounts.getJSONObject(i);
-            AccountBE curAcc = new AccountBE(cur.getString(Const.JSON_TAG_NAME));
-            curAcc.setActive(cur.getBoolean(Const.JSON_TAG_ISACTIVE));
-            JSONArray entries = cur.getJSONArray(Const.JSON_TAG_ENTRIES);
-            for (int j = 0; j < entries.length(); j++) {
-                JSONObject curEntry = entries.getJSONObject(j);
-                EntryBE entry = new EntryBE((float)curEntry.getDouble(Const.JSON_TAG_AMOUNT), curEntry.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(curEntry.getString(Const.JSON_TAG_TIME)));
-                curAcc.addEntry(entry);
+        // get budget accounts
+        model.budget_accounts = new ArrayList<>();
+        JSONArray budget_accounts_json = json.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
+        for (int i = 0; i < budget_accounts_json.length(); i++) {
+            // get JSONObject of current budget account
+            JSONObject current_budget_account_json = budget_accounts_json.getJSONObject(i);
+            // parse new budget account using parse function in Util
+            BudgetAccountBE new_budget_account = Util.parseJSON_BudgetAccount(current_budget_account_json);
+            if (new_budget_account != null) {
+                model.budget_accounts.add(new_budget_account);
+                // check if account is default Receiver account
+                if (model.settings.defaultReceiver.equals(new_budget_account.toString()))
+                    model.currentReceiver = new_budget_account;
             }
-            model.investAccounts.add(curAcc);
         }
-        //endregion
 
-        //region get recurring Orders
-        model.recurringOrders = new ArrayList<>();
-        accounts = json.getJSONArray(Const.JSON_TAG_RECURRING_ORDERS);
+        // get recurring Orders
+        model.recurringTx = new ArrayList<>();
+        accounts = json.getJSONArray(Const.JSON_TAG_RECURRING_TX);
         for (int i = 0; i < accounts.length(); i++) {
-            JSONObject cur = accounts.getJSONObject(i);
-            RecurringOrderBE order = new RecurringOrderBE((float)cur.getDouble(Const.JSON_TAG_AMOUNT), cur.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(cur.getString(Const.JSON_TAG_TIME)), cur.getString(Const.JSON_TAG_PACCOUNT), cur.getString(Const.JSON_TAG_IACCOUNT));
-            model.recurringOrders.add(order);
+            RecurringTxBE new_order = Util.parseJSON_RecurringOrder(accounts.getJSONObject(i));
+            if (new_order != null)
+                model.recurringTx.add(new_order);
         }
-        //endregion
 
-        //region get income List
-        model.incomeList = new ArrayList<>();
-        accounts = json.getJSONArray(Const.JSON_TAG_INCOME_LIST);
-        for (int i = 0; i < accounts.length(); i++) {
-            JSONObject cur = accounts.getJSONObject(i);
-            EntryBE curEntry = new EntryBE((float)cur.getDouble(Const.JSON_TAG_AMOUNT), cur.getString(Const.JSON_TAG_DESCRIPTION), Util.parseDateSave(cur.getString(Const.JSON_TAG_TIME)));
-            model.incomeList.add(curEntry);
-        }
-        //endregion
+        // get income List
+        model.currentIncome = Util.parseJSON_IncomeList(json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME));
     }
 
     public void writeToInternal(String data, String filename) throws IOException {
@@ -226,11 +195,18 @@ public class Controller {
         writer.close();
     }
 
-    public String readFromInternal(String filename) throws IOException {
+    public String readFromInternal(String filename) throws FileNotFoundException, IOException {
         String data = "";
 
         File file = new File(context.getFilesDir(), filename);
-        FileReader fReader = new FileReader(file);
+        FileReader fReader;
+        try {
+            fReader = new FileReader(file);
+        } catch (FileNotFoundException e) {
+            Log.println(Log.ERROR, "load_file",
+                    String.format("Error reading file: File not found: %s", e));
+            throw e;
+        }
         BufferedReader reader = new BufferedReader(fReader);
         data = reader.readLine();
         reader.close();
@@ -244,17 +220,18 @@ public class Controller {
 
     public void saveAccountsToInternal(String filename) throws JSONException, IOException {
         String payload = exportAccounts();
-        writeToInternal(payload, filename + Const.ACCOUNTS_FILE_TYPE);
+        writeToInternal(payload, filename);
     }
 
-    public void readAccountsFromInternal() throws JSONException, IOException, ParseException{
-        readAccountsFromInternal(Const.getCurrentMonthName());
+    public void readAccountsFromInternal() throws JSONException, IOException, FileNotFoundException, ParseException{
+        readAccountsFromInternal(Const.getCurrentMonthFileName(model.nameFinancialEntity));
     }
 
-    public void readAccountsFromInternal(String filename) throws JSONException, IOException, ParseException {
-        String payload = readFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
-        importAccounts(payload);
-        getModel().currentFileName = filename;
+    public void readAccountsFromInternal(String filename) throws JSONException, IOException, FileNotFoundException, ParseException {
+        String payload = readFromInternal(filename);
+        boolean filenameValid = setCurrentFileName(filename);
+        if (filenameValid)
+            importAccounts(payload);
     }
 
     public boolean deleteCurrentSave() {
@@ -285,6 +262,79 @@ public class Controller {
         return re;
     }
 
+    public void updateSelectedAccount(String selectionGroup, AccountBE newTarget) {
+        if (selectionGroup.equals(Const.GROUP_SENDER)) {
+            model.currentSender = newTarget;
+            model.settings.defaultSender = newTarget.toString();
+        }
+        else if (selectionGroup.equals(Const.GROUP_RECEIVER)) {
+            model.currentReceiver = newTarget;
+            model.settings.defaultReceiver = newTarget.toString();
+        }
+        else
+            Log.println(Log.INFO, "account_selection",
+                    String.format("Unknown Selection Group (%s) called to set Account %s!", selectionGroup, newTarget));
+    }
+
+    public AccountBE getSelectedAccount(String selectionGroup) {
+        if (selectionGroup.equals(Const.GROUP_SENDER))
+            return model.currentSender;
+        else if (selectionGroup.equals(Const.GROUP_RECEIVER))
+            return model.currentReceiver;
+        Log.println(Log.INFO, "account_selection",
+                    String.format("Unknown Selection Group (%s) called for get Account!", selectionGroup));
+        return null;
+    }
+
+    public boolean loadAppSettings() {
+        try {
+            String payload = readFromInternal(Const.APPLICATION_SETTINGS_FILENAME);
+            model.settings = Util.parseJSON_Settings(new JSONObject(payload));
+            model.nameFinancialEntity = model.settings.defaultEntityName;
+            return true;
+        } catch (FileNotFoundException e) {
+            // no settings file available (e.g. at first start) -> create new settings and save them
+            // set current financial entity name (nothing to load, so set default)
+            model.nameFinancialEntity = "User";
+            // set default name to settings
+            model.settings.defaultEntityName = "User";
+            // save settings to file
+            try {
+                saveAppSettings();
+            } catch (JSONException | IOException newE) {
+                newE.printStackTrace();
+            }
+        } catch (IOException e) {
+            // the file exists but could not be read
+            model.nameFinancialEntity = "User";
+            model.settings.defaultEntityName = "User";
+            // no saving necessary
+        } catch (JSONException e) {
+            // file could be read but is corrupted in some sort
+            model.nameFinancialEntity = "User";
+            model.settings.defaultEntityName = "User";
+            Log.println(Log.ERROR, "load_settings",
+                    String.format("Error parsing settings file. The file is probably corrupted. Loaded defaults instead: %s", e));
+        }
+        return false;
+    }
+
+    public void saveAppSettings() throws JSONException, IOException {
+        JSONObject settingsJSON;
+        try {
+            settingsJSON = Util.serialise_Settings(model.settings);
+            writeToInternal(settingsJSON.toString(), Const.APPLICATION_SETTINGS_FILENAME);
+        } catch (JSONException | IOException e) {
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_settings",
+                        String.format("Can't save... %s", e));
+            else
+                Log.println(Log.ERROR, "save_settings",
+                        String.format("Error trying to write settings to storage: %s", e));
+            throw e;
+        }
+    }
+
     private void checkDirectories() {
         File fastsave = new File(context.getFilesDir(), Const.ACCOUNTS_FASTSAVE_DIRECTORY_NAME);
         if (!fastsave.exists())
@@ -295,81 +345,552 @@ public class Controller {
     }
     //endregion
 
-    public void addEntry(String desc, float amount, AccountBE payAccount, AccountBE investAccount) {
+    // region perform transactions
+    // create a transaction between two accounts
+    public boolean createTx(MainActivity parentActivity, String desc, float amount) throws JSONException, IOException {
+        AccountBE from_acc = parentActivity.model.currentSender;
+        AccountBE to_acc = parentActivity.model.currentReceiver;
         Calendar calendar = Calendar.getInstance();
-        EntryBE entryPay = new EntryBE(amount*(-1.0f), desc, calendar.getTime());
-        EntryBE entryInvest = new EntryBE(amount, desc, calendar.getTime());
-        payAccount.addEntry(entryPay);
-        investAccount.addEntry(entryInvest);
+        TxBE entry_from = new TxBE(amount*(-1.0f), desc, calendar.getTime());
+        TxBE entry_to = new TxBE(amount, desc, calendar.getTime());
+        from_acc.addTx(entry_from);
+        to_acc.addTx(entry_to);
+        boolean result = true;
+
+        // handle case if to_acc relays payment to other financial entity if it isn't a BudgetAccount, pass
+        if (to_acc instanceof BudgetAccountBE) {
+            BudgetAccountBE to_budgetAcc = (BudgetAccountBE) to_acc;
+            String otherEntity = to_budgetAcc.getOtherEntity();
+            if (!otherEntity.equals(""))
+                result = startTxRedirection(parentActivity, otherEntity, desc, amount);
+        }
+        if (result) {
+            try {
+                saveAccountsToInternal();
+                return true;
+            } catch (JSONException | IOException e) {
+                from_acc.removeTx(entry_from);
+                to_acc.removeTx(entry_to);
+                if (e instanceof JSONException)
+                    Log.println(Log.ERROR, "save_file",
+                            String.format("Error serializing the JSONObject to save changes after creating a Tx: %s\nChanges have been reverted.", e));
+                else
+                    Log.println(Log.ERROR, "save_file",
+                            String.format("Error writing save file after creating a Tx: %s\nChanges have been reverted.", e));
+                throw e;
+            }
+        }
+        return false;
     }
 
-    public AccountBE getAccountByName(String name) {
-        AccountBE re = getPayAccountByName(name);
-        if (re == null) {
-            re = getInvestAccountByName(name);
+    // Start the transaction redirection
+    public boolean startTxRedirection(MainActivity parentActivity, String targetEntity, String desc, float amount) throws JSONException, IOException {
+        Util.FileNameParts curAttrs = model.currentFileAttributes;
+        // try finding save file to other entity
+        // construct filename to look for
+        String fileNameOther = model.currentFileName.replace(
+                curAttrs.entityName, targetEntity);
+        JSONObject json;
+        JSONArray allAccounts = new JSONArray();
+        JSONArray budgetAccounts;
+        try {
+            String data = readFromInternal(fileNameOther);
+            json = new JSONObject(data);
+            budgetAccounts = json.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
+            json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME);
+            allAccounts = json.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
+            for (int i = 0; i < budgetAccounts.length(); i++) {
+                allAccounts.put(budgetAccounts.getJSONObject(i));
+            }
+        } catch (IOException | JSONException e) {
+            if (e instanceof IOException)
+                Log.println(Log.ERROR, "load_other_file",
+                        String.format("Error loading other save file: %s", e));
+            else
+                Log.println(Log.ERROR, "load_other_file",
+                        String.format("Error parsing other save file: %s", e));
+            throw e;
         }
-        return re;
+        parentActivity.getTransactionRedirectionInput(fileNameOther, json, desc, amount, allAccounts);
+        return true;
     }
 
-    public AccountBE getPayAccountByName(String name) {
-        for (AccountBE a : model.payAccounts) {
-            if (a.getName().equals(name))
-                return a;
+    // Complete the transaction redirection
+    public boolean completeTxRedirection(String targetFileName, String senderName, String desc, float amount, String accountName, JSONObject data) throws JSONException, IOException {
+        Calendar calendar = Calendar.getInstance();
+        TxBE new_entry = new TxBE(amount, desc, calendar.getTime());
+        boolean foundTargetAccount = false;
+        boolean foundAssetAccounts = false;
+        boolean foundBudgetAccounts = false;
+        JSONArray assetAccounts = new JSONArray();
+        JSONArray budgetAccounts = new JSONArray();
+        JSONArray incomeList = new JSONArray();
+        try {
+            incomeList = data.getJSONArray(Const.JSON_TAG_CURRENT_INCOME);
+        } catch (JSONException e) {
+            return false;
         }
-        return null;
+        try {
+            assetAccounts = data.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
+            foundAssetAccounts = true;
+        } catch (JSONException ignored) { }
+        if (foundAssetAccounts) {
+            // iterate through all asset accounts as json objects
+            for (int i = 0; i < assetAccounts.length(); i++) {
+                // set variables for access out of try/catch
+                JSONObject currentAccount;
+                String currentAccountName;
+                // get current asset account as json object and corresponding account name
+                try {
+                    currentAccount = assetAccounts.getJSONObject(i);
+                    currentAccountName = currentAccount.getString(Const.JSON_TAG_NAME);
+                } catch (JSONException e) {
+                    continue;
+                }
+                // if current account name equals target account name
+                if (currentAccountName.equals(accountName)) {
+                    // parse current account
+                    AccountBE curAccount = Util.parseJSON_Account(currentAccount);
+                    // check if parsing worked
+                    if (curAccount != null) {
+                        // add pre-calculated entry to parsed account object
+                        curAccount.addTx(new_entry);
+                        // serialise adjusted account object and replace its old version in account list
+                        // replace asset accounts in save file json object
+                        try {
+                            assetAccounts.put(i, Util.serialise_Account(curAccount));
+                            data.put(Const.JSON_TAG_ASSET_ACCOUNTS, assetAccounts);
+                            foundTargetAccount = true;
+                        } catch (JSONException e) {
+                            Log.println(Log.ERROR, "pass_on_transaction",
+                                    String.format("Error serializing target asset account after adding new entry: %s", e));
+                            throw e;
+                        }
+                    }
+                    // error happened parsing the current account
+                    else {
+                        Log.println(Log.ERROR, "pass_on_transaction",
+                                String.format("Error passing on transaction. Could not parse asset account object! targetAccountName: %s", accountName));
+                        return false;
+                    }
+                }
+            }
+        }
+        // if target has not yet been found, iterate through all budget accounts as json objects
+        if (!foundTargetAccount) {
+            try {
+                budgetAccounts = data.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
+                foundBudgetAccounts = true;
+            } catch (JSONException ignored) {
+            }
+            if (foundBudgetAccounts) {
+                for (int i = 0; i < budgetAccounts.length(); i++) {
+                    // set variables for access out of try/catch
+                    JSONObject currentAccount;
+                    String currentAccountName;
+                    // get current budget account as json object and corresponding account name
+                    try {
+                        currentAccount = budgetAccounts.getJSONObject(i);
+                        currentAccountName = currentAccount.getString(Const.JSON_TAG_NAME);
+                    } catch (JSONException e) {
+                        continue;
+                    }
+                    // if current account name equals target account name
+                    if (currentAccountName.equals(accountName)) {
+                        // parse current account
+                        BudgetAccountBE curAccount = Util.parseJSON_BudgetAccount(currentAccount);
+                        if (curAccount != null) {
+                            // add pre-calculated entry to parsed account object
+                            curAccount.addTx(new_entry);
+                            // serialise adjusted account object and replace its old version in account list
+                            // replace budget accounts in save file json object
+                            try {
+                                budgetAccounts.put(i, Util.serialise_BudgetAccount(curAccount));
+                                data.put(Const.JSON_TAG_BUDGET_ACCOUNTS, budgetAccounts);
+                                foundTargetAccount = true;
+                            } catch (JSONException e) {
+                                Log.println(Log.ERROR, "pass_on_transaction",
+                                        String.format("Error serializing target budget account after adding new entry: %s", e));
+                                throw e;
+                            }
+                        }
+                        // error happened parsing the current account
+                        else {
+                            Log.println(Log.ERROR, "pass_on_transaction",
+                                    String.format("Error passing on transaction. Could not parse asset account object! targetAccountName: %s", accountName));
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        if (! foundTargetAccount)
+            return false;
+        // create entry for other entities income list
+        TxBE incomeEntry = new TxBE(amount, String.format("by %s", senderName), calendar.getTime());
+        incomeList.put(Util.serialise_Entry(incomeEntry));
+        // rewrite edited income list to json object
+        try {
+            data.put(Const.JSON_TAG_CURRENT_INCOME, incomeList);
+            writeToInternal(data.toString(), targetFileName);
+        } catch (JSONException | IOException e) {
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "pass_on_transaction",
+                        String.format("Error putting adjusted income list into save file json object: %s", e));
+            else
+                Log.println(Log.ERROR, "pass_on_transaction",
+                        String.format("Error writing adjusted save file json object: %s", e));
+            throw e;
+        }
+        return true;
     }
 
-    public AccountBE getInvestAccountByName(String name) {
-        for (AccountBE a : model.investAccounts) {
-            if (a.getName().equals(name))
-                return a;
+    // add funds to one account
+    public boolean addFunds(float amount, String desc) throws JSONException, IOException {
+        TxBE newFunds = new TxBE(amount, desc, Calendar.getInstance().getTime());
+        if (model.currentReceiver == null) {
+            return false;
         }
-        return null;
+        model.currentReceiver.addTx(newFunds);
+        model.currentIncome.add(newFunds);
+        try {
+            saveAccountsToInternal();
+        } catch (JSONException | IOException e) {
+            model.currentReceiver.dropLastTx();
+            model.currentIncome.remove(newFunds);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing the JSONObject to save changes after adding funds: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after adding funds: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+        return true;
     }
+
+    public boolean addRecurringTx(MainActivity parent, String desc, float amount) throws JSONException, IOException{
+        Calendar calendar = Calendar.getInstance();
+        AccountBE sender = parent.model.currentSender;
+        AccountBE receiver = parent.model.currentReceiver;
+        try {
+            assert sender != null;
+            assert receiver != null;
+        } catch (AssertionError e) {
+            Log.println(Log.ERROR, "get_tx_partners",
+                    String.format("Error trying to retrieve sender or receiver account from model: %s", e));
+            return false;
+        }
+        RecurringTxBE newOrder = new RecurringTxBE(amount, desc, calendar.getTime(), sender.getName(), receiver.getName());
+        model.recurringTx.add(newOrder);
+        try {
+            saveAccountsToInternal();
+        } catch (JSONException | IOException e) {
+            model.recurringTx.remove(newOrder);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing save file after adding recurring transaction: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after adding recurring transaction: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+        return true;
+    }
+
+    public boolean deleteRecurringTx(RecurringTxBE recurringTx) throws JSONException, IOException {
+        int position = model.recurringTx.indexOf(recurringTx);
+        if (position == -1)
+            return false;
+        try {
+            model.recurringTx.remove(recurringTx);
+            saveAccountsToInternal();
+        } catch (JSONException | IOException e) {
+            // revert changes
+            model.recurringTx.add(position, recurringTx);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing save file after deleting recurring transaction: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after deleting recurring transaction: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+        return true;
+    }
+
+    private void triggerRecurringTx() throws JSONException, IOException {
+        class AccountTxCombo {
+            AccountBE account;
+            TxBE tx;
+
+            public AccountTxCombo(AccountBE acc, TxBE tx) {
+                this.account = acc;
+                this.tx = tx;
+            }
+        }
+
+        Calendar fom = Const.getFirstOfMonth();
+        List<AccountTxCombo> addedTx = new ArrayList<>();
+        for (RecurringTxBE r : getModel().recurringTx) {
+            AccountBE receiver = model.getAccountByName(r.getReceiverStr());
+            TxBE receiverTx = new TxBE(r.getAmount(), r.getDescription(), fom.getTime());
+            try {
+                assert receiver != null;
+            } catch (AssertionError e) {
+                Log.println(Log.INFO, "execute_recur_tx",
+                        String.format("Error triggering recurring Transactions: Could not find Sender (%s) or Receiver (%s) account",
+                                r.getSenderStr(),
+                                r.getReceiverStr()));
+                continue;
+            }
+            try {
+                assert !r.getSenderStr().equals("");
+            } catch (AssertionError e) {
+                // assuming RecurringTx is a recurring income -> add to currentIncome instead, ignore for addedTx
+                TxBE incomeTx = new TxBE(r.getAmount(), r.getDescription(), fom.getTime());
+                model.currentIncome.add(incomeTx);
+                receiver.addTx(receiverTx);
+                addedTx.add(new AccountTxCombo(receiver, receiverTx));
+                continue;
+            }
+            AccountBE sender = model.getAccountByName(r.getSenderStr());
+            try {
+                assert sender != null;
+                TxBE senderTx = new TxBE(r.getAmount()*(-1.0f), r.getDescription(), fom.getTime());
+                sender.addTx(senderTx);
+                receiver.addTx(receiverTx);
+                addedTx.add(new AccountTxCombo(sender, senderTx));
+                addedTx.add(new AccountTxCombo(receiver, receiverTx));
+            } catch (AssertionError e) {
+                Log.println(Log.INFO, "execute_recur_tx",
+                        String.format("Error triggering recurring Transactions: Could not find Sender (%s) or Receiver (%s) account",
+                                r.getSenderStr(),
+                                r.getReceiverStr()));
+            }
+        }
+        try {
+            saveAccountsToInternal();
+        } catch (JSONException | IOException e) {
+            // revert changes
+            for (AccountTxCombo entry : addedTx) {
+                entry.account.getTxList().remove(entry.tx);
+            }
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing save file after triggering recurring transactions: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after triggering recurring transactions: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+    }
+    // endregion
+
+    // region Account Handling
+    public AccountBE createAssetAccount(String name) throws JSONException, IOException {
+        // check if name is already in use
+        AccountBE similarName = model.getAccountByName(name);
+        if (similarName != null) {
+            return null;
+        }
+        AccountBE newAccount = new AccountBE(name);
+        model.asset_accounts.add(newAccount);
+        try {
+            saveAccountsToInternal();
+            return newAccount;
+        } catch (JSONException | IOException e) {
+            model.asset_accounts.remove(newAccount);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing save file after creating asset account: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after creating asset account: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+    }
+
+    public BudgetAccountBE createRootBudget(String name,float currentBudget, float yearlyBudget) throws JSONException, IOException {
+        // check if name is already in use
+        AccountBE similarName = model.getAccountByName(name);
+        if (similarName != null) {
+            return null;
+        }
+        BudgetAccountBE newAccount = new BudgetAccountBE(name, currentBudget, yearlyBudget);
+        model.budget_accounts.add(newAccount);
+        try {
+            saveAccountsToInternal();
+            return newAccount;
+        } catch (JSONException | IOException e) {
+            model.budget_accounts.remove(newAccount);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing save file after creating budget account: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after creating budget account: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+    }
+
+    public BudgetAccountBE createSubBudget(BudgetAccountBE parent,
+                                           String name,
+                                           float current_budget,
+                                           float yearly_budget) throws JSONException, IOException {
+        // check if name is already in use
+        AccountBE similarName = model.getAccountByName(name);
+        if (similarName != null) {
+            return null;
+        }
+        BudgetAccountBE newAccount = new BudgetAccountBE(name, current_budget, yearly_budget);
+        parent.addSubBudget(newAccount);
+        try {
+            saveAccountsToInternal();
+            return newAccount;
+        } catch (JSONException | IOException e) {
+            parent.getDirectSubBudgets().remove(newAccount);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing save file after creating budget account: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after creating budget account: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+    }
+
+    public BudgetAccountBE createSubBudget(BudgetAccountBE parent,
+                                           String name,
+                                           float yearly_budget) throws JSONException, IOException {
+        return createSubBudget(parent, name, yearly_budget / 12, yearly_budget);
+    }
+
+    public boolean deleteAccount(String accountName) throws JSONException, IOException {
+        AccountBE account = model.getAccountByName(accountName);
+        if (account != null)
+            return deleteAccount(account);
+        return false;
+    }
+
+    public boolean deleteAccount(AccountBE account) throws JSONException, IOException {
+        assert account != null;
+        // variable to store position at which account was in its list.
+        // needed in case of revert to initial state.
+        // position != -1 then also signals whether the account has been found and removed
+        int position = -1;
+        if (account instanceof BudgetAccountBE) {
+            position = model.budget_accounts.indexOf(account);
+            if (position != -1)
+                model.budget_accounts.remove(account);
+        }
+        else {
+            position = model.asset_accounts.indexOf(account);
+            if (position != -1)
+                model.asset_accounts.remove(account);
+        }
+        // if account to be deleted could not be found, return false
+        if (position == -1)
+            return false;
+        try {
+            saveAccountsToInternal();
+            return true;
+        } catch (JSONException | IOException e) {
+            if (account instanceof BudgetAccountBE)
+                model.budget_accounts.add(position, (BudgetAccountBE) account);
+            else
+                model.asset_accounts.add(position, account);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error serializing save file after deleting account: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after deleting account: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+    }
+    // endregion
 
     // sets up accounts for new month by loading last month, closing all accounts, and transferring the balances to new month´s accounts
     // returns true if transfer finalized successfully
     // returns false if couldn't read last month (e.g. there is no file of last month´s accounts)
-    public boolean doNewMonthIfPossible() {
+
+    @SuppressLint("SimpleDateFormat")
+    public boolean initiateNewPeriod() throws FileNotFoundException {
         Calendar cal = Calendar.getInstance();
-        try {
-            readAccountsFromInternal(Const.getLastMonthName());
-        } catch (JSONException jsone) {
-            jsone.printStackTrace();
-        } catch (IOException ioe) {
-            return false;
-        } catch (ParseException pe) {
-            pe.printStackTrace();
+        File[] availableFiles = context.getFilesDir().listFiles();
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
+        Date latestDate = null;
+        File latestFile = null;
+        String entityPattern = "\\d{4}-\\d{2}-" + model.nameFinancialEntity + "\\.jso";
+        // Check if availableFiles is null or empty
+        if (availableFiles == null || availableFiles.length == 0) {
+            throw new FileNotFoundException("Error while trying to read save files in internal storage. No files were found.");
         }
-        updateStats();
-        model.history.add(new PastMonth(Const.getLastMonthName(), model.investAccounts));
-        Map<String, Float> oldPayValues = new HashMap<>();
-        for (AccountBE a : model.payAccounts) {
-            if (a.getName().equals(Const.ACCOUNT_DEBTS))
-                continue;
-            if (a.getSum() != 0.0f) {
-                oldPayValues.put(a.getName(), a.getSum());
-                a.addEntry(new EntryBE(a.getSum() * (-1.0f), Const.DESC_CLOSING, cal.getTime()));
+        // Inspect available files
+        for (File file : availableFiles) {
+            if (file.getName().matches(entityPattern)) {
+                try {
+                    Date fileDate = sdf.parse(file.getName().substring(0, 7));
+                    assert fileDate != null;
+                    if (latestDate == null || fileDate.after(latestDate)) {
+                        latestDate = fileDate;
+                        latestFile = file;
+                    }
+                } catch (ParseException pe) {
+                    pe.printStackTrace();
+                }
             }
         }
+
+        // If no file matches the pattern, throw FileNotFoundException
+        if (latestFile == null) {
+            throw new FileNotFoundException("No file matching the pattern found.");
+        }
+
+        // If the latest date is not earlier than the current month, return false
         try {
-            saveAccountsToInternal(Const.getLastMonthName());
-        } catch (JSONException jsone) {
-            jsone.printStackTrace();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+            if (!latestDate.before(sdf.parse(sdf.format(cal.getTime())))) {
+                return false;
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return false;
         }
+
+
+        // If the latest date is earlier than the current month, initiate the transfer process
+        try {
+            readAccountsFromInternal(latestFile.getName());
+        } catch (JSONException | ParseException | IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        Map<String, Float> oldAssetAccountValues = new HashMap<>();
+        for (AccountBE a : model.asset_accounts) {
+            if (a.getIsProfitNeutral())
+                continue;
+            oldAssetAccountValues.put(a.getName(), a.getSum());
+        }
+
         resetAccounts();
-        resetIncomeList();
-        triggerRecurringOrders();
-        for (String s : oldPayValues.keySet()) {
-            getPayAccountByName(s).addEntry(new EntryBE(oldPayValues.get(s), Const.DESC_OPENING, cal.getTime()));
+        resetCurrentIncome();
+        setCurrentFileName(Const.getCurrentMonthFileName(model.nameFinancialEntity));
+
+        for (String s : oldAssetAccountValues.keySet()) {
+            model.getAssetAccountByName(s).addTx(new TxBE(oldAssetAccountValues.get(s), Const.DESC_OPENING, cal.getTime()));
         }
-        getModel().currentFileName = Const.getCurrentMonthName();
+
+        try {
+            triggerRecurringTx();
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+        }
         return true;
     }
 
-    // sets up the lists investAccounts and payAccounts
+    // sets up the lists AssetAccounts and BudgetAccounts
     // @params
     // blank: if true makes new accounts, if false tries to load saved accounts and starts new month if there´s no save file for current month
     // returns CREATED_BLANK if blank accounts were created
@@ -378,7 +899,7 @@ public class Controller {
     public int setupAccounts(boolean blank) {
         try {
             if (blank) {
-                initAccountLists();
+                resetAccountLists();
                 return CREATED_BLANK;
             }
             else {
@@ -387,160 +908,184 @@ public class Controller {
             }
         } catch (JSONException | ParseException ex) {
             ex.printStackTrace();
-            initAccountLists();
+            resetAccountLists();
             return CREATED_BLANK;
         } catch (IOException ioe) {
             ioe.printStackTrace();
-            if (doNewMonthIfPossible())
-                return LOADED_NEW_MONTH;
-            else {
-                initAccountLists();
+            try {
+                if (initiateNewPeriod())
+                    return LOADED_NEW_MONTH;
+                resetAccountLists();
+                return CREATED_BLANK;
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+                resetAccountLists();
                 return CREATED_BLANK;
             }
         }
     }
 
-    public void addRecurringOrder(AccountBE pay, AccountBE invest, String desc, float amount) {
-        Calendar calendar = Calendar.getInstance();
-        RecurringOrderBE newOrder = new RecurringOrderBE(amount, desc, calendar.getTime(), pay.getName(), invest.getName());
-        getModel().recurringOrders.add(newOrder);
-    }
-
-    private void triggerRecurringOrders() {
-        Calendar fom = Const.getFirstOfMonth();
-        for (RecurringOrderBE r : getModel().recurringOrders) {
-            AccountBE pay = getPayAccountByName(r.getPayAccount());
-            AccountBE invest = getInvestAccountByName(r.getInvestAccount());
-            pay.addEntry(new EntryBE(r.getAmount()*(-1.0f), r.getDescription(), fom.getTime()));
-            invest.addEntry(new EntryBE(r.getAmount(), r.getDescription(), fom.getTime()));
-        }
-    }
-
-    public boolean updateStats() {
-        JSONObject statsObject;
-        try {
-            String payload = readFromInternal(Const.STATS_FILE_NAME);
-            statsObject = new JSONObject(payload);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            statsObject = new JSONObject();
-            try {
-                statsObject.put(Const.STATS_TAG_NETWORTH, new JSONArray());
-                statsObject.put(Const.STATS_TAG_EXPENSES, new JSONArray());
-            } catch (JSONException jsone) {
-                return false;
-            }
-        }
-        try {
-            boolean hasCurWorth = false;
-            JSONArray worthArray = statsObject.getJSONArray(Const.STATS_TAG_NETWORTH);
-            for (int i = 0; i < worthArray.length(); i++) {
-                JSONObject curWorth = (JSONObject) worthArray.get(i);
-                if (curWorth.get(Const.STATS_TAG_MONTH) == model.currentFileName) {
-                    hasCurWorth = true;
-                    curWorth.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllStocks()));
-                }
-            }
-            if (!hasCurWorth) {
-                JSONObject netWorth = new JSONObject();
-                netWorth.put(Const.STATS_TAG_MONTH, model.currentFileName);
-                netWorth.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllStocks()));
-                statsObject.getJSONArray(Const.STATS_TAG_NETWORTH).put(netWorth);
-            }
-            boolean hasCurExpenses = false;
-            JSONArray expensesArray = statsObject.getJSONArray(Const.STATS_TAG_EXPENSES);
-            for (int i = 0; i < expensesArray.length(); i++) {
-                JSONObject curExpenses = (JSONObject) expensesArray.get(i);
-                if (curExpenses.get(Const.STATS_TAG_MONTH) == model.currentFileName) {
-                    hasCurExpenses = true;
-                    curExpenses.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllExpenses()));
-                }
-            }
-            if (!hasCurExpenses) {
-                JSONObject expenses = new JSONObject();
-                expenses.put(Const.STATS_TAG_MONTH, model.currentFileName);
-                expenses.put(Const.STATS_TAG_AMOUNT, String.format("%.2f", model.sumAllExpenses()));
-                statsObject.getJSONArray(Const.STATS_TAG_EXPENSES).put(expenses);
-            }
-        } catch (JSONException jsone) {
-            return false;
-        }
-        try {
-            writeToInternal(statsObject.toString(), Const.STATS_FILE_NAME);
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-            return false;
-        }
-        return true;
-    }
-
-    public boolean updateEntry(Date date, String description, AccountBE source, boolean pay, float newAmount) {
-        EntryBE sourceEntry = null;
-        for (EntryBE e : source.getEntries()) {
+    // region update objects
+    public boolean updateTx(Date date, String description, AccountBE source, float newAmount) throws JSONException, IOException {
+        // try identifying the entry making the call
+        TxBE sourceEntry = null;
+        for (TxBE e : source.getTxList()) {
             if (e.getDate().equals(date) && e.getDescription().equals(description)) {
                 sourceEntry = e;
             }
         }
+        // if none was found, then return false
         if (sourceEntry == null)
             return false;
-        List<AccountBE> toSearch;
-        if (pay)
-            toSearch = model.investAccounts;
-        else
-            toSearch = model.payAccounts;
-        boolean otherFound = false;
-        for (AccountBE a : toSearch) {
-            for (EntryBE e : a.getEntries()) {
-                if (e.getDate().equals(date) && e.getDescription().equals(description)) {
-                    e.setAmount(newAmount * (-1.0f));
-                    a.refreshSum();
-                    otherFound = true;
+
+        // setup list of all accounts to search for other part of transaction
+        // for this take asset accounts which are already of type AccountBE
+        List<AccountBE> toSearch = model.asset_accounts;
+        // then transform budget accounts and first order sub budgets
+        List<AccountBE> transformed_budget_accounts = new ArrayList<>();
+        for (BudgetAccountBE budget_account : model.budget_accounts) {
+            transformed_budget_accounts.add(budget_account);
+            List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
+            if (sub_budgets.size() > 0)
+                transformed_budget_accounts.addAll(sub_budgets);
+
+        }
+        // and add to toSearch list
+        toSearch.addAll(transformed_budget_accounts);
+        // remove source account, which by then will inevitably have been added
+        toSearch.remove(source);
+
+        // store old amount for later in case, changes need to be reverted
+        float oldAmount = sourceEntry.getAmount();
+
+        for (AccountBE account : toSearch) {
+            for (TxBE entry : account.getTxList()) {
+                if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
+                    entry.setAmount(newAmount * (-1.0f));
+                    sourceEntry.setAmount(newAmount);
+                    try {
+                        saveAccountsToInternal();
+                        return true;
+                    } catch (JSONException | IOException e) {
+                        entry.setAmount(oldAmount * (-1.0f));
+                        sourceEntry.setAmount(oldAmount);
+                        if (e instanceof JSONException)
+                            Log.println(Log.ERROR, "save_file",
+                                    String.format("Error serializing save file after updating entry amount: %s\nChanges have been reverted.", e));
+                        else
+                            Log.println(Log.ERROR, "save_file",
+                                    String.format("Error writing save file after updating entry amount: %s\nChanges have been reverted.", e));
+                        throw e;
+                    }
                 }
             }
-        }
-        if (otherFound) {
-            sourceEntry.setAmount(newAmount);
-            source.refreshSum();
-            try {
-                saveAccountsToInternal();
-            } catch (Exception e) { }
-            return true;
         }
         return false;
     }
 
-    public boolean updateEntry(Date date, String description, AccountBE source, boolean pay, String newDescription) {
-        EntryBE sourceEntry = null;
-        for (EntryBE e : source.getEntries()) {
+    public boolean updateTx(Date date, String description, AccountBE source, String newDescription) throws JSONException, IOException {
+        // try identifying the entry making the call
+        TxBE sourceEntry = null;
+        for (TxBE e : source.getTxList()) {
             if (e.getDate().equals(date) && e.getDescription().equals(description)) {
                 sourceEntry = e;
             }
         }
+        // if none was found, then return false
         if (sourceEntry == null)
             return false;
-        List<AccountBE> toSearch;
-        if (pay)
-            toSearch = model.investAccounts;
-        else
-            toSearch = model.payAccounts;
-        boolean otherFound = false;
-        for (AccountBE a : toSearch) {
-            for (EntryBE e : a.getEntries()) {
-                if (e.getDate().equals(date) && e.getDescription().equals(description)) {
-                    e.setDescription(newDescription);
-                    a.refreshSum();
-                    otherFound = true;
+
+        // setup list of all accounts to search for other part of transaction
+        // for this take asset accounts which are already of type AccountBE
+        List<AccountBE> toSearch = model.asset_accounts;
+        // then transform budget accounts and first order sub budgets
+        List<AccountBE> transformed_budget_accounts = new ArrayList<>();
+        for (BudgetAccountBE budget_account : model.budget_accounts) {
+            transformed_budget_accounts.add((AccountBE) budget_account);
+            List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
+            if (sub_budgets.size() > 0)
+                for (BudgetAccountBE sub_budget : sub_budgets)
+                    transformed_budget_accounts.add((AccountBE) sub_budget);
+
+        }
+        // and add to toSearch list
+        toSearch.addAll(transformed_budget_accounts);
+        // remove source account, which by then will inevitably have been added
+        toSearch.remove(source);
+
+        for (AccountBE account : toSearch) {
+            for (TxBE entry : account.getTxList()) {
+                if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
+                    entry.setDescription(newDescription);
+                    sourceEntry.setDescription(newDescription);
+                    try {
+                        saveAccountsToInternal();
+                        return true;
+                    } catch (JSONException | IOException e) {
+                        entry.setDescription(description);
+                        sourceEntry.setDescription(description);
+                        if (e instanceof JSONException)
+                            Log.println(Log.ERROR, "save_file",
+                                    String.format("Error serializing save file after updating entry description: %s\nChanges have been reverted.", e));
+                        else
+                            Log.println(Log.ERROR, "save_file",
+                                    String.format("Error writing save file after updating entry description: %s\nChanges have been reverted.", e));
+                        throw e;
+                    }
                 }
             }
         }
-        if (otherFound) {
-            sourceEntry.setDescription(newDescription);
-            source.refreshSum();
-            try {
-                saveAccountsToInternal();
-            } catch (Exception e) { }
-            return true;
-        }
         return false;
+    }
+
+    public void updateYearlyBudget(float newBudget, BudgetAccountBE account) throws JSONException, IOException {
+        float oldYearlyBudget = account.indivYearlyBudget;
+        account.setIndivYearlyBudget(newBudget);
+        try {
+            saveAccountsToInternal();
+        }  catch (JSONException | IOException e) {
+            account.setIndivYearlyBudget(oldYearlyBudget);
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                    String.format("Error serializing save file after updating yearly budget: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after updating yearly budget: %s\nChanges have been reverted.", e));
+            throw e;
+        }
+    }
+
+    public void transferCurrentBudget(float amount, BudgetAccountBE sender, BudgetAccountBE recipient, boolean adjustYearly) throws JSONException, IOException, InvalidParameterException {
+        if (amount <= 0)
+            throw new InvalidParameterException("transferCurrentBudget called with amount <= 0");
+        float oldSenderCurrent = sender.indivCurrentBudget;
+        float oldRecipientCurrent = recipient.indivCurrentBudget;
+        float oldSenderYearly = adjustYearly ? sender.indivYearlyBudget : 0;
+        float oldRecipientYearly = adjustYearly ? recipient.indivYearlyBudget : 0;
+
+        sender.setIndivCurrentBudget(oldSenderCurrent - amount);
+        recipient.setIndivCurrentBudget(oldRecipientCurrent + amount);
+
+        if (adjustYearly) {
+            sender.setIndivYearlyBudget(oldSenderYearly - amount * 12);
+            recipient.setIndivYearlyBudget(oldRecipientYearly + amount * 12);
+        }
+        try {
+            saveAccountsToInternal();
+        }  catch (JSONException | IOException e) {
+            sender.setIndivCurrentBudget(oldSenderCurrent);
+            recipient.setIndivCurrentBudget(oldRecipientCurrent);
+            if (adjustYearly) {
+                sender.setIndivYearlyBudget(oldSenderYearly);
+                recipient.setIndivYearlyBudget(oldRecipientYearly);
+            }
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "save_file",
+                    String.format("Error serializing save file after transferring budget: %s\nChanges have been reverted.", e));
+            else
+                Log.println(Log.ERROR, "save_file",
+                        String.format("Error writing save file after transferring budget: %s\nChanges have been reverted.", e));
+            throw e;
+        }
     }
 }
