@@ -4,14 +4,12 @@ import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.privat.pitz.financehelper.AssetAccountDetailsActivity;
 import com.privat.pitz.financehelper.R;
 import com.privat.pitz.financehelper.RecurringTxActivity;
 
@@ -19,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import Logic.RecurringTxBE;
-import Logic.TxBE;
 
 public class RecurringTxAdapter extends RecyclerView.Adapter<RecurringTxAdapter.RecurringEntryViewHolder> {
     static class RecurringEntryViewHolder extends RecyclerView.ViewHolder {
@@ -55,7 +52,7 @@ public class RecurringTxAdapter extends RecyclerView.Adapter<RecurringTxAdapter.
     @Override
     public RecurringEntryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.list_entry_tx_recurring_orders, parent, false);
+                .inflate(R.layout.list_item_tx_recurring_orders, parent, false);
         return new RecurringEntryViewHolder(view);
     }
 

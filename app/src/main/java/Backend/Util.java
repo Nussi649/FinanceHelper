@@ -3,14 +3,17 @@ package Backend;
 import android.annotation.SuppressLint;
 import android.graphics.drawable.GradientDrawable;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.widget.RadioButton;
 import android.widget.TableLayout;
 
 import androidx.core.graphics.ColorUtils;
 
 import com.privat.pitz.financehelper.MainActivity;
+import com.privat.pitz.financehelper.R;
 
-import View.AccountPreviewTableRow;
+import View.BudgetAccountTableRow;
+import View.ListItemAccountPreview;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -51,6 +54,7 @@ public abstract class Util {
     private static final DateFormat SAVE_DATE_FORMAT = new SimpleDateFormat(Const.DATE_FORMAT_SAVE);
 
     // region populate AccountsPreview TableLayouts with Account lists
+    @SuppressLint("InflateParams")
     public static void populateBudgetAccountsPreview(final List<BudgetAccountBE> accounts,
                                                final MainActivity parentActivity,
                                                final TableLayout parentLayout,
@@ -70,34 +74,47 @@ public abstract class Util {
             // skip if account is marked as inactive
             if (!currentAccount.getIsActive())
                 continue;
-            // create TableRow object with is_last = (index == count-1)
-            AccountPreviewTableRow newRow = new AccountPreviewTableRow(parentActivity,
-                    currentAccount);
-            parentLayout.addView(newRow);
-            newRow.setRefreshListener(parentActivity);
-            newRow.getRefreshLiveData().observe(parentActivity, refresh -> {
+            // create list item at hierarchy level 0 (not specifically defined)
+            ListItemAccountPreview newItem = (ListItemAccountPreview) LayoutInflater.from(parentActivity).inflate(R.layout.list_item_account_preview_main, null);
+            newItem.init(parentActivity, currentAccount);
+            // add list item to parent layout
+            parentLayout.addView(newItem);
+            // add listeners to list item
+            newItem.setRefreshListener(parentActivity);
+            newItem.getRefreshLiveData().observe(parentActivity, refresh -> {
                 if (refresh)
                     parentActivity.onRefresh();
             });
-            RadioButton rbReceive = newRow.getRBReceiver();
+            // add radio button to receiver group
+            RadioButton rbReceive = newItem.getRBReceiver();
             assert rbReceive != null;
             receiverManager.addRadioButton(rbReceive, currentAccount);
 
-            // check if TableRow has children. If so, add them
-            List<AccountPreviewTableRow> children = newRow.getChildren();
+            // check if list item has children. If so, add them
+            // get all children (down every hierarchy layer)
+            List<ListItemAccountPreview> children = newItem.getAllChildren();
+            // abort if there are none
             if (children.size() == 0)
                 continue;
-            for (AccountPreviewTableRow child : children) {
+            // iterate through all children
+            for (ListItemAccountPreview child : children) {
+                BudgetAccountBE currentChildAccount = (BudgetAccountBE) child.getReferenceAccount();
+                // add child to parent layout and add listeners
                 parentLayout.addView(child);
                 child.setRefreshListener(parentActivity);
                 child.getRefreshLiveData().observe(parentActivity, refresh -> {
                     if (refresh)
                         parentActivity.onRefresh();
                 });
+                // add radio button to receiver group
+                RadioButton rbReceiveChild = newItem.getRBReceiver();
+                assert rbReceiveChild != null;
+                receiverManager.addRadioButton(rbReceiveChild, currentChildAccount);
             }
         }
     }
 
+    @SuppressLint("InflateParams")
     public static void populateAssetAccountsPreview(final List<AccountBE> accounts,
                                                final MainActivity parentActivity,
                                                final TableLayout parentLayout,
@@ -115,40 +132,56 @@ public abstract class Util {
         // iterate through all accounts given as argument
         for (int index = 0; index < accounts.size(); index++) {
             AccountBE currentAccount = accounts.get(index);
+            // this method should only be fed with Asset Accounts
+            assert !(currentAccount instanceof BudgetAccountBE);
             // skip if account is marked as inactive
             if (!currentAccount.getIsActive())
                 continue;
-            // create TableRow object with is_last = (index == count-1)
-            AccountPreviewTableRow newRow = new AccountPreviewTableRow(parentActivity,
-                    currentAccount);
-            parentLayout.addView(newRow);
-            newRow.setRefreshListener(parentActivity);
-            newRow.getRefreshLiveData().observe(parentActivity, refresh -> {
+            // create list item at hierarchy level 0 (not specifically defined)
+            ListItemAccountPreview newItem = (ListItemAccountPreview) LayoutInflater.from(parentActivity).inflate(R.layout.list_item_account_preview_main, null);
+            newItem.init(parentActivity, currentAccount);
+            // add list item to parent layout
+            parentLayout.addView(newItem);
+            // add listeners to list item
+            newItem.setRefreshListener(parentActivity);
+            newItem.getRefreshLiveData().observe(parentActivity, refresh -> {
                 if (refresh)
                     parentActivity.onRefresh();
             });
-            RadioButton rbReceive = newRow.getRBReceiver();
+            // add radio button to receiver group
+            RadioButton rbReceive = newItem.getRBReceiver();
             assert rbReceive != null;
             receiverManager.addRadioButton(rbReceive, currentAccount);
 
-            // check if currentAccount is AssetAccount, only then add rbSend
-            if (!(currentAccount instanceof BudgetAccountBE)) {
-                RadioButton rbSend = newRow.getRBSender();
-                assert rbSend != null;
-                senderManager.addRadioButton(rbSend, currentAccount);
-            }
+            // add radio button to sender group
+            RadioButton rbSend = newItem.getRBSender();
+            assert rbSend != null;
+            senderManager.addRadioButton(rbSend, currentAccount);
 
-            // check if TableRow has children. If so, add them
-            List<AccountPreviewTableRow> children = newRow.getChildren();
+            // check if list item has children. If so, add them
+            // get all children (down every hierarchy layer)
+            List<ListItemAccountPreview> children = newItem.getAllChildren();
+            // abort if there are none
             if (children.size() == 0)
                 continue;
-            for (AccountPreviewTableRow child : children) {
+            // iterate through all children
+            for (ListItemAccountPreview child : children) {
+                AccountBE currentChildAccount = child.getReferenceAccount();
+                // add child to parent layout and add listeners
                 parentLayout.addView(child);
                 child.setRefreshListener(parentActivity);
                 child.getRefreshLiveData().observe(parentActivity, refresh -> {
                     if (refresh)
                         parentActivity.onRefresh();
                 });
+                // add radio button to receiver group
+                RadioButton rbReceiveChild = newItem.getRBReceiver();
+                assert rbReceiveChild != null;
+                receiverManager.addRadioButton(rbReceiveChild, currentChildAccount);
+                // add radio button to sender group
+                RadioButton rbSendChild = newItem.getRBSender();
+                assert rbSendChild != null;
+                senderManager.addRadioButton(rbSendChild, currentChildAccount);
             }
         }
     }

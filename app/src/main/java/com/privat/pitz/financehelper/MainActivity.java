@@ -69,16 +69,15 @@ public class MainActivity extends AbstractActivity {
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_main, menu);
-
-        // show add funds item as extra icon on menu bar
-        menu.findItem(R.id.item_add_funds).setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
         return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
-        if (itemId == R.id.item_add_funds) {
+        if (itemId == R.id.item_show_current_income) {
+            showIncomeListDialog();
+        } else if (itemId == R.id.item_add_funds) {
             showAddFundsDialog();
         } else if (itemId == R.id.item_save_accounts) {
             showSaveAccountsDialog();
@@ -137,17 +136,16 @@ public class MainActivity extends AbstractActivity {
                 rbReceiver);
         RadioButton currentSender = rbSender.getRadioButtonForAccount(model.currentSender);
         if (currentSender != null)
-            currentSender.setActivated(true);
+            currentSender.setChecked(true);
         RadioButton currentReceiver = rbReceiver.getRadioButtonForAccount(model.currentReceiver);
         if (currentReceiver != null)
-            currentReceiver.setActivated(true);
+            currentReceiver.setChecked(true);
     }
 
     private void populateUI() {
-        Button open_assets_detailed = findViewById(R.id.button_assets_overview);
-        Button open_budgets_detailed = findViewById(R.id.button_budgets_overview);
-        Button open_income_detailed = findViewById(R.id.button_income_overview);
-        Button addEntry = findViewById(R.id.button_add_entry);
+        TextView open_assets_detailed = findViewById(R.id.button_assets_overview);
+        TextView open_budgets_detailed = findViewById(R.id.button_budgets_overview);
+        Button addTx = findViewById(R.id.button_add_tx);
         Button addRecurringOrder = findViewById(R.id.button_add_recurring_order);
         newDescription = findViewById(R.id.edit_new_description);
         newAmount = findViewById(R.id.edit_new_amount);
@@ -166,15 +164,8 @@ public class MainActivity extends AbstractActivity {
             }
         });
 
-        open_income_detailed.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                showIncomeListDialog();
-            }
-        });
-
         MainActivity parent = this;
-        addEntry.setOnClickListener(new View.OnClickListener() {
+        addTx.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 String des = newDescription.getText().toString();
@@ -403,7 +394,7 @@ public class MainActivity extends AbstractActivity {
         builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
-                saveAccountsByName(saveName.getText().toString(), hiddenCheck.isChecked());{
+                saveStateToFile(saveName.getText().toString(), hiddenCheck.isChecked());{
                 }
             }
         });
@@ -555,7 +546,7 @@ public class MainActivity extends AbstractActivity {
     //endregion
 
     //region react to dialog
-    private void saveAccountsByName(String name, boolean hidden) {
+    private void saveStateToFile(String name, boolean hidden) {
         try {
             if (hidden) {
                 getController().saveAccountsToInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + name);

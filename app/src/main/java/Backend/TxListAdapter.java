@@ -9,7 +9,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.privat.pitz.financehelper.AssetAccountDetailsActivity;
 import com.privat.pitz.financehelper.R;
 
 import java.util.ArrayList;
@@ -42,7 +41,7 @@ public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewH
     @Override
     public EntryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.list_entry_tx_account_details, parent, false);
+                .inflate(R.layout.list_item_tx_account_details, parent, false);
         return new EntryViewHolder(view);
     }
 

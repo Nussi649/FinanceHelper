@@ -1,21 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:id="@+id/item_add_funds"
-        android:icon="@drawable/ic_plus_24"
-        android:title="@string/label_add_funds"/>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:id="@+id/group_income"
+        android:title="@string/label_income"
+        android:icon="@drawable/ic_money_24"
+        app:showAsAction="ifRoom">
+        <menu>
+            <item
+                android:id="@+id/item_show_current_income"
+                android:title="@string/label_income"
+                android:icon="@drawable/ic_list_24"
+                android:orderInCategory="1"/>
+            <item
+                android:id="@+id/item_add_funds"
+                android:icon="@drawable/ic_plus_24"
+                android:title="@string/label_add_funds"
+                android:orderInCategory="2"/>
+        </menu>
+    </item>
     <item
         android:id="@+id/item_display_recurring_orders"
         android:title="@string/label_display_recurring_orders"/>
-    <item
-        android:id="@+id/item_save_accounts"
-        android:title="@string/label_save_accounts"/>
-    <item
-        android:id="@+id/item_load_accounts"
-        android:title="@string/label_load_accounts" />
-    <item
-        android:id="@+id/item_edit"
-        android:title="@string/label_edit_savefile" />
+    <item android:id="@+id/group_file"
+        android:title="@string/label_file">
+        <menu>
+            <item
+                android:id="@+id/item_save_accounts"
+                android:title="@string/label_save_accounts"
+                android:orderInCategory="1"/>
+            <item
+                android:id="@+id/item_load_accounts"
+                android:title="@string/label_load_accounts"
+                android:orderInCategory="2" />
+            <item
+                android:id="@+id/item_edit"
+                android:title="@string/label_edit_savefile"
+                android:orderInCategory="3" />
+        </menu>
+    </item>
     <item
         android:id="@+id/item_settings"
         android:title="@string/label_settings"/>

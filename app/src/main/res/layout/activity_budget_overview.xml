@@ -40,7 +40,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:paddingBottom="4dp"
-                android:background="@drawable/bg_header_row">
+                android:background="@drawable/bg_primary_rounded_top_10dp">
 
 
             <LinearLayout
