@@ -6,9 +6,11 @@ import java.util.List;
 public class BudgetAccountBE extends AccountBE{
 
     public float indivYearlyBudget;
-    public float indivCurrentBudget = -1.0f;
+    public float indivAvailableBudget = -1.0f;
 
     private List<BudgetAccountBE> subBudgets;
+    // toOtherEntity specifies if payments received on this account should be accounted for as income on another financial entity
+    // can be left empty ("")
     protected String toOtherEntity;
 
     // region constructors
@@ -28,13 +30,13 @@ public class BudgetAccountBE extends AccountBE{
         super(name);
         subBudgets = new ArrayList<>();
         this.indivYearlyBudget = indivYearlyBudget;
-        this.indivCurrentBudget = indivYearlyBudget / 12;
+        this.indivAvailableBudget = indivYearlyBudget / 12;
     }
 
-    public BudgetAccountBE(String name, float indivCurrentBudget, float indivYearlyBudget) {
+    public BudgetAccountBE(String name, float indivAvailableBudget, float indivYearlyBudget) {
         super(name);
         subBudgets = new ArrayList<>();
-        this.indivCurrentBudget = indivCurrentBudget;
+        this.indivAvailableBudget = indivAvailableBudget;
         this.indivYearlyBudget = indivYearlyBudget;
     }
     // endregion
@@ -52,8 +54,8 @@ public class BudgetAccountBE extends AccountBE{
         this.indivYearlyBudget = yearlyBudget;
     }
 
-    public void setIndivCurrentBudget(float currentBudget) {
-        this.indivCurrentBudget = currentBudget;
+    public void setIndivAvailableBudget(float currentBudget) {
+        this.indivAvailableBudget = currentBudget;
     }
 
     public void setToOtherEntity(String otherEntity) {
@@ -99,14 +101,14 @@ public class BudgetAccountBE extends AccountBE{
         return sum;
     }
 
-    public float getTotalCurrentBudget() {
-        return indivCurrentBudget + getSubCurrentBudget();
+    public float getTotalAvailableBudget() {
+        return indivAvailableBudget + getSubAvailableBudget();
     }
 
-    public float getSubCurrentBudget() {
+    public float getSubAvailableBudget() {
         float sum = 0;
         for (BudgetAccountBE subBudget : subBudgets)
-            sum += subBudget.getTotalCurrentBudget();
+            sum += subBudget.getTotalAvailableBudget();
         return sum;
     }
 
@@ -117,7 +119,7 @@ public class BudgetAccountBE extends AccountBE{
 
     @Override
     public void reset() {
-        indivCurrentBudget += indivYearlyBudget/12 - getSum();
+        indivAvailableBudget += indivYearlyBudget/12 - getSum();
         txList = new ArrayList<>();
         for (BudgetAccountBE subBudget : subBudgets) {
             subBudget.reset();

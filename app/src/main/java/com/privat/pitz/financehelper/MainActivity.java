@@ -25,6 +25,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -415,53 +417,49 @@ public class MainActivity extends AbstractActivity {
                 showImportDialog();
             }
         });
-        final List<String> availableFiles = getController().getAvailableSaveFiles();
-        for (String s : availableFiles) {
-            if (s.equals("stats"))
-                continue;
-            TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.tablerow_file_list, availableFilesLayout, false);
-            row.setTag(s);
-            final TextView name = row.findViewById(R.id.text_filename);
-            TextView delete = row.findViewById(R.id.text_delete_sign);
-            name.setText(s);
-            name.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    filenameEdit.setText(((TextView)v).getText());
-                }
-            });
-            delete.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(final View v) {
-                    AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
-                        @Override
-                        public void onClick(DialogInterface dialog, int which) {
-                            if (getController().deleteSavefile(name.getText().toString())) {
-                                ((TableLayout) v.getParent().getParent()).removeView((View)v.getParent());
-                                showToastLong(R.string.toast_success_file_deleted);
-                            } else {
-                                showToastLong(R.string.toast_error_unknown);
+        final List<String> availableFiles = Util.getFileNames(Util.getValidFiles(getFilesDir()));
+        if (availableFiles == null || availableFiles.size() == 0)
+            showToastLong(R.string.toast_error_no_valid_files);
+        else
+            for (String s : availableFiles) {
+                TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.tablerow_file_list, availableFilesLayout, false);
+                row.setTag(s);
+                final TextView name = row.findViewById(R.id.text_filename);
+                TextView delete = row.findViewById(R.id.text_delete_sign);
+                name.setText(s);
+                name.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        filenameEdit.setText(((TextView) v).getText());
+                    }
+                });
+                delete.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(final View v) {
+                        AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                if (getController().deleteSavefile(name.getText().toString())) {
+                                    ((TableLayout) v.getParent().getParent()).removeView((View) v.getParent());
+                                    showToastLong(R.string.toast_success_file_deleted);
+                                } else {
+                                    showToastLong(R.string.toast_error_unknown);
+                                }
                             }
-                        }
-                    };
-                    showConfirmDialog(R.string.question_delete_savefile, listener);
-                }
-            });
-            availableFilesLayout.addView(row);
-        }
+                        };
+                        showConfirmDialog(R.string.question_delete_savefile, listener);
+                    }
+                });
+                availableFilesLayout.addView(row);
+            }
         builder.setView(dialogView);
         builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
         builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 try {
-                    if (availableFiles.contains(filenameEdit.getText().toString())) {
-                        getController().readAccountsFromInternal(filenameEdit.getText().toString());
-                        onRefresh();
-                    } else {
-                        getController().readAccountsFromInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + filenameEdit.getText().toString());
-                        onRefresh();
-                    }
+                    getController().readAccountsFromInternal(filenameEdit.getText().toString());
+                    onRefresh();
                 } catch (JSONException jsone) {
                     dialog.dismiss();
                     showToastLong(R.string.toast_error_unknown);
@@ -567,7 +565,7 @@ public class MainActivity extends AbstractActivity {
             showToastLong("New Sheet for Month " + Const.getDisplayableCurrentMonthName() + " created.");
         }
         if (response == Controller.CREATED_BLANK)
-            showToastLong(getString(R.string.toast_blank_accounts));
+            showToastLong(getString(R.string.toast_info_blank_accounts));
         rbSender = new RbAccountManager(Const.GROUP_SENDER, controller);
         rbReceiver = new RbAccountManager(Const.GROUP_RECEIVER, controller);
     }

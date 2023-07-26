@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/header_receiver"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_alignParentEnd="true"
@@ -17,5 +16,5 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/ic_arrow_down_24"
-        android:background="@drawable/bg_primary_light_rounded_top_10dp"/>
+        android:background="@drawable/bg_secondary_light_rounded_top_10dp"/>
 </LinearLayout>

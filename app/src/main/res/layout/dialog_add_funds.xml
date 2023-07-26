@@ -25,7 +25,6 @@
         android:autofillHints="amount" />
 
     <TextView
-        android:id="@+id/text_currency"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignBaseline="@id/edit_amount"

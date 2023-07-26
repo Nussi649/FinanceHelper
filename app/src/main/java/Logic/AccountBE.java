@@ -10,8 +10,6 @@ public class AccountBE {
     protected List<TxBE> txList;
     protected boolean isActive;
     private boolean isProfitNeutral;
-    // toOtherEntity specifies if payments received on this account should be accounted for as income on another financial entity
-    // can be left empty ("")
 
     public AccountBE(String name) {
         this.name = name;

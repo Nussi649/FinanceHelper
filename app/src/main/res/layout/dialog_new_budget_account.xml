@@ -6,7 +6,6 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/budget_name_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/label_new_accountname"
@@ -33,7 +32,6 @@
             android:hint="@string/label_yearly_budget" />
 
         <TextView
-            android:id="@+id/euro_sign_yearly"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/label_currency"
@@ -52,10 +50,9 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:inputType="numberDecimal"
-            android:hint="@string/label_current_budget" />
+            android:hint="@string/label_available_budget" />
 
         <TextView
-            android:id="@+id/euro_sign_current"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/label_currency"

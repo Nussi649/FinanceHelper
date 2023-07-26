@@ -398,7 +398,7 @@ public class Controller {
             json = new JSONObject(data);
             budgetAccounts = json.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
             json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME);
-            allAccounts = json.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
+            allAccounts = Util.copyJSONArray(json.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS));
             for (int i = 0; i < budgetAccounts.length(); i++) {
                 allAccounts.put(budgetAccounts.getJSONObject(i));
             }
@@ -461,6 +461,7 @@ public class Controller {
                             assetAccounts.put(i, Util.serialise_Account(curAccount));
                             data.put(Const.JSON_TAG_ASSET_ACCOUNTS, assetAccounts);
                             foundTargetAccount = true;
+                            break;
                         } catch (JSONException e) {
                             Log.println(Log.ERROR, "pass_on_transaction",
                                     String.format("Error serializing target asset account after adding new entry: %s", e));
@@ -479,7 +480,7 @@ public class Controller {
         // if target has not yet been found, iterate through all budget accounts as json objects
         if (!foundTargetAccount) {
             try {
-                budgetAccounts = data.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
+                budgetAccounts = data.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
                 foundBudgetAccounts = true;
             } catch (JSONException ignored) {
             }
@@ -508,6 +509,7 @@ public class Controller {
                                 budgetAccounts.put(i, Util.serialise_BudgetAccount(curAccount));
                                 data.put(Const.JSON_TAG_BUDGET_ACCOUNTS, budgetAccounts);
                                 foundTargetAccount = true;
+                                break;
                             } catch (JSONException e) {
                                 Log.println(Log.ERROR, "pass_on_transaction",
                                         String.format("Error serializing target budget account after adding new entry: %s", e));
@@ -1058,13 +1060,13 @@ public class Controller {
     public void transferCurrentBudget(float amount, BudgetAccountBE sender, BudgetAccountBE recipient, boolean adjustYearly) throws JSONException, IOException, InvalidParameterException {
         if (amount <= 0)
             throw new InvalidParameterException("transferCurrentBudget called with amount <= 0");
-        float oldSenderCurrent = sender.indivCurrentBudget;
-        float oldRecipientCurrent = recipient.indivCurrentBudget;
+        float oldSenderCurrent = sender.indivAvailableBudget;
+        float oldRecipientCurrent = recipient.indivAvailableBudget;
         float oldSenderYearly = adjustYearly ? sender.indivYearlyBudget : 0;
         float oldRecipientYearly = adjustYearly ? recipient.indivYearlyBudget : 0;
 
-        sender.setIndivCurrentBudget(oldSenderCurrent - amount);
-        recipient.setIndivCurrentBudget(oldRecipientCurrent + amount);
+        sender.setIndivAvailableBudget(oldSenderCurrent - amount);
+        recipient.setIndivAvailableBudget(oldRecipientCurrent + amount);
 
         if (adjustYearly) {
             sender.setIndivYearlyBudget(oldSenderYearly - amount * 12);
@@ -1073,8 +1075,8 @@ public class Controller {
         try {
             saveAccountsToInternal();
         }  catch (JSONException | IOException e) {
-            sender.setIndivCurrentBudget(oldSenderCurrent);
-            recipient.setIndivCurrentBudget(oldRecipientCurrent);
+            sender.setIndivAvailableBudget(oldSenderCurrent);
+            recipient.setIndivAvailableBudget(oldRecipientCurrent);
             if (adjustYearly) {
                 sender.setIndivYearlyBudget(oldSenderYearly);
                 recipient.setIndivYearlyBudget(oldRecipientYearly);

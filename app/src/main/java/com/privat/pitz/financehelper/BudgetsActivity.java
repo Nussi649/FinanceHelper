@@ -37,7 +37,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     TextView totalPercentage;
     TextView totalYearly;
     float totalSpent;
-    float totalCurrentBudget;
+    float totalAvailableBudget;
     float totalYearlyBudget;
 
     @Override
@@ -142,14 +142,14 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         List<BudgetAccountBE> firstLevelBudgets = model.budget_accounts;
         int count = firstLevelBudgets.size();
         totalSpent = 0.0f;
-        totalCurrentBudget = 0.0f;
+        totalAvailableBudget = 0.0f;
         totalYearlyBudget = 0.0f;
         for (int index = 0; index < count; index++) {
             BudgetAccountBE currentAccount = firstLevelBudgets.get(index);
             BudgetAccountTableRow newRow = (BudgetAccountTableRow) LayoutInflater.from(this).inflate(R.layout.table_row_budget_account_overview, null);
             newRow.init(this, this, currentAccount, index == count - 1);
             totalSpent += currentAccount.getTotalSum();
-            totalCurrentBudget += currentAccount.getTotalCurrentBudget();
+            totalAvailableBudget += currentAccount.getTotalAvailableBudget();
             totalYearlyBudget += currentAccount.getTotalYearlyBudget();
         }
     }
@@ -241,7 +241,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
                 newRow.init(this, this, newAccount, true);
                 newRow.populateUI();
                 container.addView(newRow);
-                totalCurrentBudget += newAccount.indivCurrentBudget;
+                totalAvailableBudget += newAccount.indivAvailableBudget;
                 totalYearlyBudget += newAccount.indivYearlyBudget;
                 updateUISums();
             }
@@ -257,12 +257,12 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     // set values of total sum text views
     @SuppressLint("DefaultLocale")
     private void updateUISums() {
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(totalCurrentBudget),5);
+        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(totalAvailableBudget),5);
         String currentSumString = String.format("%s / %s",
                 Util.formatLargeFloatShort(totalSpent),
                 currentBudgetString);
         String currentPercentageString = String.format("%.0f%%",
-                (totalSpent / totalCurrentBudget) * 100);
+                (totalSpent / totalAvailableBudget) * 100);
         String yearly_budget_string = Util.formatLargeFloatShort(totalYearlyBudget);
         totalValue.setText(currentSumString);
         totalPercentage.setText(currentPercentageString);

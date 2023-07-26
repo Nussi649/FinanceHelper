@@ -5,7 +5,7 @@
         android:title="@string/label_yearly_budget" />
     <item
         android:id="@+id/item_transfer_budget"
-        android:title="@string/label_transfer_budget" />
+        android:title="@string/label_available_budget_transfer" />
     <item
         android:id="@+id/item_new_sub_budget"
         android:title="@string/label_new_sub_budget" />

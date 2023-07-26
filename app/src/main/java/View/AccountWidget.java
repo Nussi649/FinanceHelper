@@ -1,12 +1,15 @@
 package View;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
+import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.privat.pitz.financehelper.R;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import Backend.Util;
@@ -14,55 +17,79 @@ import Logic.AccountBE;
 import Logic.TxBE;
 
 public class AccountWidget extends LinearLayout {
+    @SuppressLint("InflateParams")
+    public static AccountWidget getInstance(Context context) {
+        return (AccountWidget) LayoutInflater.from(context).inflate(R.layout.widget_asset_account, null);
+    }
+
     Context context;
-    AccountBE mAccount;
+    AccountBE account;
 
-    public AccountWidget(Context context, AccountBE acc) {
-        super(context);
+    TextView accountLabel;
+    TextView sumLabel;
+    LinearLayout txList;
+    List<AccountWidgetRow> rows = new ArrayList<>();
+
+    // region Constructors and init
+    public AccountWidget(Context context, AttributeSet attrs) {
+        super(context, attrs);
         this.context = context;
-        mAccount = acc;
-        LayoutInflater.from(context).inflate(R.layout.widget_asset_account, this);
-        populateUI();
     }
 
-    private void populateUI() {
-        TextView label = findViewById(R.id.label_account);
-        label.setText(mAccount.getName());
-        refreshTx();
+    public void init(AccountBE acc) {
+        account = acc;
+        initViews();
     }
 
-    public void refreshTx() {
-        LinearLayout content = findViewById(R.id.contentTable);
-        content.removeAllViews();
-        List<TxBE> entries = mAccount.getTxList();
+    public void initViews() {
+        accountLabel = findViewById(R.id.label_account);
+        sumLabel = findViewById(R.id.display_sum);
+        txList = findViewById(R.id.contentTable);
+        reloadTx();
+    }
+    // endregion
+
+    public AccountBE getAccount() {
+        return account;
+    }
+
+    @Override
+    public String toString() {
+        if (account != null)
+            return account.toString();
+        return super.toString();
+    }
+
+    private void reloadTx() {
+        // discard all rows from own list and from content table view
+        rows = new ArrayList<>();
+        txList.removeAllViews();
+        // get list of TxBE objects to fill widget with
+        List<TxBE> entries = account.getTxList();
         if (entries.size() == 0) {
             findViewById(R.id.sum_block).setVisibility(GONE);
         } else {
             if (entries.size() > 10) {
-                content.addView(new AccountWidgetRow(context, "..."));
-                for (TxBE e : entries.subList(entries.size() - 10, entries.size())) {
-                    AccountWidgetRow row = new AccountWidgetRow(context, e.getDescription(), e.getAmount());
-                    content.addView(row);
-                }
-            } else {
-                for (TxBE e : entries) {
-                    AccountWidgetRow row = new AccountWidgetRow(context, e.getDescription(), e.getAmount());
-                    content.addView(row);
-                }
+                AccountWidgetRow firstRow = AccountWidgetRow.getInstance(context);
+                firstRow.initDefault();
+                rows.add(firstRow);
+                txList.addView(firstRow);
+                entries = entries.subList(entries.size() - 10, entries.size());
             }
-            TextView sum = findViewById(R.id.display_sum);
-            sum.setText(Util.formatLargeFloatDisplay(mAccount.getSum()));
+            for (TxBE e : entries) {
+                AccountWidgetRow row = AccountWidgetRow.getInstance(context);
+                row.init(e.getDescription(), e.getAmount());
+                rows.add(row);
+                txList.addView(row);
+            }
         }
     }
 
-    public void setLayoutWidth(int width) {
-        LinearLayout root = findViewById(R.id.root_layout);
-        LayoutParams params = (LinearLayout.LayoutParams) root.getLayoutParams();
-        params.width = width;
-        root.setLayoutParams(params);
-        LinearLayout content = findViewById(R.id.contentTable);
-        for (int i = 0; i < content.getChildCount(); i++) {
-            ((AccountWidgetRow) content.getChildAt(i)).setWidth(width);
+    public void refreshUI() {
+        accountLabel.setText(account.getName());
+        sumLabel.setText(Util.formatLargeFloatDisplay(account.getSum()));
+        for (AccountWidgetRow row : rows) {
+            row.refreshUI();
         }
     }
 }

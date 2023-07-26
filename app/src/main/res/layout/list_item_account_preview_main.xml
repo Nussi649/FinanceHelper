@@ -10,7 +10,7 @@
         android:id="@+id/radioButton_Sender"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:button="@drawable/custom_radio_button"
+        android:button="@drawable/custom_radio_button_primary"
         android:background="@color/colorPrimaryLight"
         android:text="" />
 
@@ -60,8 +60,8 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         android:layout_marginStart="4dp"
-        android:button="@drawable/custom_radio_button"
-        android:background="@color/colorPrimaryLight"
+        android:button="@drawable/custom_radio_button_secondary"
+        android:background="@color/colorSecondaryLight"
         android:text="" />
 
 </View.ListItemAccountPreview>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item android:id="@+id/group_income"
+    <item
         android:title="@string/label_income"
         android:icon="@drawable/ic_money_24"
         app:showAsAction="ifRoom">
@@ -20,9 +20,8 @@
     </item>
     <item
         android:id="@+id/item_display_recurring_orders"
-        android:title="@string/label_display_recurring_orders"/>
-    <item android:id="@+id/group_file"
-        android:title="@string/label_file">
+        android:title="@string/label_recurring_orders"/>
+    <item android:title="@string/label_file">
         <menu>
             <item
                 android:id="@+id/item_save_accounts"

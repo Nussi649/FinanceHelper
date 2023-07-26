@@ -2,7 +2,6 @@ package View;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.graphics.Color;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -272,7 +271,7 @@ public class BudgetAccountTableRow extends TableRow {
     @SuppressLint("DefaultLocale")
     private void updateUINumbers() {
         float current_sum = isExtended ? refAcc.getSum() : refAcc.getTotalSum();
-        float current_budget = isExtended ? refAcc.indivCurrentBudget : refAcc.getTotalCurrentBudget();
+        float current_budget = isExtended ? refAcc.indivAvailableBudget : refAcc.getTotalAvailableBudget();
         float current_percentage = current_sum / current_budget;
         float yearly_budget = isExtended ? refAcc.indivYearlyBudget : refAcc.getTotalYearlyBudget();
         String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(current_budget),5);

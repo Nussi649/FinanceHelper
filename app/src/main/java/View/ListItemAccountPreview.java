@@ -5,6 +5,7 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -60,12 +61,32 @@ public class ListItemAccountPreview extends LinearLayout {
         init(parentActivity, accountObject, 0);
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void initViews() {
         nameLabel = findViewById(R.id.item_name_label);
         valueLabel = findViewById(R.id.item_value_label);
         senderRB = findViewById(R.id.radioButton_Sender);
         receiverRB = findViewById(R.id.radioButton_Receiver);
         spacer = findViewById(R.id.indent_view);
+
+        nameLabel.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                switch (event.getAction()) {
+                    case MotionEvent.ACTION_DOWN:
+                        // When finger touches the view, set it to selected to start the marquee
+                        v.setSelected(true);
+                        break;
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        // When finger lifts up or the touch event is cancelled, stop the marquee
+                        v.setSelected(false);
+                        break;
+                }
+                return true; // return true to indicate that the event is consumed
+            }
+        });
+
     }
     // endregion
 
@@ -131,7 +152,7 @@ public class ListItemAccountPreview extends LinearLayout {
                 if (referenceAccount instanceof BudgetAccountBE) {
                     BudgetAccountBE budget_account = (BudgetAccountBE) referenceAccount;
                     float current_sum = referenceAccount.getSum();
-                    float current_budget = budget_account.indivCurrentBudget;
+                    float current_budget = budget_account.indivAvailableBudget;
                     String value = String.format("%s (%.0f%%)",
                             Util.formatLargeFloatShort(current_sum),
                             (current_sum / current_budget) * 100);

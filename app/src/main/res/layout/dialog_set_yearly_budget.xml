@@ -7,10 +7,9 @@
     android:padding="16dp">
 
     <TextView
-        android:id="@+id/budget_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/label_set_yearly_budget"
+        android:text="@string/label_yearly_budget_set"
         android:textSize="16sp" />
 
     <LinearLayout
@@ -26,7 +25,6 @@
             android:hint="@string/label_yearly_budget" />
 
         <TextView
-            android:id="@+id/euro_sign"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/label_currency"

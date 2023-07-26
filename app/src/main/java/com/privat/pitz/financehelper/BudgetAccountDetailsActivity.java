@@ -154,7 +154,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     @SuppressLint("DefaultLocale")
     private void updateUISums() {
         float totalSum = mAccount.getTotalSum();
-        float current_budget = mAccount.getTotalCurrentBudget();
+        float current_budget = mAccount.getTotalAvailableBudget();
         // set values of total sum text views
         String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(current_budget),5);
         String currentSumString = String.format("%s / %s",
@@ -219,7 +219,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         ArrayAdapter<BudgetAccountBE> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, budgetAccounts);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         recipientSpinner.setAdapter(adapter);
-        builder.setTitle(R.string.label_transfer_budget);
+        builder.setTitle(R.string.label_available_budget_transfer);
 
         builder.setView(view)
                 .setPositiveButton("Confirm", (dialog, id) -> {
@@ -340,7 +340,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         setTitle(String.format("%s: %s / %s   (%s)",
                 mAccount.getName(),
                 Util.formatLargeFloatShort(mAccount.getSum()),
-                Util.formatLargeFloatShort(mAccount.indivCurrentBudget),
+                Util.formatLargeFloatShort(mAccount.indivAvailableBudget),
                 Util.formatLargeFloatShort(mAccount.indivYearlyBudget)));
     }
 

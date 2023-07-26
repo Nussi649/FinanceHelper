@@ -12,13 +12,14 @@ import androidx.core.graphics.ColorUtils;
 import com.privat.pitz.financehelper.MainActivity;
 import com.privat.pitz.financehelper.R;
 
-import View.BudgetAccountTableRow;
 import View.ListItemAccountPreview;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -28,6 +29,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import Logic.AccountBE;
 import Logic.BudgetAccountBE;
@@ -107,7 +110,7 @@ public abstract class Util {
                         parentActivity.onRefresh();
                 });
                 // add radio button to receiver group
-                RadioButton rbReceiveChild = newItem.getRBReceiver();
+                RadioButton rbReceiveChild = child.getRBReceiver();
                 assert rbReceiveChild != null;
                 receiverManager.addRadioButton(rbReceiveChild, currentChildAccount);
             }
@@ -275,6 +278,44 @@ public abstract class Util {
         } else {
             return 'O';
         }
+    }
+
+    public static List<File> getValidFiles(File dir) {
+        File[] files = dir.listFiles();
+        ArrayList<File> matchingFiles = new ArrayList<>();
+        Pattern pattern = Pattern.compile("\\d{4}-\\d{2}-\\S+\\.jso");
+        if (files != null) {
+            for (File file : files) {
+                Matcher matcher = pattern.matcher(file.getName());
+                if (matcher.find()) {
+                    matchingFiles.add(file);
+                }
+            }
+        } else
+            return null;
+        return matchingFiles;
+    }
+
+    public static List<String> getFileNames(List<File> files) {
+        if (files == null)
+            return null;
+        List<String> re = new ArrayList<>();
+        for (File file : files) {
+            re.add(file.getName());
+        }
+        return re;
+    }
+
+    public static JSONArray copyJSONArray(JSONArray arrayIn) {
+        JSONArray copyArray = new JSONArray();
+        for (int i = 0; i < arrayIn.length(); i++) {
+            try {
+                copyArray.put(arrayIn.get(i));
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+        return copyArray;
     }
 
     public static GradientDrawable createBackground(int color) {
@@ -455,7 +496,7 @@ public abstract class Util {
                     String.format("No current budget for account: %s", new_account.getName()));
             current_budget = new_account.indivYearlyBudget / 12;
         } finally {
-            new_account.setIndivCurrentBudget(current_budget);
+            new_account.setIndivAvailableBudget(current_budget);
         }
 
         // try reading target entity
@@ -609,7 +650,7 @@ public abstract class Util {
             String otherEntity = budgetAccount_in.getOtherEntity();
             new_account.put(Const.JSON_TAG_YEARLY_BUDGET, Util.formatFloatSave(budgetAccount_in.indivYearlyBudget));
             new_account.put(Const.JSON_TAG_TO_OTHER, otherEntity == null ? "" : otherEntity);
-            float current_budget = budgetAccount_in.indivCurrentBudget;
+            float current_budget = budgetAccount_in.indivAvailableBudget;
             if (current_budget != -1.0f)
                 new_account.put(Const.JSON_TAG_CURRENT_BUDGET, Util.formatFloatSave(current_budget));
         } catch (JSONException e) {

@@ -3,13 +3,14 @@ package com.privat.pitz.financehelper;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.res.Configuration;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -29,6 +30,7 @@ import View.AccountWidget;
 
 public class AssetsActivity extends AbstractActivity {
     List<AccountWidget> loadedWidgets = new ArrayList<>();
+    TableLayout container;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -38,6 +40,7 @@ public class AssetsActivity extends AbstractActivity {
     @Override
     protected void endWorkingThread() {
         setContentView(R.layout.activity_asset_overview);
+        container = findViewById(R.id.accountContainer);
         populateUI();
     }
 
@@ -45,12 +48,19 @@ public class AssetsActivity extends AbstractActivity {
         super.onStart();
         // only act, if activity has already been visited before
         if (!passedOnCreate) {
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        onRefresh();
-                    }
-                });
+            // check if loaded widgets still equal model.asset_accounts
+            boolean canRefresh = checkLists();
+            runOnUiThread(canRefresh ? new Runnable() {
+                @Override
+                public void run() {
+                    onRefresh();
+                }
+            } : new Runnable() {
+                @Override
+                public void run() {
+                    reloadContent();
+                }
+            });
         }
     }
 
@@ -85,7 +95,9 @@ public class AssetsActivity extends AbstractActivity {
     }
 
     protected void addAccountToUI(final AccountBE acc) {
-        AccountWidget newAccountWidget = new AccountWidget(this, acc);
+        // create new account widget with AccountBE object and initiate it
+        AccountWidget newAccountWidget = AccountWidget.getInstance(this);
+        newAccountWidget.init(acc);
         newAccountWidget.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -93,23 +105,43 @@ public class AssetsActivity extends AbstractActivity {
                 startActivity(AssetAccountDetailsActivity.class);
             }
         });
-        TableLayout table = findViewById(R.id.accountContainer);
-        newAccountWidget.setLayoutWidth(getWindowManager().getDefaultDisplay().getWidth()/2-60);
-        if (table.getChildCount() == 0) {
+
+        // Set the layout parameters for the AccountWidget, with margins
+        TableRow.LayoutParams params = new TableRow.LayoutParams(
+                0,
+                TableRow.LayoutParams.WRAP_CONTENT,
+                1f // This is the weight
+        );
+        params.setMargins(30, 30, 30, 30);
+        newAccountWidget.setLayoutParams(params);
+
+        if (container.getChildCount() == 0) {
             TableRow row = new TableRow(this);
             row.addView(newAccountWidget);
-            table.addView(row);
+            // Add an empty View as well
+            View emptyView = new View(this);
+            emptyView.setLayoutParams(new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f));
+            row.addView(emptyView);
+            container.addView(row);
         } else {
-            TableRow lastRow = (TableRow) table.getChildAt(table.getChildCount() - 1);
-            if (lastRow.getChildCount() == 2) {
+            TableRow lastRow = (TableRow) container.getChildAt(container.getChildCount() - 1);
+            if (lastRow.getChildCount() == 2 && lastRow.getChildAt(1) instanceof AccountWidget) {
                 TableRow newRow = new TableRow(this);
                 newRow.addView(newAccountWidget);
-                table.addView(newRow);
+                // Add an empty View as well
+                View emptyView = new View(this);
+                emptyView.setLayoutParams(new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f));
+                newRow.addView(emptyView);
+                container.addView(newRow);
             } else {
+                // Replace the empty View with the new AccountWidget
+                lastRow.removeViewAt(1);
                 lastRow.addView(newAccountWidget);
             }
         }
         loadedWidgets.add(newAccountWidget);
+        newAccountWidget.refreshUI();
+
     }
 
     // drops all views, loads them from scratch
@@ -125,7 +157,7 @@ public class AssetsActivity extends AbstractActivity {
     // triggers a refresh in all widgets
     protected void refreshContent() {
         for (AccountWidget widget : loadedWidgets)
-            widget.refreshTx();
+            widget.refreshUI();
     }
 
     protected void showNewAccountDialog() {
@@ -167,4 +199,18 @@ public class AssetsActivity extends AbstractActivity {
     public void onRefresh() {
         refreshContent();
     }
+
+    // region util
+    private boolean checkLists() {
+        if (loadedWidgets.size() != model.asset_accounts.size()) {
+            return false;
+        }
+        for (int i = 0; i < loadedWidgets.size(); i++) {
+            if (!loadedWidgets.get(i).getAccount().equals(model.asset_accounts.get(i))) {
+                return false;
+            }
+        }
+        return true;
+    }
+    // endregion
 }
