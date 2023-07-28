@@ -8,7 +8,8 @@
     android:padding="8dp">
 
 
-    <include layout="@layout/component_card_total_sums" />
+    <include layout="@layout/component_card_total_sums"
+        android:id="@+id/container_total_sum"/>
 
 <!--    Section for direct Tx-->
     <LinearLayout

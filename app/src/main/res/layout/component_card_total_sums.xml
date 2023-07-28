@@ -14,6 +14,7 @@
         android:padding="8dp">
 
         <TextView
+            android:id="@+id/label_sigma"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/label_sum_total"
@@ -26,15 +27,18 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="4"
+            android:layout_marginEnd="20dp"
+            android:textStyle="bold"
             android:text="@string/dummy_current_value"
-            android:gravity="center"
+            android:gravity="end"
             android:textSize="16sp" />
 
         <TextView
             android:id="@+id/total_current_percentage"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
             android:text="@string/dummy_current_percentage"
             android:gravity="center"
             android:textStyle="italic"

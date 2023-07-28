@@ -25,6 +25,12 @@ import Logic.BudgetAccountBE;
 
 @SuppressLint("ViewConstructor")
 public class BudgetAccountTableRow extends TableRow {
+    @SuppressLint("InflateParams")
+    public static BudgetAccountTableRow getInstance(AbstractActivity parentActivity) {
+        BudgetAccountTableRow row = (BudgetAccountTableRow) LayoutInflater.from(parentActivity).inflate(R.layout.table_row_budget_account_overview, null);
+        row.setParentActivity(parentActivity);
+        return row;
+    }
 
     private BudgetAccountBE refAcc;
     private AbstractActivity parentActivity;
@@ -44,38 +50,9 @@ public class BudgetAccountTableRow extends TableRow {
     public BudgetAccountTableRow(Context context, AttributeSet attrs) {
         super(context, attrs);
     }
-    public BudgetAccountTableRow(AbstractActivity parentActivity, BudgetAccountListHandler handler, BudgetAccountBE accountObject) {
-        this(parentActivity, handler, accountObject, false, 0);
-    }
 
-    public BudgetAccountTableRow(AbstractActivity parentActivity, BudgetAccountListHandler handler, BudgetAccountBE accountObject, boolean isLast) {
-        this(parentActivity, handler, accountObject, isLast, 0);
-    }
-
-    public BudgetAccountTableRow(AbstractActivity parentActivity, BudgetAccountListHandler handler, BudgetAccountBE accountObject, boolean isLast, int level) {
-        super(parentActivity);
-        this.refAcc = accountObject;
-        this.parentActivity = parentActivity;
-        this.budgetListener = handler;
-        this.hierarchyLevel = level;
-        this.isExtended = true;
-        this.isLast = isLast;
-        handler.addBudgetViewToBackend(this);
-        reloadChildren();
-    }
-    // endregion
-
-    // region sets / gets
-    public void initViews() {
-        nameLabel = findViewById(R.id.item_name_label);
-        toggleButton = findViewById(R.id.toggle_button);
-        valueLabel = findViewById(R.id.item_value_label);
-        currentPercentageLabel = findViewById(R.id.item_current_percentage);
-        yearlyBudgetLabel = findViewById(R.id.item_yearly_budget);
-    }
-    public void init(AbstractActivity parentActivity, BudgetAccountListHandler handler, BudgetAccountBE accountObject, boolean isLast, int level) {
+    public void init(BudgetAccountListHandler handler, BudgetAccountBE accountObject, boolean isLast, int level) {
         refAcc = accountObject;
-        this.parentActivity = parentActivity;
         budgetListener = handler;
         hierarchyLevel = level;
         isExtended = true;
@@ -85,16 +62,30 @@ public class BudgetAccountTableRow extends TableRow {
         initViews();
     }
 
-    public void init(AbstractActivity parentActivity, BudgetAccountListHandler handler, BudgetAccountBE accountObject, boolean isLast) {
-        init(parentActivity, handler, accountObject, isLast, 0);
+    public void init(BudgetAccountListHandler handler, BudgetAccountBE accountObject, boolean isLast) {
+        init(handler, accountObject, isLast, 0);
     }
 
+    public void initViews() {
+        nameLabel = findViewById(R.id.item_name_label);
+        toggleButton = findViewById(R.id.toggle_button);
+        valueLabel = findViewById(R.id.item_value_label);
+        currentPercentageLabel = findViewById(R.id.item_current_percentage);
+        yearlyBudgetLabel = findViewById(R.id.item_yearly_budget);
+    }
+    // endregion
+
+    // region sets / gets
     public List<BudgetAccountTableRow> getChildren() {
         return this.children;
     }
 
     public BudgetAccountBE getReferenceAccount() {
         return refAcc;
+    }
+
+    public int getHierarchyLevel() {
+        return hierarchyLevel;
     }
 
     public void addChild(BudgetAccountTableRow newChild) {
@@ -121,6 +112,10 @@ public class BudgetAccountTableRow extends TableRow {
 
     public void setIsLast(boolean newIsLast) {
         this.isLast = newIsLast;
+    }
+
+    public void setParentActivity(AbstractActivity parentActivity) {
+        this.parentActivity = parentActivity;
     }
     // endregion
 
@@ -261,9 +256,9 @@ public class BudgetAccountTableRow extends TableRow {
             int newLevel = hierarchyLevel + 1;
             // differentiate isLast for children
             for (int index = 0; index < childCount; index++) {
-                BudgetAccountTableRow newRow = (BudgetAccountTableRow) LayoutInflater.from(parentActivity).inflate(R.layout.table_row_budget_account_overview, null);
+                BudgetAccountTableRow newRow = BudgetAccountTableRow.getInstance(parentActivity);
                 children.add(newRow);
-                newRow.init(parentActivity, budgetListener, subBudgets.get(index), (index == childCount -1), newLevel);
+                newRow.init(budgetListener, subBudgets.get(index), (index == childCount -1), newLevel);
             }
         }
     }

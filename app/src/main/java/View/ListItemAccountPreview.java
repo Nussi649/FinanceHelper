@@ -29,12 +29,18 @@ import Logic.BudgetAccountBE;
 
 @SuppressLint("ViewConstructor")
 public class ListItemAccountPreview extends LinearLayout {
+    @SuppressLint("InflateParams")
+    public static ListItemAccountPreview getInstance(MainActivity parentActivity, LinearLayout parentContainer) {
+        ListItemAccountPreview instance = (ListItemAccountPreview) LayoutInflater.from(parentActivity).inflate(R.layout.list_item_account_preview_main, parentContainer, false);
+        instance.parentActivity = parentActivity;
+        instance.parentContainer = parentContainer;
+        return instance;
+    }
 
     private AccountBE referenceAccount;
     private MainActivity parentActivity;
+    private LinearLayout parentContainer;
     private final List<ListItemAccountPreview> children = new ArrayList<>();
-    private final MutableLiveData<Boolean> refreshLiveData = new MutableLiveData<>();
-    private RefreshListener refreshListener;
     private TextView nameLabel;
     private TextView valueLabel;
     private RadioButton senderRB;
@@ -47,18 +53,16 @@ public class ListItemAccountPreview extends LinearLayout {
         super(context, attrs);
     }
 
-    public void init(MainActivity parentActivity, AccountBE accountObject, int hierarchyLevel) {
+    public void init(AccountBE accountObject, int hierarchyLevel) {
         this.referenceAccount = accountObject;
-        this.parentActivity = parentActivity;
-        this.refreshListener = parentActivity;
         this.hierarchyLevel = hierarchyLevel;
         reloadChildren();
         initViews();
         updateUI();
     }
 
-    public void init(MainActivity parentActivity, AccountBE accountObject) {
-        init(parentActivity, accountObject, 0);
+    public void init(AccountBE accountObject) {
+        init(accountObject, 0);
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -114,10 +118,6 @@ public class ListItemAccountPreview extends LinearLayout {
 
     public void addChild(ListItemAccountPreview newChild) {
         this.children.add(newChild);
-    }
-
-    public void addChildren(List<ListItemAccountPreview> newChildren) {
-        this.children.addAll(newChildren);
     }
 
     public void clearChildren() {
@@ -188,34 +188,14 @@ public class ListItemAccountPreview extends LinearLayout {
             List<BudgetAccountBE> subBudgets = budget_account.getDirectSubBudgets();
             if (subBudgets.size() > 0) {
                 for (BudgetAccountBE subBudget : subBudgets) {
-                    ListItemAccountPreview newItem = (ListItemAccountPreview) LayoutInflater.from(parentActivity).inflate(R.layout.list_item_account_preview_main, null);
-                    newItem.init(parentActivity, subBudget, hierarchyLevel + 1);
+                    ListItemAccountPreview newItem = getInstance(parentActivity, parentContainer);
+                    newItem.init(subBudget, hierarchyLevel + 1);
                     addChild(newItem);
                 }
             }
         } else {
             clearChildren();
         }
-    }
-    // endregion
-
-    // region refresh related
-    public void setRefreshListener(RefreshListener listener) {
-        this.refreshListener = listener;
-    }
-
-    private void notifyParentToRefresh() {
-        if (refreshListener != null) {
-            refreshListener.onRefresh();
-        }
-    }
-
-    public LiveData<Boolean> getRefreshLiveData() {
-        return refreshLiveData;
-    }
-
-    public void triggerRefresh() {
-        refreshLiveData.setValue(true);
     }
     // endregion
 }

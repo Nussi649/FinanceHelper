@@ -72,6 +72,7 @@ public class SettingsActivity extends AbstractActivity {
             row.addView(check);
             content.addView(row);
         }
+        setCustomTitle(getString(R.string.label_settings) + ":");
     }
 
     @Override

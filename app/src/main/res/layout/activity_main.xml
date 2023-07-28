@@ -52,12 +52,11 @@
                 android:fillViewport="true"
                 tools:layout_height="wrap_content">
 
-                <TableLayout
-                    android:id="@+id/treeView_Assets"
+                <LinearLayout
+                    android:id="@+id/overview_asset_accounts"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:stretchColumns="*"
-                    android:shrinkColumns="*"/>
+                    android:orientation="vertical" />
 
             </androidx.core.widget.NestedScrollView>
         </LinearLayout>
@@ -100,12 +99,11 @@
                 android:layout_marginStart="5dp"
                 android:layout_marginEnd="5dp"
                 android:fillViewport="true">
-                    <TableLayout
-                        android:id="@+id/treeView_Budgets"
+                    <LinearLayout
+                        android:id="@+id/overview_budget_accounts"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:stretchColumns="*"
-                        android:shrinkColumns="*"/>
+                        android:orientation="vertical" />
             </androidx.core.widget.NestedScrollView>
 
         </LinearLayout>

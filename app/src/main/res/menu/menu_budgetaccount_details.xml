@@ -1,12 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/item_set_yearly_budget"
-        android:title="@string/label_yearly_budget" />
+        android:id="@+id/item_budget_account"
+        android:title="@string/label_budget_account"
+        android:icon="@drawable/ic_money_24">
+        <menu>
+            <item
+                android:id="@+id/item_set_yearly_budget"
+                android:title="@string/label_yearly_budget"
+                android:icon="@drawable/ic_edit_24"/>
+            <item
+                android:id="@+id/item_transfer_budget"
+                android:title="@string/label_available_budget_transfer"
+                android:icon="@drawable/ic_transfer_arrow_24" />
+        </menu>
+    </item>
     <item
-        android:id="@+id/item_transfer_budget"
-        android:title="@string/label_available_budget_transfer" />
-    <item
-        android:id="@+id/item_new_sub_budget"
-        android:title="@string/label_new_sub_budget" />
+        android:id="@+id/item_sub_budgets"
+        android:title="@string/label_sub_budgets"
+        android:icon="@drawable/ic_account_tree_24">
+        <menu>
+            <item
+                android:id="@+id/item_new_sub_budget"
+                android:title="@string/label_sub_budget_new"
+                android:icon="@drawable/ic_plus_24"/>
+            <item
+                android:id="@+id/item_transfer_sub_budget"
+                android:title="@string/label_sub_budget_transfer"
+                android:icon="@drawable/ic_transfer_arrow_24"/>
+        </menu>
+    </item>
 </menu>

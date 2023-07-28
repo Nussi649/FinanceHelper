@@ -1,67 +1,70 @@
 <?xml version="1.0" encoding="utf-8"?>
 <View.ListItemAccountPreview xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="32dp"
+    android:layout_height="35dp"
     android:gravity="center_vertical"
     android:background="@color/colorSubtleDistinction"
-    android:orientation="horizontal">
+    android:orientation="vertical">
 
-    <RadioButton
-        android:id="@+id/radioButton_Sender"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:button="@drawable/custom_radio_button_primary"
-        android:background="@color/colorPrimaryLight"
-        android:text="" />
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:gravity="center_vertical"
-        android:paddingStart="4dp"
-        android:paddingEnd="4dp"
-        android:orientation="horizontal">
-
-        <!-- Transparent View for indentation -->
-        <View
-            android:id="@+id/indent_view"
-            android:layout_width="0dp"
-            android:layout_height="match_parent" />
-
-        <!-- Label for displaying the item's name -->
-        <TextView
-            android:id="@+id/item_name_label"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:singleLine="true"
-            android:layout_marginTop="5dp"
-            android:layout_marginBottom="5dp"
-            android:text="@string/label_new_accountname"
-            android:textSize="16sp"
-            android:ellipsize="marquee"
-            android:marqueeRepeatLimit="marquee_forever"
-            android:scrollHorizontally="true"
-            android:focusable="true"
-            android:focusableInTouchMode="true" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <!-- Label for displaying the item's current value -->
-        <TextView
-            android:id="@+id/item_value_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/label_amount"
-            android:textSize="12sp" />
-    </LinearLayout>
+            <RadioButton
+                android:id="@+id/radioButton_Sender"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:button="@drawable/custom_radio_button_primary"
+                android:background="@color/colorPrimaryLight"
+                android:text="" />
 
-    <RadioButton
-        android:id="@+id/radioButton_Receiver"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:layout_marginStart="4dp"
-        android:button="@drawable/custom_radio_button_secondary"
-        android:background="@color/colorSecondaryLight"
-        android:text="" />
+            <!-- Transparent View for indentation -->
+            <View
+                android:id="@+id/indent_view"
+                android:layout_width="0dp"
+                android:layout_height="match_parent" />
+
+            <!-- Label for displaying the item's name -->
+            <TextView
+                android:id="@+id/item_name_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:singleLine="true"
+                android:layout_marginStart="5dp"
+                android:text="@string/label_new_accountname"
+                android:textSize="16sp"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:scrollHorizontally="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true" />
+
+            <!-- Label for displaying the item's current value -->
+            <TextView
+                android:id="@+id/item_value_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/label_amount"
+                android:textSize="12sp"
+                android:layout_marginEnd="5dp"/>
+
+            <RadioButton
+                android:id="@+id/radioButton_Receiver"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:button="@drawable/custom_radio_button_secondary"
+                android:background="@color/colorSecondaryLight"
+                android:text="" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/horizontal_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/colorPrimaryDark" />
 
 </View.ListItemAccountPreview>

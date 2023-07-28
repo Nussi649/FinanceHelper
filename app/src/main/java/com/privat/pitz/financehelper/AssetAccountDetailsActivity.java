@@ -7,6 +7,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -29,6 +30,11 @@ import Logic.TxBE;
 public class AssetAccountDetailsActivity extends AbstractActivity {
     AccountBE mAccount;
     TxListAdapter listAdapter;
+    RecyclerView recyclerView;
+    SearchView searchView;
+    TextView indivValue;
+    TextView indivPercentage;
+    TextView indivYearly;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -43,12 +49,22 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
     @Override
     protected void endWorkingThread() {
         setContentView(R.layout.activity_asset_account_details);
+        recyclerView = findViewById(R.id.recyclerView);
+        searchView = findViewById(R.id.search_filter);
+        View containerTx = findViewById(R.id.container_tx_sum);
+        indivValue= containerTx.findViewById(R.id.total_current_value);
+        indivPercentage = containerTx.findViewById(R.id.total_current_percentage);
+        indivYearly = containerTx.findViewById(R.id.total_yearly_budget);
+        indivYearly.setVisibility(View.GONE);
+        indivPercentage.setVisibility(View.GONE);
+        listAdapter = new TxListAdapter();
         populateUI();
         // set Activity title
         try {
             Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
             String monthName = Const.getMonthNameById(parts.month - 1);
-            setTitle(String.format("%s (%s) - %s", parts.entityName, monthName, mAccount.toString()));
+            setCustomTitle(monthName + ":");
+            setCustomTitleDetails(mAccount.toString());
         } catch (IllegalArgumentException e) {
             Log.println(Log.ERROR, "parse_file_name", e.toString());
         }
@@ -85,13 +101,12 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
         if (!hasEntries()) {
             showToastLong(R.string.toast_error_no_entries);
         }
-        RecyclerView recyclerView = findViewById(R.id.recyclerView);
-        listAdapter = new TxListAdapter();
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(listAdapter);
+        TextView labelSigma = findViewById(R.id.container_tx_sum).findViewById(R.id.label_sigma);
+        labelSigma.setText(R.string.label_sum_tx);
 
         filterEntries(null);
-        SearchView searchView = findViewById(R.id.search_filter);
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextChange(String newText) {
@@ -132,8 +147,7 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
         }
 
         // Update the sum display
-        TextView textSum = findViewById(R.id.display_sum);
-        textSum.setText(Util.formatLargeFloatDisplay(sum));
+        setTxSum(sum);
 
         // Update the RecyclerView adapter's data set and refresh the display
         listAdapter.setEntries(entries);
@@ -196,6 +210,11 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
             }
         };
         showConfirmDialog(R.string.question_delete_account, listener);
+    }
+
+    protected void setTxSum(float newValue) {
+        String newString = Util.formatLargeFloatDisplay(newValue) + "x";
+        indivValue.setText(newString.replace("x", getString(R.string.label_currency)));
     }
 
     @Override

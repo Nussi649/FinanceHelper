@@ -3,7 +3,7 @@
     <string name="app_name">FinanceHelper</string>
 
     <!-- Buttons -->
-    <string name="accept">Annehmen</string>
+    <string name="confirm">Bestätigen</string>
     <string name="cancel">Abbrechen</string>
 
     <!-- Titles & Loading Screen -->
@@ -34,16 +34,24 @@
     <string name="label_hidden">verstecken</string>
     <string name="label_delete_account">Konto löschen</string>
     <string name="label_budgets">Budgets</string>
+    <string name="label_budget_account">Budgetkonto</string>
+    <string name="label_budget_account_new">Neues Budgetkonto</string>
+    <string name="label_budget_account_target">Ziel Budgetkonto</string>
     <string name="label_sub_budgets">Teilbudgets</string>
-    <string name="label_new_sub_budget">Neues Teilbudget</string>
+    <string name="label_sub_budget_new">Neues Teilbudget</string>
+    <string name="label_sub_budget_transfer">Teilbudget transferieren</string>
+    <string name="label_sub_budget_select">Teilbudget auswählen</string>
     <string name="label_available_budget">Verfügbares Budget</string>
+    <string name="label_available_budget_adjust">Verfügbares Budget anpassen</string>
     <string name="label_available_budget_transfer">Verfügbares Budget senden</string>
     <string name="label_yearly_budget">Jahresbudget</string>
     <string name="label_yearly_budget_set">Jahresbudget eintragen</string>
+    <string name="label_yearly_budget_edit">Jahresbudget bearbeiten</string>
     <string name="label_yearly_budget_adjust">Jahresbudgets anpassen</string>
     <string name="label_filter_accounts">Kontofilter</string>
         <!-- Transaction related -->
     <string name="label_recurring_orders">Daueraufträge</string>
+    <string name="label_transaction_redirection_select_target">Zielkonto auswählen</string>
     <string name="label_add_entry">Einzeleintrag speichern</string>
     <string name="label_add_recurring_order">Dauerauftrag\n speichern</string>
     <string name="label_arrow"><![CDATA[  —>]]></string>
@@ -71,25 +79,35 @@
     <string name="toast_success_new_income">Einkommen erfolgreich gebucht.</string>
     <string name="toast_success_new_recurring_tx">Neuer Dauerauftrag erfolgreich hinzugefügt.</string>
     <string name="toast_success_delete_recurring_tx">Dauerauftrag erfolgreich entfernt.</string>
+    <string name="toast_success_transaction_redirection">Die Transaktion wurde erfolgreich weitergeleitet.</string>
     <string name="toast_success_update_entries">Die Transaktion und ihr Partner wurden geändert.</string>
     <string name="toast_success_delete_account">Das Konto wurde gelöscht.</string>
+    <string name="toast_success_sub_budget_transferred">Das Teilbudget wurde übertragen.</string>
+    <string name="toast_success_sub_budget_created">Das Teilbudget wurde erstellt.</string>
+    <string name="toast_success_yearly_budget_adjusted">Das Jahresbudget wurde angepasst.</string>
+    <string name="toast_success_available_budget_transferred">Das verfügbare Budget wurde übertragen.</string>
     <string name="toast_success_write_save_file">Die Konten wurden erfolgreich gespeichert.</string>
     <string name="toast_success_file_deleted">Die Datei wurde gelöscht.</string>
     <string name="toast_success_accounts_imported">Accounts erfolgreich importiert.</string>
+    <string name="toast_success_settings_loaded">Einstellungen wurden erfolgreich geladen.</string>
         <!-- Error -->
     <string name="toast_error_unknown">Ein unbekannter Fehler ist aufgetreten.</string>
     <string name="toast_error_account_not_found">Das Konto konnte nicht gefunden werden.</string>
     <string name="toast_error_recurring_tx_not_found">Der Dauerauftrag konnte nicht gefunden werden.</string>
+    <string name="toast_error_transaction_redirection">Die Transaktion konnte nicht weiter geleitet werden.</string>
     <string name="toast_error_update_entries_no_partner">Es konnte keine zugehörige Transaktion gefunden werden. Es wurden keine Änderungen vorgenommen.</string>
     <string name="toast_error_invalid_filename">Die angegebene Datei existiert nicht.</string>
     <string name="toast_error_no_valid_files">Es gibt keine gültigen Dateien.</string>
+    <string name="toast_error_select_both_accounts">Bitte beide Konten auswählen.</string>
     <string name="toast_error_invalid_import">Syntaxfehler in den Daten.</string>
-    <string name="toast_error_account_name_in_use">Es existiert bereits ein Konto mit dem angegebenen Namen.</string>
     <string name="toast_error_empty_description">Das Beschreibungsfeld ist leer.</string>
     <string name="toast_error_account_name_taken">Es existiert bereits ein Konto mit diesem Namen.</string>
-    <string name="toast_error_empty_amount">Es ist kein Betrag angegeben</string>
+    <string name="toast_error_empty_amount">Es ist kein Betrag angegeben.</string>
+    <string name="toast_error_empty_name">Es ist kein Name angegeben.</string>
     <string name="toast_error_no_receiver_selected">Es wurde kein Empfänger ausgewählt.</string>
     <string name="toast_error_invalid_amount">Der angegebene Betrag enthält ungültige Zeichen.</string>
+    <string name="toast_error_invalid_request">Ungültige Anfrage.</string>
+    <string name="toast_error_settings_not_loaded">Einstellungen konnten nicht geladen werden.</string>
     <string name="toast_error_NaN">Bitte geben Sie eine Zahl an.</string>
     <string name="toast_error_parsing">Parsing Error</string>
     <string name="toast_error_no_entries">Es gibt keine Einträge zum anzeigen.</string>

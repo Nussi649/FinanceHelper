@@ -3,6 +3,9 @@ package Backend;
 import android.widget.RadioButton;
 import android.util.Log;
 
+import org.json.JSONException;
+
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -69,6 +72,11 @@ public class RbAccountManager {
         // Activate the newly clicked radio button and update the current account
         clickedRadioButton.setChecked(true);
         controller.updateSelectedAccount(name, newAccount);
+        try {
+            controller.saveAppSettings();
+        } catch (JSONException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public RadioButton getRadioButtonForAccount(AccountBE account) {

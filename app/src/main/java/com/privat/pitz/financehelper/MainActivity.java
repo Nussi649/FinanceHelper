@@ -10,15 +10,11 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
-import android.widget.Spinner;
 import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
 import org.json.JSONArray;
@@ -26,7 +22,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -36,7 +31,12 @@ import Backend.Const;
 import Backend.Controller;
 import Backend.RbAccountManager;
 import Backend.Util;
-import View.IncomeListDialog;
+import View.Dialogs.AddIncomeDialog;
+import View.Dialogs.EditSourceCodeDialog;
+import View.Dialogs.IncomeListDialog;
+import View.Dialogs.LoadFileDialog;
+import View.Dialogs.SaveFileDialog;
+import View.Dialogs.TransactionRedirectionDialog;
 
 public class MainActivity extends AbstractActivity {
 
@@ -80,11 +80,11 @@ public class MainActivity extends AbstractActivity {
         if (itemId == R.id.item_show_current_income) {
             showIncomeListDialog();
         } else if (itemId == R.id.item_add_funds) {
-            showAddFundsDialog();
+            showAddIncomeDialog();
         } else if (itemId == R.id.item_save_accounts) {
-            showSaveAccountsDialog();
+            showSaveFileDialog();
         } else if (itemId == R.id.item_load_accounts) {
-            showLoadAccountsDialog();
+            showLoadFileDialog();
         } else if (itemId == R.id.item_edit) {
             showEditSavefileDialog();
         } else if (itemId == R.id.item_settings) {
@@ -124,17 +124,17 @@ public class MainActivity extends AbstractActivity {
 
     @SuppressLint("DefaultLocale")
     private void reloadAccountLists() {
-        TableLayout tv_AssetAccounts = findViewById(R.id.treeView_Assets);
-        TableLayout tv_BudgetAccounts = findViewById(R.id.treeView_Budgets);
+        LinearLayout container_assets = findViewById(R.id.overview_asset_accounts);
+        LinearLayout container_budgets = findViewById(R.id.overview_budget_accounts);
 
         Util.populateAssetAccountsPreview(model.asset_accounts,
                 this,
-                tv_AssetAccounts,
+                container_assets,
                 rbReceiver,
                 rbSender);
         Util.populateBudgetAccountsPreview(model.budget_accounts,
                 this,
-                tv_BudgetAccounts,
+                container_budgets,
                 rbReceiver);
         RadioButton currentSender = rbSender.getRadioButtonForAccount(model.currentSender);
         if (currentSender != null)
@@ -192,10 +192,8 @@ public class MainActivity extends AbstractActivity {
                 boolean result = false;
                 try {
                     result = controller.createTx(parent, des, amount);
-                } catch (JSONException e) {
-                    showToastLong(R.string.toast_error_JSONError);
-                } catch (IOException e) {
-                    showToastLong(R.string.toast_error_IOError);
+                } catch (JSONException | IOException e) {
+                    showErrorToast(e);
                 }
                 // if transaction was created successfully, clear input fields and show toast
                 if (result) {
@@ -231,12 +229,8 @@ public class MainActivity extends AbstractActivity {
                     } else {
                         showToastLong(R.string.toast_error_unknown);
                     }
-                } catch (NumberFormatException e) {
-                    showToast(R.string.toast_error_NaN);
-                } catch (JSONException e) {
-                    showToastLong(R.string.toast_error_JSONError);
-                } catch (IOException e) {
-                    showToastLong(R.string.toast_error_IOError);
+                } catch (JSONException | IOException | NumberFormatException e) {
+                    showErrorToast(e);
                 }
             }
         });
@@ -245,82 +239,29 @@ public class MainActivity extends AbstractActivity {
     }
 
     //region show Dialog
-    private void showAddFundsDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_add_funds);
-
-        // Inflate the dialog_add_funds layout
-        final View dialogView = getLayoutInflater().inflate(R.layout.dialog_add_funds, null);
-        builder.setView(dialogView);
-
-        // Get references to EditText views
-        final EditText addFundsAmount = dialogView.findViewById(R.id.edit_amount);
-        final EditText descriptionText = dialogView.findViewById(R.id.edit_new_description);
-
-        // Set negative button with cancel action
-        builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+    private void showAddIncomeDialog() {
+        AddIncomeDialog dialog = new AddIncomeDialog(this) {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-
-        // Set positive button with add funds action
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String amountString = addFundsAmount.getText().toString().trim();
-                String description = descriptionText.getText().toString().trim();
-                if (amountString.isEmpty()) {
-                    showToastLong(R.string.toast_error_empty_amount);
-                    return;
-                }
-                if (description.isEmpty()) {
-                    showToastLong(R.string.toast_error_empty_description);
-                    return;
-                }
-
+            public void onConfirm(float amount, String description) {
+                boolean result = false;
                 try {
-                    float amount = Float.parseFloat(amountString);
-                    boolean result = controller.addFunds(amount, description);
-                    if (result) {
-                        showToast(R.string.toast_success_new_income);
-                        onRefresh();
-                        dialog.dismiss();
-                    } else {
-                        showToastLong(R.string.toast_error_no_receiver_selected);
-                    }
-                } catch (NumberFormatException e) {
-                    showToast(R.string.toast_error_NaN);
-                } catch (JSONException e) {
-                    showToastLong(R.string.toast_error_JSONError);
-                } catch (IOException e) {
-                    showToastLong(R.string.toast_error_IOError);
+                    result = controller.addFunds(amount, description);
+                } catch (JSONException | IOException e) {
+                    showErrorToast(e);
+                }
+                if (result) {
+                    showToast(R.string.toast_success_new_income);
+                    onRefresh();
+                } else {
+                    showToastLong(R.string.toast_error_no_receiver_selected);
                 }
             }
-        });
-
-        // Show the dialog
-        builder.show();
+        };
+        dialog.show();
     }
 
     public void getTransactionRedirectionInput(String targetFileName, JSONObject fileContent, String desc, float amount, JSONArray allAccounts) {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select an account for transaction redirection");
-
-        // Layout for the dialog
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_tx_redirection_input, null);
-
-        // Get the TextViews and Spinner from the layout
-        TextView descriptionTextView = dialogView.findViewById(R.id.descriptionTextView);
-        TextView amountTextView = dialogView.findViewById(R.id.amountTextView);
-        Spinner accountSpinner = dialogView.findViewById(R.id.accountSpinner);
-
-        // Set the description and amount
-        descriptionTextView.setText(desc);
-        amountTextView.setText(String.valueOf(amount));
-
-        // Create an ArrayAdapter using the string array and a default spinner layout
+        // calculate list of account names as strings
         List<String> accountNames = new ArrayList<>();
         for (int i = 0; i < allAccounts.length(); i++) {
             try {
@@ -331,148 +272,86 @@ public class MainActivity extends AbstractActivity {
                 e.printStackTrace();
             }
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, accountNames);
 
-        // Specify the layout to use when the list of choices appears
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-        // Apply the adapter to the spinner
-        accountSpinner.setAdapter(adapter);
-
-        builder.setView(dialogView);
-        builder.setNegativeButton("Cancel", null);
-        builder.setPositiveButton("Confirm", new DialogInterface.OnClickListener() {
+        TransactionRedirectionDialog dialog = new TransactionRedirectionDialog(this, desc, amount, accountNames) {
             @Override
-            public void onClick(DialogInterface dialog, int which) {
-                String selectedAccountName = accountSpinner.getSelectedItem().toString();
+            public void onConfirm(String selectedAccountName) {
                 boolean success = false;
                 try {
                     success = controller.completeTxRedirection(targetFileName, model.currentFileAttributes.entityName, desc, amount, selectedAccountName, fileContent);
-                } catch (JSONException e) {
-                    showToastLong(R.string.toast_error_JSONError);
-                } catch (IOException e) {
-                    showToastLong(R.string.toast_error_IOError);
+                } catch (JSONException | IOException e) {
+                    showErrorToast(e);
                 }
                 if (success) {
-                    showToastLong("Transaction redirection completed successfully.");
+                    showToastLong(R.string.toast_success_transaction_redirection);
                 } else {
-                    showToastLong("Error while completing transaction redirection.");
+                    showToastLong(R.string.toast_error_transaction_redirection);
                 }
             }
-        });
-
-        builder.show();
+        };
+        dialog.show();
     }
 
     private void showIncomeListDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_income_list);
-        LinearLayout dialogView = new IncomeListDialog(this, model.currentIncome);
-        builder.setView(dialogView);
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                dialogInterface.dismiss();
-            }
-        });
-        builder.show();
+        IncomeListDialog dialog = new IncomeListDialog(this, model.currentIncome);
+        dialog.show();
     }
 
-    private void showSaveAccountsDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_save_accounts);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_save_accounts, null);
-        final EditText saveName = dialogView.findViewById(R.id.edit_save_name);
-        final Button exportButton = dialogView.findViewById(R.id.button_export);
-        final CheckBox hiddenCheck = dialogView.findViewById(R.id.check_hidden);
-        exportButton.setOnClickListener(new View.OnClickListener() {
+    private void showSaveFileDialog() {
+        SaveFileDialog dialog = new SaveFileDialog(this) {
             @Override
-            public void onClick(View v) {
+            public void onConfirm(String saveName) {
+                try {
+                    getController().saveAccountsToInternal(saveName);
+                    showToastLong(R.string.toast_success_write_save_file);
+                } catch (JSONException | IOException e) {
+                    showErrorToast(e);
+                }
+            }
+
+            @Override
+            public void onExport() {
                 showExportDialog();
             }
-        });
-        builder.setView(dialogView);
-        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                saveStateToFile(saveName.getText().toString(), hiddenCheck.isChecked());{
-                }
-            }
-        });
-        builder.show();
-        saveName.requestFocus();
+        };
+        dialog.show();
     }
 
-    private void showLoadAccountsDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_load_accounts);
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_load_accounts, null);
-        final TableLayout availableFilesLayout = dialogView.findViewById(R.id.layout_available_files);
-        final EditText filenameEdit = dialogView.findViewById(R.id.edit_load_name);
-        final Button importButton = dialogView.findViewById(R.id.button_import);
-        importButton.setOnClickListener(new View.OnClickListener() {
+    private void showLoadFileDialog() {
+        List<File> availableFiles = Util.getValidFiles(getFilesDir());
+        LoadFileDialog dialog = new LoadFileDialog(this, availableFiles) {
             @Override
-            public void onClick(View v) {
-                showImportDialog();
-            }
-        });
-        final List<String> availableFiles = Util.getFileNames(Util.getValidFiles(getFilesDir()));
-        if (availableFiles == null || availableFiles.size() == 0)
-            showToastLong(R.string.toast_error_no_valid_files);
-        else
-            for (String s : availableFiles) {
-                TableRow row = (TableRow) getLayoutInflater().inflate(R.layout.tablerow_file_list, availableFilesLayout, false);
-                row.setTag(s);
-                final TextView name = row.findViewById(R.id.text_filename);
-                TextView delete = row.findViewById(R.id.text_delete_sign);
-                name.setText(s);
-                name.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View v) {
-                        filenameEdit.setText(((TextView) v).getText());
-                    }
-                });
-                delete.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(final View v) {
-                        AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                if (getController().deleteSavefile(name.getText().toString())) {
-                                    ((TableLayout) v.getParent().getParent()).removeView((View) v.getParent());
-                                    showToastLong(R.string.toast_success_file_deleted);
-                                } else {
-                                    showToastLong(R.string.toast_error_unknown);
-                                }
-                            }
-                        };
-                        showConfirmDialog(R.string.question_delete_savefile, listener);
-                    }
-                });
-                availableFilesLayout.addView(row);
-            }
-        builder.setView(dialogView);
-        builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
+            public void onConfirm(String filename) {
                 try {
-                    getController().readAccountsFromInternal(filenameEdit.getText().toString());
+                    controller.saveAppSettings();
+                    controller.readAccountsFromInternal(filename);
                     onRefresh();
-                } catch (JSONException jsone) {
-                    dialog.dismiss();
-                    showToastLong(R.string.toast_error_unknown);
-                } catch (IOException ioe) {
-                    dialog.dismiss();
-                    showToastLong(R.string.toast_error_invalid_filename);
-                } catch (ParseException pe) {
-                    dialog.dismiss();
-                    showToastLong(R.string.toast_error_parsing);
+                } catch (JSONException | IOException e) {
+                    showErrorToast(e);
                 }
             }
-        });
-        builder.show();
+
+            @Override
+            public void onImport() {
+                showImportDialog();
+            }
+
+            @Override
+            public void onDelete(String filename) {
+                AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (getController().deleteSavefile(filename)) {
+                            showToastLong(R.string.toast_success_file_deleted);
+                        } else {
+                            showToastLong(R.string.toast_error_unknown);
+                        }
+                    }
+                };
+                showConfirmDialog(R.string.question_delete_savefile, listener);
+            }
+        };
+        dialog.show();
     }
 
     private void showExportDialog() {
@@ -482,11 +361,12 @@ public class MainActivity extends AbstractActivity {
         EditText showExport = dialog.findViewById(R.id.edit_text);
         try {
             showExport.setText(getController().exportAccounts());
-        } catch (JSONException jsone) {
-            showToast(R.string.toast_error_unknown);
+        } catch (JSONException e) {
+            showErrorToast(e);
+            dialog.dismiss();
             return;
         }
-        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.accept), new DialogInterface.OnClickListener() {
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.confirm), new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 dialog.dismiss();
@@ -505,10 +385,8 @@ public class MainActivity extends AbstractActivity {
                 try {
                     getController().importAccounts(showImport.getText().toString());
                     showToast(R.string.toast_success_accounts_imported);
-                } catch (JSONException jsone) {
-                    showToastLong(R.string.toast_error_invalid_import);
-                } catch (ParseException pe) {
-                    showToastLong(R.string.toast_error_parsing);
+                } catch (JSONException e) {
+                    showErrorToast(e);
                 }
                 dialog.dismiss();
             }
@@ -516,46 +394,23 @@ public class MainActivity extends AbstractActivity {
     }
 
     private void showEditSavefileDialog() {
-        AlertDialog dialog = getBasicEditDialog();
-        dialog.setTitle(R.string.label_edit_savefile);
-        dialog.show();
-        EditText showSavefile = dialog.findViewById(R.id.edit_text);
-        try {
-            showSavefile.setText(getController().exportAccounts());
-        } catch (JSONException jsone) {
-            showToast(R.string.toast_error_unknown);
-            return;
-        }
-        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.accept), new DialogInterface.OnClickListener() {
+        EditSourceCodeDialog dialog = new EditSourceCodeDialog(this, getBasicEditDialog()) {
             @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
+            public void onConfirm(String newContent) {
                 try {
-                    getController().importAccounts(showSavefile.getText().toString());
+                    getController().importAccounts(newContent);
                     showToast(R.string.toast_success_accounts_imported);
-                } catch (JSONException jsone) {
-                    showToastLong(R.string.toast_error_invalid_import);
-                } catch (ParseException pe) {
-                    showToastLong(R.string.toast_error_parsing);
+                } catch (JSONException e) {
+                    showErrorToast(e);
                 }
-                dialog.dismiss();
             }
-        });
-    }
-    //endregion
+        };
 
-    //region react to dialog
-    private void saveStateToFile(String name, boolean hidden) {
         try {
-            if (hidden) {
-                getController().saveAccountsToInternal(Const.ACCOUNTS_HIDDEN_DIRECTORY + "/" + name);
-            } else {
-                getController().saveAccountsToInternal(name);
-            }
-        } catch (JSONException | IOException ex) {
-            showToastLong(R.string.toast_error_unknown);
-            return;
+            dialog.show(getController().exportAccounts());
+        } catch (JSONException e) {
+            showErrorToast(e);
         }
-        showToastLong(R.string.toast_success_write_save_file);
     }
     //endregion
 
@@ -579,7 +434,7 @@ public class MainActivity extends AbstractActivity {
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    setTitle(String.format("%s (%s)", parts.entityName, monthName));
+                    setCustomTitle(String.format("%s:", monthName));
                 }
             });
         } catch (IllegalArgumentException e) {

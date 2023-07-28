@@ -4,6 +4,8 @@ import android.annotation.SuppressLint;
 import android.graphics.drawable.GradientDrawable;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.TableLayout;
 
@@ -29,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -60,12 +63,12 @@ public abstract class Util {
     @SuppressLint("InflateParams")
     public static void populateBudgetAccountsPreview(final List<BudgetAccountBE> accounts,
                                                final MainActivity parentActivity,
-                                               final TableLayout parentLayout,
+                                               final LinearLayout container,
                                                final RbAccountManager receiverManager) {
         assert accounts != null;
 
-        // first clean up target TableLayout
-        parentLayout.removeAllViews();
+        // first clean up target container
+        container.removeAllViews();
 
         // then get number of accounts
         int count = accounts.size();
@@ -78,16 +81,10 @@ public abstract class Util {
             if (!currentAccount.getIsActive())
                 continue;
             // create list item at hierarchy level 0 (not specifically defined)
-            ListItemAccountPreview newItem = (ListItemAccountPreview) LayoutInflater.from(parentActivity).inflate(R.layout.list_item_account_preview_main, null);
-            newItem.init(parentActivity, currentAccount);
+            ListItemAccountPreview newItem = ListItemAccountPreview.getInstance(parentActivity, container);
+            newItem.init(currentAccount);
             // add list item to parent layout
-            parentLayout.addView(newItem);
-            // add listeners to list item
-            newItem.setRefreshListener(parentActivity);
-            newItem.getRefreshLiveData().observe(parentActivity, refresh -> {
-                if (refresh)
-                    parentActivity.onRefresh();
-            });
+            container.addView(newItem);
             // add radio button to receiver group
             RadioButton rbReceive = newItem.getRBReceiver();
             assert rbReceive != null;
@@ -103,30 +100,34 @@ public abstract class Util {
             for (ListItemAccountPreview child : children) {
                 BudgetAccountBE currentChildAccount = (BudgetAccountBE) child.getReferenceAccount();
                 // add child to parent layout and add listeners
-                parentLayout.addView(child);
-                child.setRefreshListener(parentActivity);
-                child.getRefreshLiveData().observe(parentActivity, refresh -> {
-                    if (refresh)
-                        parentActivity.onRefresh();
-                });
+                container.addView(child);
                 // add radio button to receiver group
                 RadioButton rbReceiveChild = child.getRBReceiver();
                 assert rbReceiveChild != null;
                 receiverManager.addRadioButton(rbReceiveChild, currentChildAccount);
             }
         }
+        // hide divider of last item
+        int viewCount = container.getChildCount();
+        if (viewCount == 0)
+            return;
+        View lastView = container.getChildAt(viewCount - 1);
+        if (lastView instanceof ListItemAccountPreview)
+            lastView.findViewById(R.id.horizontal_divider).setVisibility(View.GONE);
+        else
+            Log.println(Log.INFO, "account_preview", "After populating AssetAccount preview, last list item was not of type ListItemAccountPreview. This is unexpected");
     }
 
     @SuppressLint("InflateParams")
     public static void populateAssetAccountsPreview(final List<AccountBE> accounts,
                                                final MainActivity parentActivity,
-                                               final TableLayout parentLayout,
+                                               final LinearLayout container,
                                                final RbAccountManager receiverManager,
                                                final RbAccountManager senderManager) {
         assert accounts != null;
 
-        // first clean up target TableLayout
-        parentLayout.removeAllViews();
+        // first clean up target container
+        container.removeAllViews();
 
         // then get number of accounts
         int count = accounts.size();
@@ -141,16 +142,10 @@ public abstract class Util {
             if (!currentAccount.getIsActive())
                 continue;
             // create list item at hierarchy level 0 (not specifically defined)
-            ListItemAccountPreview newItem = (ListItemAccountPreview) LayoutInflater.from(parentActivity).inflate(R.layout.list_item_account_preview_main, null);
-            newItem.init(parentActivity, currentAccount);
+            ListItemAccountPreview newItem = ListItemAccountPreview.getInstance(parentActivity, container);
+            newItem.init(currentAccount);
             // add list item to parent layout
-            parentLayout.addView(newItem);
-            // add listeners to list item
-            newItem.setRefreshListener(parentActivity);
-            newItem.getRefreshLiveData().observe(parentActivity, refresh -> {
-                if (refresh)
-                    parentActivity.onRefresh();
-            });
+            container.addView(newItem);
             // add radio button to receiver group
             RadioButton rbReceive = newItem.getRBReceiver();
             assert rbReceive != null;
@@ -171,12 +166,7 @@ public abstract class Util {
             for (ListItemAccountPreview child : children) {
                 AccountBE currentChildAccount = child.getReferenceAccount();
                 // add child to parent layout and add listeners
-                parentLayout.addView(child);
-                child.setRefreshListener(parentActivity);
-                child.getRefreshLiveData().observe(parentActivity, refresh -> {
-                    if (refresh)
-                        parentActivity.onRefresh();
-                });
+                container.addView(child);
                 // add radio button to receiver group
                 RadioButton rbReceiveChild = newItem.getRBReceiver();
                 assert rbReceiveChild != null;
@@ -187,6 +177,15 @@ public abstract class Util {
                 senderManager.addRadioButton(rbSendChild, currentChildAccount);
             }
         }
+        // hide divider of last item
+        int viewCount = container.getChildCount();
+        if (viewCount == 0)
+            return;
+        View lastView = container.getChildAt(viewCount - 1);
+        if (lastView instanceof ListItemAccountPreview)
+            lastView.findViewById(R.id.horizontal_divider).setVisibility(View.GONE);
+        else
+            Log.println(Log.INFO, "account_preview", "After populating AssetAccount preview, last list item was not of type ListItemAccountPreview. This is unexpected");
     }
     // endregion
 
@@ -395,22 +394,24 @@ public abstract class Util {
         Model.Settings settings = new Model.Settings();
         try {
             settings.defaultEntityName = json_in.getString(Const.JSON_TAG_DEFAULT_ENTITY);
+
+            // Extract the defaults for each entity
+            JSONArray entitiesArray = json_in.getJSONArray(Const.JSON_TAG_DEFAULT_ACCOUNTS);
+            for (int i = 0; i < entitiesArray.length(); i++) {
+                JSONObject entityJSON = entitiesArray.getJSONObject(i);
+
+                // Create a new EntityDefaults object and populate it
+                Model.EntityDefaults entityDefaults = new Model.EntityDefaults(entityJSON.getString(Const.JSON_TAG_SENDER),
+                        entityJSON.getString(Const.JSON_TAG_RECEIVER));
+
+                // Add the EntityDefaults object to the map
+                String entityName = entityJSON.getString(Const.JSON_TAG_NAME);
+                settings.entityDefaultsMap.put(entityName, entityDefaults);
+            }
         } catch (JSONException e) {
             Log.println(Log.ERROR, "parse_settings",
                     String.format("Error parsing Settings: %s", e));
             throw e;
-        }
-        // try reading sender. If tag cannot be found, ignore it
-        try {
-            settings.defaultSender = json_in.getString(Const.JSON_TAG_SENDER);
-        } catch (JSONException e) {
-            settings.defaultSender = "";
-        }
-        // try reading receiver. If tag cannot be found, ignore it
-        try {
-            settings.defaultReceiver = json_in.getString(Const.JSON_TAG_RECEIVER);
-        } catch (JSONException e) {
-            settings.defaultReceiver = "";
         }
         return settings;
     }
@@ -581,29 +582,34 @@ public abstract class Util {
     // region serialise BE to JSON objects
     public static JSONObject serialise_Settings(Model.Settings settings) throws JSONException {
         JSONObject settingsJSON = new JSONObject();
+
         try {
             settingsJSON.put(Const.JSON_TAG_DEFAULT_ENTITY, settings.defaultEntityName);
+
+            // Create a JSON array to hold the defaults for each entity
+            JSONArray entitiesArray = new JSONArray();
+
+            // Add each entity's defaults to the array
+            for (Map.Entry<String, Model.EntityDefaults> entry : settings.entityDefaultsMap.entrySet()) {
+                JSONObject entityJSON = new JSONObject();
+                entityJSON.put(Const.JSON_TAG_NAME, entry.getKey());
+                entityJSON.put(Const.JSON_TAG_SENDER, entry.getValue().defaultSender);
+                entityJSON.put(Const.JSON_TAG_RECEIVER, entry.getValue().defaultReceiver);
+
+                entitiesArray.put(entityJSON);
+            }
+
+            // Add the array to the settings JSON object
+            settingsJSON.put(Const.JSON_TAG_DEFAULT_ACCOUNTS, entitiesArray);
         } catch (JSONException e) {
             Log.println(Log.ERROR, "serialise_settings",
                     String.format("Error serialising Settings: %s", e));
             throw e;
         }
-        try {
-            if (!settings.defaultSender.equals(""))
-                settingsJSON.put(Const.JSON_TAG_SENDER, settings.defaultSender);
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "serialise_settings",
-                    String.format("Error serialising Settings: %s", e));
-        }
-        try {
-            if (!settings.defaultReceiver.equals(""))
-                settingsJSON.put(Const.JSON_TAG_RECEIVER, settings.defaultReceiver);
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "serialise_settings",
-                    String.format("Error serialising Settings: %s", e));
-        }
+
         return settingsJSON;
     }
+
     public static JSONObject serialise_Entry(TxBE entry_in) {
         try {
             JSONObject new_entry = new JSONObject();

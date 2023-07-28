@@ -1,34 +1,36 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.DialogInterface;
-import android.view.LayoutInflater;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
-import android.widget.EditText;
-import android.widget.Spinner;
 import android.widget.TableLayout;
 import android.widget.TextView;
+
+import androidx.core.content.ContextCompat;
 
 import org.json.JSONException;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import Backend.BudgetAccountListHandler;
+import Backend.Const;
+import Backend.TxListAdapter;
 import Backend.Util;
 import Logic.AccountBE;
 import Logic.BudgetAccountBE;
 import Logic.TxBE;
 import View.BudgetAccountTableRow;
+import View.Dialogs.CreateBudgetAccountDialog;
+import View.Dialogs.SetYearlyBudgetDialog;
+import View.Dialogs.TransferAvailableBudgetDialog;
+import View.Dialogs.TransferSubBudgetDialog;
 
 public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity implements BudgetAccountListHandler {
     BudgetAccountBE mAccount;
@@ -41,23 +43,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     public void onStart() {
         super.onStart();
         if (!passedOnCreate) {
-            List<BudgetAccountBE> currentAccounts = mAccount.getDirectSubBudgets();
-            Iterator<BudgetAccountTableRow> iterator = budgetViews.iterator();
-
-            while (iterator.hasNext()) {
-                BudgetAccountTableRow row = iterator.next();
-                if (!currentAccounts.contains(row.getReferenceAccount())) {
-                    iterator.remove();
-                }
-            }
-
-            // This will ensure your UI is up-to-date with the current state of budgetViews
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    populateUI();
-                }
-            });
+            reloadUI();
         }
     }
 
@@ -66,13 +52,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         AccountBE acc = getModel().currentInspectedAccount;
         if (acc instanceof BudgetAccountBE) {
             mAccount = (BudgetAccountBE) acc;
-            List<BudgetAccountBE> firstLevelBudgets = mAccount.getDirectSubBudgets();
-            int count = firstLevelBudgets.size();
-            for (int index = 0; index < count; index++) {
-                BudgetAccountBE currentAccount = firstLevelBudgets.get(index);
-                BudgetAccountTableRow newRow = (BudgetAccountTableRow) LayoutInflater.from(this).inflate(R.layout.table_row_budget_account_overview, null);
-                newRow.init(this, this, currentAccount, index == count - 1);
-            }
+            loadSubBudgets();
         } else {
             // handle unexpected behaviour
             finish();
@@ -92,9 +72,11 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         if (itemId == R.id.item_set_yearly_budget) {
             openSetYearlyBudgetDialog();
         } else if (itemId == R.id.item_transfer_budget) {
-            openTransferBudgetDialog();
+            openTransferAvailableBudgetDialog();
         } else if (itemId == R.id.item_new_sub_budget) {
-            openNewSubBudgetDialog();
+            showCreateSubBudgetDialog();
+        } else if (itemId == R.id.item_transfer_sub_budget) {
+            showTransferSubBudgetDialog();
         }
         return super.onOptionsItemSelected(item);
     }
@@ -103,9 +85,18 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     @Override
     protected void endWorkingThread() {
         setContentView(R.layout.activity_budget_account_details);
-        totalValue = findViewById(R.id.total_current_value);
-        totalPercentage = findViewById(R.id.total_current_percentage);
-        totalYearly = findViewById(R.id.total_yearly_budget);
+        recyclerView = findViewById(R.id.recyclerView);
+        searchView = findViewById(R.id.search_filter);
+        listAdapter = new TxListAdapter();
+        View containerTotal = findViewById(R.id.container_total_sum);
+        totalValue = containerTotal.findViewById(R.id.total_current_value);
+        totalPercentage = containerTotal.findViewById(R.id.total_current_percentage);
+        totalYearly = containerTotal.findViewById(R.id.total_yearly_budget);
+        View containerTx = findViewById(R.id.container_tx_sum);
+        indivValue= containerTx.findViewById(R.id.total_current_value);
+        indivPercentage = containerTx.findViewById(R.id.total_current_percentage);
+        indivYearly = containerTx.findViewById(R.id.total_yearly_budget);
+
         populateUI();
     }
 
@@ -130,6 +121,24 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         return mAccount.getTxList().size() != 0;
     }
 
+    @SuppressLint("DefaultLocale")
+    @Override
+    protected void setTxSum(float newValue) {
+        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatDisplay(mAccount.indivAvailableBudget),5);
+        String currentSumString = String.format("%sx / %sx",
+                Util.formatLargeFloatDisplay(newValue),
+                currentBudgetString);
+        String currentPercentageString = String.format("%.0f%%",
+                (newValue / mAccount.indivAvailableBudget) * 100);
+        String yearly_budget_string = Util.formatLargeFloatShort(mAccount.indivYearlyBudget) + "x";
+        // get currency character
+        String currency = getString(R.string.label_currency);
+        // set values of total sum text views
+        indivValue.setText(currentSumString.replace("x", currency));
+        indivPercentage.setText(currentPercentageString);
+        indivYearly.setText(yearly_budget_string.replace("x", currency));
+    }
+
     protected List<TxBE> getEntries() {
         return mAccount.getTxList();
     }
@@ -147,140 +156,110 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
             view.populateUI();
             rootLayout.addView(view);
         }
-        updateUISums();
+        updateUITotalSums();
         updateTitle();
     }
 
     @SuppressLint("DefaultLocale")
-    private void updateUISums() {
+    private void updateUITotalSums() {
         float totalSum = mAccount.getTotalSum();
         float current_budget = mAccount.getTotalAvailableBudget();
+        float current_percentage = totalSum / current_budget;
         // set values of total sum text views
         String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(current_budget),5);
         String currentSumString = String.format("%s / %s",
                 Util.formatLargeFloatShort(totalSum),
                 currentBudgetString);
         String currentPercentageString = String.format("%.0f%%",
-                (totalSum / current_budget) * 100);
+                current_percentage * 100);
         String yearly_budget_string = Util.formatLargeFloatShort(mAccount.getTotalYearlyBudget());
         totalValue.setText(currentSumString);
         totalPercentage.setText(currentPercentageString);
         totalYearly.setText(yearly_budget_string);
+        char percentageEval = Util.evaluatePercentage(current_percentage);
+        if (percentageEval == '+')
+            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorNegative)));
+        if (percentageEval == '-')
+            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorPositive)));
+        if (percentageEval == 'O')
+            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorNeutral)));
+    }
+
+    private void loadSubBudgets() {
+        budgetViews = new ArrayList<>();
+        List<BudgetAccountBE> firstLevelBudgets = mAccount.getDirectSubBudgets();
+        int count = firstLevelBudgets.size();
+        for (int index = 0; index < count; index++) {
+            BudgetAccountBE currentAccount = firstLevelBudgets.get(index);
+            BudgetAccountTableRow newRow = BudgetAccountTableRow.getInstance(this);
+            newRow.init(this, currentAccount, index == count - 1);
+        }
+    }
+
+    private void reloadUI() {
+        budgetViews = new ArrayList<>();
+        loadSubBudgets();
+        // This will ensure your UI is up-to-date with the current state of budgetViews
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                populateUI();
+            }
+        });
     }
 
     // region Dialogs
     public void openSetYearlyBudgetDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_set_yearly_budget, null);
-
-        EditText budgetInput = view.findViewById(R.id.budget_input);
-
-        budgetInput.setText(Util.formatFloatSave(mAccount.indivYearlyBudget));
-
-        builder.setView(view)
-                .setPositiveButton("Confirm", (dialog, id) -> {
-                    String budgetString = budgetInput.getText().toString();
-                    if (!budgetString.isEmpty()) {
-                        float budget = (float) Double.parseDouble(budgetString);
-                        setYearlyBudget(budget);
-                        dialog.dismiss();
-                    } else {
-                        showToastLong(R.string.toast_error_empty_amount);
-                    }
-                })
-                .setNegativeButton("Cancel", null);
-
-        builder.create().show();
+        SetYearlyBudgetDialog dialog = new SetYearlyBudgetDialog(this, mAccount.indivYearlyBudget) {
+            @Override
+            public void onConfirm(float newBudget, boolean adjustAvailable) {
+                setYearlyBudget(newBudget, adjustAvailable);
+            }
+        };
+        dialog.show();
     }
 
-    private void setYearlyBudget(float newBudget) {
+    private void setYearlyBudget(float newBudget, boolean adjustAvailable) {
         try {
-            controller.updateYearlyBudget(newBudget, mAccount);
+            controller.updateYearlyBudget(newBudget, mAccount, adjustAvailable);
             onRefresh();
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+            showToastLong(R.string.toast_success_yearly_budget_adjusted);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
     }
 
-    public void openTransferBudgetDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_transfer_budget, null);
-
-        EditText amountInput = view.findViewById(R.id.amount_input);
-        Spinner recipientSpinner = view.findViewById(R.id.recipient_spinner);
-        CheckBox applyToYearlyBudget = view.findViewById(R.id.apply_to_yearly_budget);
-
-        // Get budget accounts from controller and set up the spinner
-        List<BudgetAccountBE> budgetAccounts = model.getAllBudgetAccounts();
-        ArrayAdapter<BudgetAccountBE> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, budgetAccounts);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        recipientSpinner.setAdapter(adapter);
-        builder.setTitle(R.string.label_available_budget_transfer);
-
-        builder.setView(view)
-                .setPositiveButton("Confirm", (dialog, id) -> {
-                    String amountString = amountInput.getText().toString();
-                    if (!amountString.isEmpty()) {
-                        float amount = (float) Double.parseDouble(amountString);
-                        BudgetAccountBE selectedAccount = (BudgetAccountBE) recipientSpinner.getSelectedItem();
-                        boolean applyToYearly = applyToYearlyBudget.isChecked();
-
-                        transferBudget(amount, selectedAccount, applyToYearly);
-                        dialog.dismiss();
-                    } else {
-                        showToastLong(R.string.toast_error_empty_amount);
-                    }
-                })
-                .setNegativeButton("Cancel", null);
-
-        builder.create().show();
+    public void openTransferAvailableBudgetDialog() {
+        TransferAvailableBudgetDialog dialog = new TransferAvailableBudgetDialog(this, model.getAllBudgetAccounts(), mAccount) {
+            @Override
+            public void onConfirm(float amount, BudgetAccountBE selectedAccount, boolean applyToYearly) {
+                transferAvailableBudget(amount, selectedAccount, applyToYearly);
+            }
+        };
+        dialog.show();
     }
 
-    private void transferBudget(float amount, BudgetAccountBE recipient, boolean adjustYearly) {
+    private void transferAvailableBudget(float amount, BudgetAccountBE recipient, boolean adjustYearly) {
         try {
-            controller.transferCurrentBudget(amount, mAccount, recipient, adjustYearly);
+            controller.transferAvailableBudget(amount, mAccount, recipient, adjustYearly);
             onRefresh();
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+            showToastLong(R.string.toast_success_available_budget_transferred);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
     }
 
-    public void openNewSubBudgetDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_new_budget_account, null);
-
-        EditText subBudgetNameInput = view.findViewById(R.id.budget_name_input);
-        EditText yearlyBudgetInput = view.findViewById(R.id.yearly_budget_input);
-        EditText currentMonthBudgetInput = view.findViewById(R.id.current_month_budget_input);
-
-        builder.setView(view)
-                .setPositiveButton("Confirm", (dialog, id) -> {
-                    String subBudgetNameString = subBudgetNameInput.getText().toString();
-                    String yearlyBudgetString = yearlyBudgetInput.getText().toString();
-                    String currentMonthBudgetString = currentMonthBudgetInput.getText().toString();
-
-                    if (!subBudgetNameString.isEmpty() && !yearlyBudgetString.isEmpty()) {
-                        float yearlyBudget = (float) Double.parseDouble(yearlyBudgetString);
-                        float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : (float) Double.parseDouble(currentMonthBudgetString);
-
-                        createSubBudget(subBudgetNameString, currentMonthBudget, yearlyBudget);
-                        dialog.dismiss();
-                    } else {
-                        showToastLong(R.string.toast_error_empty_amount);
-                    }
-                })
-                .setNegativeButton("Cancel", null);
-
-        builder.create().show();
+    public void showCreateSubBudgetDialog() {
+        CreateBudgetAccountDialog dialog = new CreateBudgetAccountDialog(this) {
+            @Override
+            public void onConfirm(String subBudgetName, float currentMonthBudget, float yearlyBudget) {
+                createSubBudget(subBudgetName, currentMonthBudget, yearlyBudget);
+            }
+        };
+        dialog.show();
     }
 
+    @SuppressLint("InflateParams")
     private void createSubBudget(String name, float currentBudget, float yearlyBudget) {
         try {
             BudgetAccountBE newAccount = controller.createSubBudget(mAccount, name, currentBudget, yearlyBudget);
@@ -295,18 +274,42 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
                     last.updateUI();
                 }
                 // create new BudgetAccountTableRow object and add it to the rootLayout
-                BudgetAccountTableRow newRow = (BudgetAccountTableRow) LayoutInflater.from(this).inflate(R.layout.table_row_budget_account_overview, null);
-                newRow.init(this, this, newAccount, true);
+                BudgetAccountTableRow newRow = BudgetAccountTableRow.getInstance(this);
+                newRow.init(this, newAccount, true);
                 TableLayout rootLayout = findViewById(R.id.sub_budget_overview_table_layout);
                 newRow.populateUI();
                 rootLayout.addView(newRow);
-                updateUISums();
+                updateUITotalSums();
+                showToastLong(R.string.toast_success_sub_budget_created);
             }
         } catch (JSONException | IOException e) {
-            if (e instanceof JSONException)
-                showToastLong(R.string.toast_error_JSONError);
-            else
-                showToastLong(R.string.toast_error_IOError);
+            showErrorToast(e);
+        }
+    }
+
+    public void showTransferSubBudgetDialog() {
+        TransferSubBudgetDialog transferDialog = new TransferSubBudgetDialog(this,
+                mAccount, model.getAllBudgetAccounts()) {
+            @Override
+            public void onConfirm(BudgetAccountBE subBudget, BudgetAccountBE target) {
+                transferSubBudget(subBudget, target);
+            }
+        };
+        transferDialog.show();
+    }
+
+    private void transferSubBudget(BudgetAccountBE subBudget, BudgetAccountBE targetAccount) {
+        try {
+            boolean result = controller.transferSubBudget(mAccount, subBudget, targetAccount);
+            if (result)
+                showToastLong(R.string.toast_success_sub_budget_transferred);
+            else {
+                showToastLong(R.string.toast_error_invalid_request);
+                return;
+            }
+            reloadUI();
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
     }
 
@@ -323,10 +326,8 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
                     } else {
                         showToastLong(R.string.toast_error_account_not_found);
                     }
-                } catch (JSONException e) {
-                    showToastLong(R.string.toast_error_JSONError);
-                } catch (IOException e) {
-                    showToastLong(R.string.toast_error_IOError);
+                } catch (JSONException | IOException e) {
+                    showErrorToast(e);
                 }
             }
         };
@@ -336,16 +337,20 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
 
     @SuppressLint("DefaultLocale")
     private void updateTitle() {
-
-        setTitle(String.format("%s: %s / %s   (%s)",
-                mAccount.getName(),
-                Util.formatLargeFloatShort(mAccount.getSum()),
-                Util.formatLargeFloatShort(mAccount.indivAvailableBudget),
-                Util.formatLargeFloatShort(mAccount.indivYearlyBudget)));
+        // set Activity title
+        try {
+            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
+            String monthName = Const.getMonthNameById(parts.month - 1);
+            setCustomTitle(monthName + ":");
+            setCustomTitleDetails(mAccount.getName());
+        } catch (IllegalArgumentException e) {
+            Log.println(Log.ERROR, "parse_file_name", e.toString());
+        }
     }
 
     @Override
     public void onRefresh() {
         updateTitle();
+        updateUITotalSums();
     }
 }

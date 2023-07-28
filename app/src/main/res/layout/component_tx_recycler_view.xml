@@ -21,40 +21,13 @@
         android:layout_weight="1"
         android:scrollbars="vertical" />
 
-    <androidx.cardview.widget.CardView
+    <include layout="@layout/component_card_total_sums"
+        android:id="@+id/container_tx_sum"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        app:cardElevation="4dp"
-        app:cardCornerRadius="8dp">
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="8dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/label_sum_tx"
-                android:layout_alignParentStart="true"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/display_sum"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_toStartOf="@id/eurosign"
-                android:textSize="16sp" />
-
-            <TextView
-                android:id="@+id/eurosign"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:text="@string/label_currency"
-                android:textSize="16sp" />
-
-        </RelativeLayout>
-    </androidx.cardview.widget.CardView>
+        android:layout_marginStart="0dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginBottom="5dp"
+        app:elevation="4dp"/>
 </LinearLayout>

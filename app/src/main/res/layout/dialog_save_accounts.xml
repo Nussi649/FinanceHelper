@@ -24,11 +24,4 @@
         android:layout_height="wrap_content"
         android:layout_below="@+id/label_or_save_name"
         android:layout_centerHorizontal="true"/>
-    <CheckBox
-        android:id="@+id/check_hidden"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_below="@id/edit_save_name"
-        android:text = "@string/label_hidden" />
 </RelativeLayout>

@@ -49,16 +49,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     public void onStart() {
         super.onStart();
         if (!passedOnCreate) {
-            budgetViews = new ArrayList<>();
-            loadBudgets();
-            // This will ensure your UI is up-to-date with the current state of budgetViews
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    clearTable();
-                    populateUI();
-                }
-            });
+            reloadUI();
         }
     }
 
@@ -101,7 +92,8 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         try {
             Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
             String monthName = Const.getMonthNameById(parts.month - 1);
-            setTitle(String.format("%s (%s) - %s", parts.entityName, monthName, getString(R.string.label_budgets)));
+            setCustomTitle(monthName + ":");
+            setCustomTitleDetails(getString(R.string.label_budgets));
         } catch (IllegalArgumentException e) {
             Log.println(Log.ERROR, "parse_file_name", e.toString());
         }
@@ -137,6 +129,19 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         return budgetViews.remove(removeItem);
     }
 
+    private void reloadUI() {
+        budgetViews = new ArrayList<>();
+        loadBudgets();
+        // This will ensure your UI is up-to-date with the current state of budgetViews
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                clearTable();
+                populateUI();
+            }
+        });
+    }
+
     private void loadBudgets() {
         // get budget accounts and prepare BudgetAccountTableRow objects
         List<BudgetAccountBE> firstLevelBudgets = model.budget_accounts;
@@ -146,8 +151,8 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         totalYearlyBudget = 0.0f;
         for (int index = 0; index < count; index++) {
             BudgetAccountBE currentAccount = firstLevelBudgets.get(index);
-            BudgetAccountTableRow newRow = (BudgetAccountTableRow) LayoutInflater.from(this).inflate(R.layout.table_row_budget_account_overview, null);
-            newRow.init(this, this, currentAccount, index == count - 1);
+            BudgetAccountTableRow newRow = BudgetAccountTableRow.getInstance(this);
+            newRow.init(this, currentAccount, index == count - 1);
             totalSpent += currentAccount.getTotalSum();
             totalAvailableBudget += currentAccount.getTotalAvailableBudget();
             totalYearlyBudget += currentAccount.getTotalYearlyBudget();
@@ -237,8 +242,8 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
                     last.updateUI();
                 }
                 // create new BudgetAccountTableRow object and add it to the rootLayout
-                BudgetAccountTableRow newRow = (BudgetAccountTableRow) LayoutInflater.from(this).inflate(R.layout.table_row_budget_account_overview, null);
-                newRow.init(this, this, newAccount, true);
+                BudgetAccountTableRow newRow = BudgetAccountTableRow.getInstance(this);
+                newRow.init(this, newAccount, true);
                 newRow.populateUI();
                 container.addView(newRow);
                 totalAvailableBudget += newAccount.indivAvailableBudget;
@@ -257,15 +262,25 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     // set values of total sum text views
     @SuppressLint("DefaultLocale")
     private void updateUISums() {
+        float current_percentage = totalSpent / totalAvailableBudget;
         String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(totalAvailableBudget),5);
         String currentSumString = String.format("%s / %s",
                 Util.formatLargeFloatShort(totalSpent),
                 currentBudgetString);
         String currentPercentageString = String.format("%.0f%%",
-                (totalSpent / totalAvailableBudget) * 100);
+                (current_percentage) * 100);
         String yearly_budget_string = Util.formatLargeFloatShort(totalYearlyBudget);
         totalValue.setText(currentSumString);
         totalPercentage.setText(currentPercentageString);
         totalYearly.setText(yearly_budget_string);
+
+        // color percentage label
+        char percentageEval = Util.evaluatePercentage(current_percentage);
+        if (percentageEval == '+')
+            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorNegative)));
+        if (percentageEval == '-')
+            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorPositive)));
+        if (percentageEval == 'O')
+            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorNeutral)));
     }
 }

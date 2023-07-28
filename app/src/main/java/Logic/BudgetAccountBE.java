@@ -1,7 +1,11 @@
 package Logic;
 
+import android.widget.TableLayout;
+
 import java.util.ArrayList;
 import java.util.List;
+
+import View.BudgetAccountTableRow;
 
 public class BudgetAccountBE extends AccountBE{
 
@@ -54,8 +58,8 @@ public class BudgetAccountBE extends AccountBE{
         this.indivYearlyBudget = yearlyBudget;
     }
 
-    public void setIndivAvailableBudget(float currentBudget) {
-        this.indivAvailableBudget = currentBudget;
+    public void setIndivAvailableBudget(float availableBudget) {
+        this.indivAvailableBudget = availableBudget;
     }
 
     public void setToOtherEntity(String otherEntity) {
@@ -124,5 +128,38 @@ public class BudgetAccountBE extends AccountBE{
         for (BudgetAccountBE subBudget : subBudgets) {
             subBudget.reset();
         }
+    }
+
+    public boolean transferSubBudget(BudgetAccountBE subBudget, BudgetAccountBE target) {
+        if (!subBudgets.contains(subBudget))
+            return false;
+        target.addSubBudget(subBudget);
+        boolean result = subBudgets.remove(subBudget);
+        if (result)
+            return true;
+        target.subBudgets.remove(subBudget);
+        return false;
+    }
+
+    public boolean addBudgetAccountViewsToContainer(List<BudgetAccountTableRow> viewPool, TableLayout container) {
+        // initiate variables
+        boolean result = true;
+        BudgetAccountTableRow own = null;
+        List<BudgetAccountTableRow> reducedPool = new ArrayList<>(viewPool);
+        // find corresponding row
+        for (BudgetAccountTableRow row : viewPool)
+            if (equals(row.getReferenceAccount()))
+                own = row;
+        // add row to container if found otherwise set result false
+        if (own != null) {
+            container.addView(own);
+            reducedPool.remove(own);
+        }
+        else
+            result = false;
+        // recursively add sub budgets
+        for (BudgetAccountBE subBudget : subBudgets)
+            result = result && subBudget.addBudgetAccountViewsToContainer(reducedPool, container);
+        return result;
     }
 }

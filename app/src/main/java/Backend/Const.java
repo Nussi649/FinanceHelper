@@ -44,6 +44,7 @@ public class Const {
 
     // Application Settings JSON Tags
     public static String JSON_TAG_DEFAULT_ENTITY = "defaultEntity";
+    public static String JSON_TAG_DEFAULT_ACCOUNTS = "defaultAccounts";
 
     // Selection Groups
     public static String GROUP_SENDER = JSON_TAG_SENDER;

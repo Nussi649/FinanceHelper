@@ -5,15 +5,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 
@@ -68,7 +65,8 @@ public class AssetsActivity extends AbstractActivity {
         try {
             Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
             String monthName = Const.getMonthNameById(parts.month - 1);
-            setTitle(String.format("%s (%s) - %s", parts.entityName, monthName, getString(R.string.label_assets)));
+            setCustomTitle(monthName + ":");
+            setCustomTitleDetails(getString(R.string.label_assets));
         } catch (IllegalArgumentException e) {
             Log.println(Log.ERROR, "parse_file_name", e.toString());
         }
@@ -167,7 +165,7 @@ public class AssetsActivity extends AbstractActivity {
         final EditText newAccountName = dialogView.findViewById(R.id.edit_new_account_name);
         builder.setView(dialogView);
         builder.setNegativeButton(R.string.cancel, getDoNothingClickListener());
-        builder.setPositiveButton(R.string.accept, new DialogInterface.OnClickListener() {
+        builder.setPositiveButton(R.string.confirm, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialogInterface, int i) {
                 createAccount(newAccountName.getText().toString());
@@ -183,7 +181,7 @@ public class AssetsActivity extends AbstractActivity {
         try {
             AccountBE newAccount = controller.createAssetAccount(name);
             if (newAccount == null) {
-                showToastLong(R.string.toast_error_account_name_in_use);
+                showToastLong(R.string.toast_error_account_name_taken);
             } else {
                 showToastLong(R.string.toast_success_new_account);
                 addAccountToUI(newAccount);

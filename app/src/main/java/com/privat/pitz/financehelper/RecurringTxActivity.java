@@ -1,5 +1,6 @@
 package com.privat.pitz.financehelper;
 
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import Backend.Const;
 import Backend.RecurringTxAdapter;
 import Backend.TxListAdapter;
 import Backend.Util;
@@ -31,7 +33,15 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
     @Override
     protected void endWorkingThread() {
         setContentView(R.layout.activity_asset_account_details);
-        setTitle(getString(R.string.label_recurring_orders));
+        // set Activity title
+        try {
+            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
+            String monthName = Const.getMonthNameById(parts.month - 1);
+            setCustomTitle(monthName + ":");
+            setCustomTitleDetails(getString(R.string.label_recurring_orders));
+        } catch (IllegalArgumentException e) {
+            Log.println(Log.ERROR, "parse_file_name", e.toString());
+        }
         populateUI();
     }
 

@@ -24,7 +24,10 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import Logic.AccountBE;
 import Logic.BudgetAccountBE;
@@ -44,11 +47,6 @@ public class Controller {
 
     private void initController() {
         model = new Model();
-        loadAppSettings();
-        model.asset_accounts = new ArrayList<>();
-        model.budget_accounts = new ArrayList<>();
-        model.recurringTx = new ArrayList<>();
-        model.currentIncome = new ArrayList<>();
     }
 
     public static void createInstance(Context context) {
@@ -64,7 +62,7 @@ public class Controller {
         model.budget_accounts = new ArrayList<>();
         model.recurringTx = new ArrayList<>();
         model.currentIncome = new ArrayList<>();
-        setCurrentFileName(Const.getCurrentMonthFileName(model.nameFinancialEntity));
+        setCurrentFileName(Const.getCurrentMonthFileName(model.currentEntity));
     }
 
     public boolean setCurrentFileName(String newFileName) {
@@ -131,7 +129,7 @@ public class Controller {
         return json.toString();
     }
 
-    public void importAccounts(String data) throws JSONException, ParseException {
+    public void importAccounts(String data) throws JSONException {
         JSONObject json = new JSONObject(data);
         JSONArray accounts;
 
@@ -145,12 +143,15 @@ public class Controller {
             AccountBE new_account = Util.parseJSON_Account(current_account_json);
             if (new_account != null) {
                 model.asset_accounts.add(new_account);
-                // check if account is default Sender account
-                if (model.settings.defaultSender.equals(new_account.toString()))
-                    model.currentSender = new_account;
-                // check if account is default Receiver account
-                if (model.settings.defaultReceiver.equals(new_account.toString()))
-                    model.currentReceiver = new_account;
+                Model.EntityDefaults defaults = model.getCurrentDefaults();
+                if (defaults != null) {
+                    // check if account is default Sender account
+                    if (defaults.defaultSender.equals(new_account.toString()))
+                        model.currentSender = new_account;
+                    // check if account is default Receiver account
+                    if (defaults.defaultReceiver.equals(new_account.toString()))
+                        model.currentReceiver = new_account;
+                }
             }
         }
 
@@ -164,9 +165,12 @@ public class Controller {
             BudgetAccountBE new_budget_account = Util.parseJSON_BudgetAccount(current_budget_account_json);
             if (new_budget_account != null) {
                 model.budget_accounts.add(new_budget_account);
-                // check if account is default Receiver account
-                if (model.settings.defaultReceiver.equals(new_budget_account.toString()))
-                    model.currentReceiver = new_budget_account;
+                Model.EntityDefaults defaults = model.getCurrentDefaults();
+                if (defaults != null) {
+                    // check if account is default Receiver account
+                    if (defaults.defaultReceiver.equals(new_budget_account.toString()))
+                        model.currentReceiver = new_budget_account;
+                }
             }
         }
 
@@ -195,7 +199,7 @@ public class Controller {
         writer.close();
     }
 
-    public String readFromInternal(String filename) throws FileNotFoundException, IOException {
+    public String readFromInternal(String filename) throws IOException {
         String data = "";
 
         File file = new File(context.getFilesDir(), filename);
@@ -223,15 +227,36 @@ public class Controller {
         writeToInternal(payload, filename);
     }
 
-    public void readAccountsFromInternal() throws JSONException, IOException, FileNotFoundException, ParseException{
-        readAccountsFromInternal(Const.getCurrentMonthFileName(model.nameFinancialEntity));
-    }
-
-    public void readAccountsFromInternal(String filename) throws JSONException, IOException, FileNotFoundException, ParseException {
+    public void readAccountsFromInternal(String filename) throws JSONException, IOException {
         String payload = readFromInternal(filename);
         boolean filenameValid = setCurrentFileName(filename);
-        if (filenameValid)
+        if (filenameValid) {
             importAccounts(payload);
+            Util.FileNameParts parts = Util.parseFileName(filename);
+            model.currentEntity = parts.entityName;
+            model.settings.defaultEntityName = parts.entityName;
+            Model.EntityDefaults defaults = model.getCurrentDefaults();
+            if (defaults != null) {
+                AccountBE sender = model.getAccountByName(defaults.defaultSender);
+                AccountBE receiver = model.getAccountByName(defaults.defaultReceiver);
+                if (sender != null)
+                    model.currentSender = sender;
+                if (receiver != null)
+                    model.currentReceiver = receiver;
+            }
+        }
+    }
+
+    public void loadEntity(String entityName) throws JSONException, IllegalArgumentException, IOException {
+        try {
+            readAccountsFromInternal(Const.getCurrentMonthFileName(entityName));
+        } catch (FileNotFoundException e) {
+            throw new IllegalArgumentException("No save file found for that entity and current period");
+        }
+    }
+
+    public void loadEntity() throws JSONException, IllegalArgumentException, IOException {
+        loadEntity(model.currentEntity);
     }
 
     public boolean deleteCurrentSave() {
@@ -245,31 +270,102 @@ public class Controller {
         return file.delete();
     }
 
-    public List<String> getAvailableSaveFiles() {
-        File[] files = context.getFilesDir().listFiles();
-        List<String> re = new ArrayList<>();
-        if (files.length == 0)
-            return re;
-        int size = files.length;
-        for (int i = 0; i < size; i++) {
-            String name = files[i].getName();
-            if (name.equals(Const.ACCOUNTS_FASTSAVE_DIRECTORY_NAME))
-                continue;
-            if (name.equals(Const.ACCOUNTS_HIDDEN_DIRECTORY))
-                continue;
-            re.add(name.substring(0, name.length() - 4));
+    // PARAMS: String period: a String representing the period in which to look for entities with existing save files
+    // Format: "YYYY-MM"
+    public List<String> getAvailableEntitiesForPeriod(String period) throws IllegalArgumentException {
+        // Verify the format and plausibility of the period
+        Pattern pattern = Pattern.compile("^\\d{4}-\\d{2}$");
+        if (!pattern.matcher(period).matches()) {
+            throw new IllegalArgumentException("The period should have the format 'YYYY-MM'");
         }
-        return re;
+
+        int year = Integer.parseInt(period.split("-")[0]);
+        int month = Integer.parseInt(period.split("-")[1]);
+        if (year < 2000 || year > 2050 || month < 1 || month > 12) {
+            throw new IllegalArgumentException("The year should be between 2000 and 2050 and the month should be between 1 and 12");
+        }
+
+        // Get all files in the directory
+        File[] files = context.getFilesDir().listFiles();
+        List<String> entityNames = new ArrayList<>();
+        if (files == null || files.length == 0)
+            return entityNames;
+
+        // Filter the file names and extract the entity names
+        pattern = Pattern.compile("^" + period + "-([^.]+)\\.jso$");
+        for (File file : files) {
+            Matcher matcher = pattern.matcher(file.getName());
+            if (matcher.matches()) {
+                entityNames.add(matcher.group(1));
+            }
+        }
+        return entityNames;
+    }
+
+    public List<String> getCurrentAvailableEntities() {
+        Calendar calendar = Calendar.getInstance();
+        // get current period in format YYYY-MM
+        String month = String.format(Locale.US, "%02d", calendar.get(Calendar.MONTH) + 1); // Calendar.MONTH is zero-based
+        String year = String.valueOf(calendar.get(Calendar.YEAR));
+        String period = year + "-" + month;
+
+        try {
+            // return getAvailableEntitiesForPeriod(period)
+            return getAvailableEntitiesForPeriod(period);
+        } catch (IllegalArgumentException e) {
+            // exception handling should log an Error
+            Log.println(Log.ERROR, "settings_backend",
+                    String.format("Error getting available entities for current period: %s", e));
+            return new ArrayList<>(); // return an empty list in case of an error
+        }
+    }
+
+    public void switchToEntity(String targetEntity) throws JSONException, IOException, IllegalArgumentException {
+        // first validate argument
+        List<String> availableEntities = getCurrentAvailableEntities();
+        if (!availableEntities.contains(targetEntity)) {
+            Log.println(Log.ERROR, "switch_entity",
+                    "Error while trying to switch entity. Entity not valid. Aborting process!");
+            throw new IllegalArgumentException("Entity not available");
+        }
+        // save current state
+        String oldEntity = model.currentEntity;
+        try {
+            saveAccountsToInternal();
+        } catch (JSONException | IOException e) {
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "switch_entity",
+                        String.format("Error while trying to switch entity. Could not serialize old state. Aborting process! Exception: %s", e));
+            else
+                Log.println(Log.ERROR, "switch_entity",
+                        String.format("Error while trying to switch entity. Could not write old state. Aborting process! Exception: %s", e));
+            throw e;
+        }
+        // load new entity
+        try {
+            loadEntity(targetEntity);
+        } catch (JSONException | IOException | IllegalArgumentException e) {
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "switch_entity",
+                        String.format("Error while trying to switch entity. Could not parse new state. Aborting process! Exception: %s", e));
+            else if (e instanceof IOException)
+                Log.println(Log.ERROR, "switch_entity",
+                        String.format("Error while trying to switch entity. Could not read new state. Aborting process! Exception: %s", e));
+            else
+                Log.println(Log.ERROR, "switch_entity",
+                        String.format("Error while trying to switch entity. Entity not valid. Aborting process! Exception: %s", e));
+            throw e;
+        }
     }
 
     public void updateSelectedAccount(String selectionGroup, AccountBE newTarget) {
         if (selectionGroup.equals(Const.GROUP_SENDER)) {
             model.currentSender = newTarget;
-            model.settings.defaultSender = newTarget.toString();
+            model.setCurrentDefaultSender(newTarget.toString());
         }
         else if (selectionGroup.equals(Const.GROUP_RECEIVER)) {
             model.currentReceiver = newTarget;
-            model.settings.defaultReceiver = newTarget.toString();
+            model.setCurrentDefaultReceiver(newTarget.toString());
         }
         else
             Log.println(Log.INFO, "account_selection",
@@ -290,31 +386,34 @@ public class Controller {
         try {
             String payload = readFromInternal(Const.APPLICATION_SETTINGS_FILENAME);
             model.settings = Util.parseJSON_Settings(new JSONObject(payload));
-            model.nameFinancialEntity = model.settings.defaultEntityName;
+            model.currentEntity = model.settings.defaultEntityName;
             return true;
-        } catch (FileNotFoundException e) {
-            // no settings file available (e.g. at first start) -> create new settings and save them
+        } catch (JSONException | IOException e) {
+            // settings could not be read due to any reason
             // set current financial entity name (nothing to load, so set default)
-            model.nameFinancialEntity = "User";
+            model.currentEntity = "User";
             // set default name to settings
             model.settings.defaultEntityName = "User";
-            // save settings to file
-            try {
-                saveAppSettings();
-            } catch (JSONException | IOException newE) {
-                newE.printStackTrace();
+
+            // differentiate between exceptions
+            if (e instanceof FileNotFoundException) {
+                Log.println(Log.ERROR, "load_settings",
+                        String.format("Error reading settings file. The file could not be located. Loaded defaults and saved them: %s", e));
+                // no settings file available (e.g. at first start) -> save newly created settings
+                try {
+                    saveAppSettings();
+                } catch (JSONException | IOException newE) {
+                    newE.printStackTrace();
+                }
+            } else if (e instanceof IOException) {
+                // the file exists but could not be read
+                Log.println(Log.ERROR, "load_settings",
+                        String.format("Error reading settings file. The file could be located but not read. Loaded defaults instead: %s", e));
+            } else {
+                // file could be read but is corrupted in some sort
+                Log.println(Log.ERROR, "load_settings",
+                        String.format("Error parsing settings file. The file is probably corrupted. Loaded defaults instead: %s", e));
             }
-        } catch (IOException e) {
-            // the file exists but could not be read
-            model.nameFinancialEntity = "User";
-            model.settings.defaultEntityName = "User";
-            // no saving necessary
-        } catch (JSONException e) {
-            // file could be read but is corrupted in some sort
-            model.nameFinancialEntity = "User";
-            model.settings.defaultEntityName = "User";
-            Log.println(Log.ERROR, "load_settings",
-                    String.format("Error parsing settings file. The file is probably corrupted. Loaded defaults instead: %s", e));
         }
         return false;
     }
@@ -818,13 +917,13 @@ public class Controller {
     // returns false if couldn't read last month (e.g. there is no file of last month´s accounts)
 
     @SuppressLint("SimpleDateFormat")
-    public boolean initiateNewPeriod() throws FileNotFoundException {
+    public void initiateNewPeriod() throws JSONException, IOException {
         Calendar cal = Calendar.getInstance();
         File[] availableFiles = context.getFilesDir().listFiles();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
         Date latestDate = null;
         File latestFile = null;
-        String entityPattern = "\\d{4}-\\d{2}-" + model.nameFinancialEntity + "\\.jso";
+        String entityPattern = "\\d{4}-\\d{2}-" + model.currentEntity + "\\.jso";
         // Check if availableFiles is null or empty
         if (availableFiles == null || availableFiles.length == 0) {
             throw new FileNotFoundException("Error while trying to read save files in internal storage. No files were found.");
@@ -847,26 +946,30 @@ public class Controller {
 
         // If no file matches the pattern, throw FileNotFoundException
         if (latestFile == null) {
-            throw new FileNotFoundException("No file matching the pattern found.");
+            throw new FileNotFoundException("No valid file found.");
         }
 
         // If the latest date is not earlier than the current month, return false
         try {
             if (!latestDate.before(sdf.parse(sdf.format(cal.getTime())))) {
-                return false;
+                throw new FileNotFoundException("No valid file found.");
             }
         } catch (ParseException e) {
             e.printStackTrace();
-            return false;
         }
 
 
         // If the latest date is earlier than the current month, initiate the transfer process
         try {
             readAccountsFromInternal(latestFile.getName());
-        } catch (JSONException | ParseException | IOException e) {
-            e.printStackTrace();
-            return false;
+        } catch (JSONException | IOException e) {
+            if (e instanceof JSONException)
+                Log.println(Log.ERROR, "initiate_period",
+                        String.format("Error while initiating new period. An exception occurred while parsing latest save file: %s", e));
+            else
+                Log.println(Log.ERROR, "initiate_period",
+                        String.format("Error while initiating new period. An exception occurred while reading latest save file: %s", e));
+            throw e;
         }
 
         Map<String, Float> oldAssetAccountValues = new HashMap<>();
@@ -878,7 +981,7 @@ public class Controller {
 
         resetAccounts();
         resetCurrentIncome();
-        setCurrentFileName(Const.getCurrentMonthFileName(model.nameFinancialEntity));
+        setCurrentFileName(Const.getCurrentMonthFileName(model.currentEntity));
 
         for (String s : oldAssetAccountValues.keySet()) {
             model.getAssetAccountByName(s).addTx(new TxBE(oldAssetAccountValues.get(s), Const.DESC_OPENING, cal.getTime()));
@@ -887,9 +990,10 @@ public class Controller {
         try {
             triggerRecurringTx();
         } catch (JSONException | IOException e) {
-            e.printStackTrace();
+            // only log exception, changes have already been reverted
+            Log.println(Log.ERROR, "initiate_period",
+                    String.format("Error while initiating new period. An exception occurred while triggering recurring tx: %s", e));
         }
-        return true;
     }
 
     // sets up the lists AssetAccounts and BudgetAccounts
@@ -903,27 +1007,48 @@ public class Controller {
             if (blank) {
                 resetAccountLists();
                 return CREATED_BLANK;
-            }
-            else {
-                readAccountsFromInternal();
+            } else if (model.currentEntity == null || model.currentEntity.equals("")) {
+                // no current entity stored in model. loadEntity won't know what to load. crash safely
+                Log.println(Log.ERROR, "load_accounts",
+                        "Error loading default entity: no entity available in model. Loading no accounts.");
+                return CREATED_BLANK;
+            } else {
+                // at this point model.currentEntity contains a non-empty String
+                loadEntity();
                 return LOADED_ACCOUNTS;
             }
-        } catch (JSONException | ParseException ex) {
-            ex.printStackTrace();
-            resetAccountLists();
-            return CREATED_BLANK;
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
+        } catch (IllegalArgumentException e) {
+            // no save file for current entity and month found. cause could be either
             try {
-                if (initiateNewPeriod())
-                    return LOADED_NEW_MONTH;
+                // try initiating a new period with current entity
+                initiateNewPeriod();
+                return LOADED_NEW_MONTH;
+            } catch (FileNotFoundException ex) {
+                // no valid file could be found
+                Log.println(Log.ERROR, "load_accounts",
+                        String.format("While trying to initiate a new period, no valid source file " +
+                                "for currentEntity could be located. This probably implies, that it is invalid. Exception: %s", ex));
                 resetAccountLists();
                 return CREATED_BLANK;
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
+            } catch (JSONException | IOException ex) {
+                // a valid file as source for initiating a new period could be located but not read. exception has already been logged on that level.
+                Log.println(Log.INFO, "load_accounts", "While trying to initiate a new period, a valid save file could be located but not read. " +
+                        "This probably implies, that the currentEntity is correct but its latest save file is corrupted.");
                 resetAccountLists();
                 return CREATED_BLANK;
             }
+        } catch (JSONException | IOException e) {
+            if (e instanceof JSONException) {
+                // save file for default entity and current month exists but is corrupted
+                Log.println(Log.ERROR, "load_accounts",
+                        String.format("Error loading default entity: save file for current month could be located, but is corrupted. Loading no accounts. %s", e));
+            } else {
+                // save file for default entity and current month exists but could not be read
+                Log.println(Log.ERROR, "load_accounts",
+                        String.format("Error loading default entity: save file for current month could be located, but not read. Loading no accounts. %s", e));
+            }
+            resetAccountLists();
+            return CREATED_BLANK;
         }
     }
 
@@ -1040,13 +1165,18 @@ public class Controller {
         return false;
     }
 
-    public void updateYearlyBudget(float newBudget, BudgetAccountBE account) throws JSONException, IOException {
+    public void updateYearlyBudget(float newBudget, BudgetAccountBE account, boolean adjustAvailable) throws JSONException, IOException {
         float oldYearlyBudget = account.indivYearlyBudget;
+        float oldAvailableBudget = account.indivAvailableBudget;
         account.setIndivYearlyBudget(newBudget);
+        if (adjustAvailable)
+            account.setIndivAvailableBudget(oldAvailableBudget + (newBudget - oldYearlyBudget) / 12);
         try {
             saveAccountsToInternal();
         }  catch (JSONException | IOException e) {
             account.setIndivYearlyBudget(oldYearlyBudget);
+            if (adjustAvailable)
+                account.setIndivAvailableBudget(oldAvailableBudget);
             if (e instanceof JSONException)
                 Log.println(Log.ERROR, "save_file",
                     String.format("Error serializing save file after updating yearly budget: %s\nChanges have been reverted.", e));
@@ -1057,9 +1187,9 @@ public class Controller {
         }
     }
 
-    public void transferCurrentBudget(float amount, BudgetAccountBE sender, BudgetAccountBE recipient, boolean adjustYearly) throws JSONException, IOException, InvalidParameterException {
+    public void transferAvailableBudget(float amount, BudgetAccountBE sender, BudgetAccountBE recipient, boolean adjustYearly) throws JSONException, IOException, InvalidParameterException {
         if (amount <= 0)
-            throw new InvalidParameterException("transferCurrentBudget called with amount <= 0");
+            throw new InvalidParameterException("transferAvailableBudget called with amount <= 0");
         float oldSenderCurrent = sender.indivAvailableBudget;
         float oldRecipientCurrent = recipient.indivAvailableBudget;
         float oldSenderYearly = adjustYearly ? sender.indivYearlyBudget : 0;
@@ -1083,11 +1213,29 @@ public class Controller {
             }
             if (e instanceof JSONException)
                 Log.println(Log.ERROR, "save_file",
-                    String.format("Error serializing save file after transferring budget: %s\nChanges have been reverted.", e));
+                    String.format("Error serializing save file after transferring available budget: %s\nChanges have been reverted.", e));
             else
                 Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after transferring budget: %s\nChanges have been reverted.", e));
+                        String.format("Error writing save file after transferring available budget: %s\nChanges have been reverted.", e));
             throw e;
         }
+    }
+
+    public boolean transferSubBudget(BudgetAccountBE parent, BudgetAccountBE object, BudgetAccountBE target) throws JSONException, IOException {
+        boolean result = parent.transferSubBudget(object, target);
+        if (result)
+            try {
+                saveAccountsToInternal();
+            }  catch (JSONException | IOException e) {
+                target.transferSubBudget(object, parent);
+                if (e instanceof JSONException)
+                    Log.println(Log.ERROR, "save_file",
+                            String.format("Error serializing save file after transferring sub budget: %s\nChanges have been reverted.", e));
+                else
+                    Log.println(Log.ERROR, "save_file",
+                            String.format("Error writing save file after transferring sub budget: %s\nChanges have been reverted.", e));
+                throw e;
+            }
+        return result;
     }
 }
