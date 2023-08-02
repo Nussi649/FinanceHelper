@@ -114,8 +114,21 @@ public class BudgetAccountBE extends AccountBE{
             sum += subBudget.getTotalSum();
         return sum;
     }
+
+    public float getSubSum(String period) {
+        // returns sum of all expenses within the specified period attributed to the complete sub budget tree
+        float sum = 0.0f;
+        for (BudgetAccountBE subBudget : subBudgets)
+            sum += subBudget.getTotalSum(period);
+        return sum;
+    }
+
     public float getTotalSum() {
         return getSum() + getSubSum();
+    }
+
+    public float getTotalSum(String period) {
+        return getSum(period) + getSubSum(period);
     }
 
     public List<BudgetAccountBE> getDirectSubBudgets() {

@@ -5,6 +5,7 @@ import java.util.Calendar;
 import java.util.List;
 
 import Backend.Const;
+import Backend.Util;
 
 public class AccountBE {
     protected String name;
@@ -28,6 +29,17 @@ public class AccountBE {
         float sum = 0.0f;
         for (TxBE e: txList) {
             sum += e.getAmount();
+        }
+        return sum;
+    }
+
+    public float getSum(String period) {
+        float sum = 0.0f;
+        if (!Util.validatePeriod(period))
+            return sum;
+        for (TxBE tx: txList) {
+            if (tx.inPeriod(period))
+                sum += tx.getAmount();
         }
         return sum;
     }

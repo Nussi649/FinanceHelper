@@ -96,7 +96,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     protected void setCustomTitle() {
         super.setCustomTitle();
         String titleDetails = getString(R.string.label_budgets) + String.format("  %sx",
-                Util.formatLargeFloatShort(model.sumAllExpenses())).replace("x", getString(R.string.label_currency));
+                Util.formatLargeFloatShort(model.sumCurrentPeriodExpenses())).replace("x", getString(R.string.label_currency));
         setCustomTitleDetails(titleDetails);
     }
 

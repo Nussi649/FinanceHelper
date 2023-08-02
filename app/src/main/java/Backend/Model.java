@@ -137,6 +137,16 @@ public class Model {
         return sum;
     }
 
+    public float sumCurrentPeriodExpenses() {
+        String period = Util.getCurrentPeriod();
+        float sum = 0.0f;
+        List<BudgetAccountBE> allBudgets = getAllBudgetAccounts();
+        for (BudgetAccountBE acc : allBudgets) {
+            sum += acc.getSum(period);
+        }
+        return sum;
+    }
+
     public float sumAllAssets() {
         float sum = 0.0f;
         for (AccountBE a: asset_accounts) {

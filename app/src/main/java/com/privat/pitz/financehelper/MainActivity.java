@@ -1,16 +1,13 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
-import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Looper;
 import android.app.AlertDialog;
 import android.text.InputFilter;
-import android.text.Spanned;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -406,8 +403,12 @@ public class MainActivity extends AbstractActivity {
     public void onRefresh() {
         reloadAccountLists();
         setupActionBar();
+        setTitle();
+    }
+
+    public void setTitle() {
         setCustomTitle();
-        float delta = model.sumAllIncome() - model.sumAllExpenses();
+        float delta = model.sumAllIncome() - model.sumCurrentPeriodExpenses();
         String firstOrder = String.format("%sx",
                 Util.formatLargeFloatShort(delta >= 0 ? delta : -delta)).replace("x", getString(R.string.label_currency));
         String titleDetails = getString(R.string.label_delta) + String.format(delta >= 0 ? " %s" : " (%s)", firstOrder);
