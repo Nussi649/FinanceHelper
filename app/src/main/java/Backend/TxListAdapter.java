@@ -37,6 +37,20 @@ public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewH
         notifyDataSetChanged();
     }
 
+    public void addEntry(int position, TxBE tx) {
+        entries.add(position, tx);
+        notifyItemInserted(position);
+    }
+
+    public void removeEntry(TxBE toRemove) {
+        int position = entries.indexOf(toRemove);
+        if (position != -1) {
+            // Entry exists in the list, remove it
+            entries.remove(position);
+            notifyItemRemoved(position);
+        }
+    }
+
     @NonNull
     @Override
     public EntryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -56,6 +70,9 @@ public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewH
         holder.labelAmount.setText(Util.formatFloatDisplay(entry.getAmount()));
     }
 
+    public TxBE getTxAtPosition(int position) {
+        return entries.get(position);
+    }
 
     @Override
     public int getItemCount() {

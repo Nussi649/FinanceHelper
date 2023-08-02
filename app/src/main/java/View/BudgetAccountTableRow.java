@@ -22,6 +22,7 @@ import java.util.List;
 import Backend.BudgetAccountListHandler;
 import Backend.Util;
 import Logic.BudgetAccountBE;
+import Logic.ProjectBudgetBE;
 
 @SuppressLint("ViewConstructor")
 public class BudgetAccountTableRow extends TableRow {
@@ -231,7 +232,11 @@ public class BudgetAccountTableRow extends TableRow {
                 params.width = (int) (22 * hierarchyLevel * getResources().getDisplayMetrics().density);
                 indentView.setLayoutParams(params);
 
-                // Set background color based on hierarchy level
+                // Set background color for ProjectBudgets
+                if (refAcc instanceof ProjectBudgetBE) {
+                    setBackgroundColor(ContextCompat.getColor(getContext(), R.color.colorSecondaryLight));
+                } else
+                // Set background color based on hierarchy level for normal BudgetAccounts
                 if (hierarchyLevel > 0) {
                     if (hierarchyLevel > 1)
                         setBackgroundColor(ContextCompat.getColor(getContext(), R.color.colorSubtleDistinction2));  // Light grey color
@@ -267,8 +272,11 @@ public class BudgetAccountTableRow extends TableRow {
     private void updateUINumbers() {
         float current_sum = isExtended ? refAcc.getSum() : refAcc.getTotalSum();
         float current_budget = isExtended ? refAcc.indivAvailableBudget : refAcc.getTotalAvailableBudget();
-        float current_percentage = current_sum / current_budget;
         float yearly_budget = isExtended ? refAcc.indivYearlyBudget : refAcc.getTotalYearlyBudget();
+        float allotted_budget = isExtended ? refAcc.getMeanAllottedIndivBudget() : refAcc.getMeanAllottedTotalBudget();
+
+        float current_percentage = Util.calculateAdvancedPercentage(current_budget, current_sum, allotted_budget);
+
         String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(current_budget),5);
         String currentSumString = String.format("%s / %s",
                 Util.formatLargeFloatShort(current_sum),
@@ -279,13 +287,11 @@ public class BudgetAccountTableRow extends TableRow {
         valueLabel.setText(currentSumString);
         currentPercentageLabel.setText(currentPercentageString);
         yearlyBudgetLabel.setText(yearly_budget_string);
-        char percentageEval = Util.evaluatePercentage(current_percentage);
-        if (percentageEval == '+')
-            currentPercentageLabel.setBackground(Util.createBackground(ContextCompat.getColor(getContext(), R.color.colorNegative)));
-        if (percentageEval == '-')
-            currentPercentageLabel.setBackground(Util.createBackground(ContextCompat.getColor(getContext(), R.color.colorPositive)));
-        if (percentageEval == 'O')
+        if (refAcc instanceof ProjectBudgetBE) {
             currentPercentageLabel.setBackground(Util.createBackground(ContextCompat.getColor(getContext(), R.color.colorNeutral)));
+        } else {
+            currentPercentageLabel.setBackground(Util.evaluatePercentageBG(current_percentage, parentActivity));
+        }
     }
     // endregion
 }

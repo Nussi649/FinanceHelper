@@ -4,6 +4,6 @@
     <item
         android:id="@+id/item_new_account"
         android:icon="@drawable/ic_plus_24"
-        android:title="@string/label_new_account"
+        android:title="@string/label_account_new"
         app:showAsAction="ifRoom" />
 </menu>

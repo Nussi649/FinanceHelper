@@ -3,19 +3,9 @@ package Backend;
 import java.util.Calendar;
 
 public class Const {
-    public static int MARGIN_ACCOUNT_VIEW = 5;
-    public static int ACOUNT_VIEW_LANDSCAPE_WIDTH = 500;
-
     // File related
-    public static String ACCOUNTS_FASTSAVE_DIRECTORY_NAME = "fastsave";
-    public static String ACCOUNTS_FASTSAVE_FILE_NAME = ACCOUNTS_FASTSAVE_DIRECTORY_NAME + "/accounts";
-    public static String ACCOUNTS_HIDDEN_DIRECTORY = "hidden";
     public static String APPLICATION_SETTINGS_FILENAME = "settings.json";
     public static String ACCOUNTS_FILE_TYPE = ".jso";
-    public static String STATS_FILE_NAME = "stats" + ACCOUNTS_FILE_TYPE;
-
-    public static String APPENDIX_PAY_SENDER = "-1";
-    public static String APPENDIX_PAY_RECIPIENT = "-2";
 
     // Top Level JSON Tags
     public static String JSON_TAG_ASSET_ACCOUNTS = "assets";
@@ -27,10 +17,13 @@ public class Const {
     public static String JSON_TAG_TRANSACTIONS = "tx";
     public static String JSON_TAG_NAME = "name";
     public static String JSON_TAG_ISACTIVE = "active";
-    public static String JSON_TAG_PROFIT_NEUTRAL = "profit_neutral";
+    public static String JSON_TAG_PROJECT_BUDGET = "proj";
     public static String JSON_TAG_TO_OTHER = "to_other_entity";
     public static String JSON_TAG_YEARLY_BUDGET = "budget_year";
     public static String JSON_TAG_CURRENT_BUDGET = "budget_cur";
+    public static String JSON_TAG_AUTO_RENEW = "renew_auto";
+    public static String JSON_TAG_RENEWAL_PERIOD = "renew_period";
+    public static String JSON_TAG_RENEWAL_NEXT = "renew_next";
     public static String JSON_TAG_SUB_BUDGETS = "sub_budgets";
 
     // Transaction Level JSON Tags
@@ -53,7 +46,6 @@ public class Const {
     public static String DATE_FORMAT_DISPLAY = "dd.MM. HH:mm";
     public static String DATE_FORMAT_SAVE = "dd.MM.yyyy HH:mm";
 
-    public static String DESC_CLOSING = "Abschluss";
     public static String DESC_OPENING = "Eröffnung";
 
     public static String getMonthNameById(int month) {

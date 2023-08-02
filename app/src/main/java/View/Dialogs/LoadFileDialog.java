@@ -6,6 +6,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
@@ -35,8 +37,8 @@ public abstract class LoadFileDialog {
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
         LayoutInflater inflater = LayoutInflater.from(context);
 
-        View view = inflater.inflate(R.layout.dialog_load_accounts, null);
-        TableLayout availableFilesLayout = view.findViewById(R.id.layout_available_files);
+        View view = inflater.inflate(R.layout.dialog_load_file, null);
+        LinearLayout availableFilesLayout = view.findViewById(R.id.layout_available_files);
         EditText filenameEdit = view.findViewById(R.id.edit_load_name);
         Button importButton = view.findViewById(R.id.button_import);
 
@@ -47,21 +49,19 @@ public abstract class LoadFileDialog {
             Toast.makeText(context, R.string.toast_error_no_valid_files, Toast.LENGTH_LONG).show();
         else {
             for (String s : availableFileNames) {
-                TableRow row = (TableRow) inflater.inflate(R.layout.tablerow_file_list, availableFilesLayout, false);
-                row.setTag(s);
-                final TextView name = row.findViewById(R.id.text_filename);
-                TextView delete = row.findViewById(R.id.text_delete_sign);
-                name.setText(s);
-                name.setOnClickListener(v -> filenameEdit.setText(((TextView) v).getText()));
+                LinearLayout item = (LinearLayout) inflater.inflate(R.layout.table_row_filename, availableFilesLayout, false);
+                final TextView name = item.findViewById(R.id.text_filename);
+                ImageView delete = item.findViewById(R.id.delete_button);
+                name.setText(Util.reduceFileTypeEnding(s));
+                item.setOnClickListener(v -> filenameEdit.setText(Util.reduceFileTypeEnding(s)));
                 delete.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        onDelete(name.getText().toString());
-                        ((TableLayout) v.getParent().getParent()).removeView((View) v.getParent());
+                        onDelete(s);
+                        availableFilesLayout.removeView(item);
                     }
                 });
-                delete.setOnClickListener(v -> onDelete(name.getText().toString()));
-                availableFilesLayout.addView(row);
+                availableFilesLayout.addView(item);
             }
         }
 

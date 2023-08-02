@@ -140,7 +140,6 @@
                 android:contentDescription="Amount"
                 android:ems="10"
                 android:hint="@string/label_amount"
-                android:inputType="numberDecimal"
                 android:textAlignment="textEnd" />
 
         </LinearLayout>

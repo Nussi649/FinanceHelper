@@ -25,6 +25,10 @@
                 android:title="@string/label_sub_budget_new"
                 android:icon="@drawable/ic_plus_24"/>
             <item
+                android:id="@+id/item_new_project_budget"
+                android:title="@string/label_project_budget_new"
+                android:icon="@drawable/ic_lightbulb_24"/>
+            <item
                 android:id="@+id/item_transfer_sub_budget"
                 android:title="@string/label_sub_budget_transfer"
                 android:icon="@drawable/ic_transfer_arrow_24"/>

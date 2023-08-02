@@ -7,7 +7,7 @@
         android:layout_height="wrap_content"
         android:textAlignment="center"
         android:textSize="20dp"
-        android:text="@string/label_new_accountname"/>
+        android:text="@string/label_account_name_new"/>
     <EditText
         android:id="@+id/edit_new_account_name"
         android:inputType="text"

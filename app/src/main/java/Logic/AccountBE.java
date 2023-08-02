@@ -1,6 +1,7 @@
 package Logic;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import Backend.Const;
@@ -9,13 +10,13 @@ public class AccountBE {
     protected String name;
     protected List<TxBE> txList;
     protected boolean isActive;
-    private boolean isProfitNeutral;
+    protected boolean autoRenew;
 
     public AccountBE(String name) {
         this.name = name;
         txList = new ArrayList<>();
         isActive = true;
-        isProfitNeutral = false;
+        autoRenew = true;
     }
 
     //region get
@@ -31,16 +32,6 @@ public class AccountBE {
         return sum;
     }
 
-    public float getSumWithoutClosing() {
-        float sum = 0.0f;
-        for (TxBE e: txList) {
-            if (e.getDescription().equals(Const.DESC_CLOSING))
-                continue;
-            sum += e.getAmount();
-        }
-        return sum;
-    }
-
     public String getName() {
         return name;
     }
@@ -51,12 +42,19 @@ public class AccountBE {
     }
 
     public boolean getIsActive() { return isActive;}
-    public boolean getIsProfitNeutral() { return isProfitNeutral;}
+    public boolean getAutoRenew() { return autoRenew;}
     //endregion
 
     //region add/remove entries
+    public int getTxIndex(TxBE tx) {
+        return txList.indexOf(tx);
+    }
     public void addTx(TxBE newEntry) {
         txList.add(newEntry);
+    }
+
+    public void addTx(int position, TxBE newEntry) {
+        txList.add(position, newEntry);
     }
 
     public void removeTx(TxBE toRemove) {
@@ -73,18 +71,19 @@ public class AccountBE {
     public void setActive(boolean active) {
         isActive = active;
     }
-    public void setProfitNeutral(boolean profitNeutral) {
-        isProfitNeutral = profitNeutral;
+    public void setAutoRenew(boolean autoRenew) {
+        this.autoRenew = autoRenew;
     }
 
     // normal reset, used for starting new reporting period. only empty tx list if account is not profit neutral
-    public void reset() {
-        if (isProfitNeutral)
-            return;
+    public void tryRenew() {
+        float oldSaldo = getSum();
         txList = new ArrayList<>();
+        Calendar calendar = Calendar.getInstance();
+        txList.add(new TxBE(oldSaldo, Const.DESC_OPENING, calendar.getTime()));
     }
 
-    public void forceReset() {
+    public void reset() {
         txList = new ArrayList<>();
     }
 }

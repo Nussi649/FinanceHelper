@@ -1,16 +1,22 @@
 package Logic;
 
+import android.util.Log;
 import android.widget.TableLayout;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
+import Backend.Util;
 import View.BudgetAccountTableRow;
 
 public class BudgetAccountBE extends AccountBE{
 
     public float indivYearlyBudget;
     public float indivAvailableBudget = -1.0f;
+
+    protected int renewalPeriod = 1;
+    protected String nextRenewal;
 
     private List<BudgetAccountBE> subBudgets;
     // toOtherEntity specifies if payments received on this account should be accounted for as income on another financial entity
@@ -58,12 +64,45 @@ public class BudgetAccountBE extends AccountBE{
         this.indivYearlyBudget = yearlyBudget;
     }
 
+    public void adjustIndivYearlyBudget(float delta) {
+        this.indivYearlyBudget += delta;
+    }
     public void setIndivAvailableBudget(float availableBudget) {
         this.indivAvailableBudget = availableBudget;
     }
 
     public void setToOtherEntity(String otherEntity) {
         toOtherEntity = otherEntity;
+    }
+
+    public void setRenewalPeriod(int duration) {
+        renewalPeriod = duration;
+    }
+
+    public void setNextRenewal(String renewalPeriod) throws IllegalArgumentException {
+        // validate input
+        if (!Util.validatePeriod(renewalPeriod))
+            throw new IllegalArgumentException("The period should have the format 'YYYY-MM' and be between 2000 and 2050.");
+        nextRenewal = renewalPeriod;
+    }
+
+    public void incrementRenewalPeriod() {
+        // Parse the year and month from the current nextRenewal
+        String[] parts = nextRenewal.split("-");
+        int year = Integer.parseInt(parts[0]);
+        int month = Integer.parseInt(parts[1]);
+
+        // Increment the month by the renewalPeriod
+        month += renewalPeriod;
+
+        // If the new month exceeds 12, increment the year and adjust the month
+        while (month > 12) {
+            year += 1;
+            month -= 12;
+        }
+
+        // Update nextRenewal
+        nextRenewal = String.format(Locale.US, "%04d-%02d", year, month);
     }
     // endregion
 
@@ -116,15 +155,68 @@ public class BudgetAccountBE extends AccountBE{
         return sum;
     }
 
+    public BudgetAccountBE getSubBudgetParent(BudgetAccountBE subBudget) {
+        if (subBudgets.contains(subBudget))
+            return this;
+        else
+            for (BudgetAccountBE iterator : subBudgets) {
+                BudgetAccountBE result = iterator.getSubBudgetParent(subBudget);
+                if (result != null)
+                    return result;
+            }
+        return null;
+    }
+
     public String getOtherEntity(){
         return toOtherEntity;
+    }
+
+    public int getRenewalPeriod() {
+        return renewalPeriod;
+    }
+
+    public String getNextRenewal() {
+        return nextRenewal;
+    }
+
+    public float getMeanAllottedIndivBudget() {
+        return indivYearlyBudget * renewalPeriod / 12;
+    }
+
+    public float getMeanAllottedSubBudget() {
+        float result = 0;
+        for (BudgetAccountBE subBudget : subBudgets) {
+            result += subBudget.getMeanAllottedTotalBudget();
+        }
+        return result;
+    }
+
+    public float getMeanAllottedTotalBudget() {
+        return getMeanAllottedIndivBudget() + getMeanAllottedSubBudget();
     }
     // endregion
 
     @Override
+    public void tryRenew() {
+        try {
+            if (!Util.isAfter(nextRenewal, Util.getCurrentPeriod())) {
+                indivAvailableBudget += getMeanAllottedIndivBudget() - getSum();
+                txList = new ArrayList<>();
+                incrementRenewalPeriod();
+            }
+        } catch (IllegalArgumentException e) {
+            Log.println(Log.ERROR, "budget_renew",
+                    String.format("This Error should not occur. If it does, the code is buggy. %s", e));
+        }
+        for (BudgetAccountBE subBudget : subBudgets) {
+            subBudget.tryRenew();
+        }
+    }
+
+    @Override
     public void reset() {
-        indivAvailableBudget += indivYearlyBudget/12 - getSum();
-        txList = new ArrayList<>();
+        super.reset();
+        indivAvailableBudget = getMeanAllottedIndivBudget();
         for (BudgetAccountBE subBudget : subBudgets) {
             subBudget.reset();
         }

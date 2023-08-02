@@ -29,6 +29,10 @@ public class TxBE {
 
     public void setDescription(String newDesc) { mDescription = newDesc; }
 
+    public void setDate(Date newDate) {
+        mDate = newDate;
+    }
+
     @Override
     public String toString() {
         return String.format("%s: %s",mDescription, Util.formatFloatDisplay(mAmount));

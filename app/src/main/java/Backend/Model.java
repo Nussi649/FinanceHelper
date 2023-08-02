@@ -88,6 +88,13 @@ public class Model {
         return budgetAccounts;
     }
 
+    public List<AccountBE> getAllAccounts() {
+        List<AccountBE> result = new ArrayList<>(asset_accounts);
+        for (BudgetAccountBE budgetAcc : getAllBudgetAccounts())
+            result.add((AccountBE) budgetAcc);
+        return result;
+    }
+
     public AccountBE getAccountByName(String name) {
         AccountBE re = getAssetAccountByName(name);
         if (re == null) {
@@ -133,7 +140,7 @@ public class Model {
     public float sumAllAssets() {
         float sum = 0.0f;
         for (AccountBE a: asset_accounts) {
-            sum += a.getSumWithoutClosing();
+            sum += a.getSum();
         }
         return sum;
     }

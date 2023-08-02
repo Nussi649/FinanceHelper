@@ -19,15 +19,17 @@ import Logic.TxBE;
 import java.util.ArrayList;
 import java.util.List;
 
-public class IncomeListDialog {
+public class CurrentIncomeDialog {
     private final Context context;
     private final List<TxBE> incomeList;
     private final TxListAdapter listAdapter = new TxListAdapter();
     private RecyclerView recyclerView;
     private SearchView searchView;
-    private TextView textSum;
+    TextView indivValue;
+    TextView indivPercentage;
+    TextView indivYearly;
 
-    public IncomeListDialog(Context context, List<TxBE> incomeList) {
+    public CurrentIncomeDialog(Context context, List<TxBE> incomeList) {
         this.context = context;
         this.incomeList = incomeList;
     }
@@ -39,7 +41,12 @@ public class IncomeListDialog {
         View view = inflater.inflate(R.layout.activity_asset_account_details, null);
         recyclerView = view.findViewById(R.id.recyclerView);
         searchView = view.findViewById(R.id.search_filter);
-        textSum = view.findViewById(R.id.display_sum);
+        View containerTx = view.findViewById(R.id.container_tx_sum);
+        indivValue= containerTx.findViewById(R.id.total_current_value);
+        indivPercentage = containerTx.findViewById(R.id.total_current_percentage);
+        indivYearly = containerTx.findViewById(R.id.total_yearly_budget);
+        indivYearly.setVisibility(View.GONE);
+        indivPercentage.setVisibility(View.GONE);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(context));
         recyclerView.setAdapter(listAdapter);
@@ -83,7 +90,14 @@ public class IncomeListDialog {
         for (TxBE entr : entries) {
             sum += entr.getAmount();
         }
-        textSum.setText(Util.formatLargeFloatDisplay(sum));
+
+        // Update the sum display
+        setTxSum(sum);
         listAdapter.setEntries(entries);
+    }
+
+    protected void setTxSum(float newValue) {
+        String newString = Util.formatLargeFloatDisplay(newValue) + "x";
+        indivValue.setText(newString.replace("x", context.getString(R.string.label_currency)));
     }
 }

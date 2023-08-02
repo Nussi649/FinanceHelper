@@ -1,14 +1,9 @@
 package com.privat.pitz.financehelper;
 
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.TextView;
 
-import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import org.json.JSONException;
 
@@ -16,33 +11,16 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.Const;
 import Backend.RecurringTxAdapter;
-import Backend.TxListAdapter;
-import Backend.Util;
 import Logic.RecurringTxBE;
 
 public class RecurringTxActivity extends AssetAccountDetailsActivity {
     RecurringTxAdapter listAdapter;
 
+    // region AbstractActivity & Activity Overrides
     @Override
     protected void workingThread() {
 
-    }
-
-    @Override
-    protected void endWorkingThread() {
-        setContentView(R.layout.activity_asset_account_details);
-        // set Activity title
-        try {
-            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
-            String monthName = Const.getMonthNameById(parts.month - 1);
-            setCustomTitle(monthName + ":");
-            setCustomTitleDetails(getString(R.string.label_recurring_orders));
-        } catch (IllegalArgumentException e) {
-            Log.println(Log.ERROR, "parse_file_name", e.toString());
-        }
-        populateUI();
     }
 
     @Override
@@ -50,40 +28,9 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) { return true; }
+    // endregion
 
-    @Override
-    protected boolean hasEntries() {
-        return model.currentIncome.size() > 0;
-    }
-
-    @Override
-    protected void populateUI() {
-        if (!hasEntries()) {
-            showToastLong(R.string.toast_error_no_entries);
-        }
-        RecyclerView recyclerView = findViewById(R.id.recyclerView);
-        listAdapter = new RecurringTxAdapter(this);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(listAdapter);
-
-        filterEntries(null);
-        androidx.appcompat.widget.SearchView searchView = findViewById(R.id.search_filter);
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
-            @Override
-            public boolean onQueryTextChange(String newText) {
-                // filter entries
-                filterEntries(newText);
-                return true;
-            }
-
-            @Override
-            public boolean onQueryTextSubmit(String query) {
-                // you can leave this empty if you don't need to do anything when the user submits the search
-                return false;
-            }
-        });
-    }
-
+    // region AssetAccountDetailsActivity Overrides
     @Override
     protected void filterEntries(CharSequence filter) {
         float sum = 0.0f;
@@ -109,12 +56,29 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
         }
 
         // Update the sum display
-        TextView textSum = findViewById(R.id.display_sum);
-        textSum.setText(Util.formatFloatSave(sum));
+        setTxSum(sum);
 
         // Update the RecyclerView adapter's data set and refresh the display
         listAdapter.setEntries(entries);
     }
+
+    @Override
+    protected void setContentLayout() {
+        setContentView(R.layout.activity_asset_account_details);
+    }
+
+    @Override
+    protected void initListAdapter() {
+        listAdapter = new RecurringTxAdapter(this);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.setAdapter(listAdapter);
+    }
+
+    @Override
+    protected boolean hasEntries() {
+        return model.currentIncome.size() > 0;
+    }
+    // endregion
 
     public void deleteOrder(RecurringTxBE recurringTx) {
         try {
@@ -130,5 +94,15 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
         } catch (IOException e) {
             showToastLong(R.string.toast_error_IOError);
         }
+    }
+
+    protected void setTitle() {
+        setCustomTitle();
+        setCustomTitleDetails(getString(R.string.label_recurring_orders));
+    }
+
+    @Override
+    public void onRefresh() {
+        filterEntries(null);
     }
 }

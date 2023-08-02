@@ -1,19 +1,19 @@
 package Backend;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.graphics.drawable.GradientDrawable;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
-import android.widget.TableLayout;
 
 import androidx.core.graphics.ColorUtils;
 
 import com.privat.pitz.financehelper.MainActivity;
 import com.privat.pitz.financehelper.R;
 
+import Logic.ProjectBudgetBE;
 import View.ListItemAccountPreview;
 
 import org.json.JSONArray;
@@ -21,13 +21,13 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -264,6 +264,31 @@ public abstract class Util {
         return sb.toString();
     }
 
+    public static String reduceFileTypeEnding(String filename) {
+        // Known file types
+        List<String> knownFileTypes = new ArrayList<>();
+        knownFileTypes.add(".txt");
+        knownFileTypes.add(".jso");
+        knownFileTypes.add(".json");
+
+        // Check if input contains file type ending
+        if (!filename.contains("."))
+            return filename;
+
+        // Separate filetype
+        String[] chunks = filename.split("\\.");
+
+        // Get last chunk
+        String fileType = chunks[chunks.length - 1];
+
+        // Check for known file types
+        if (knownFileTypes.contains("." + fileType)) {
+            return filename.substring(0, filename.length() - fileType.length() - 1);
+        } else {
+            return filename;
+        }
+    }
+
     public static char evaluatePercentage(float percentage) {
         LocalDate today = LocalDate.now();
         YearMonth yearMonthObject = YearMonth.of(today.getYear(), today.getMonth());
@@ -277,6 +302,36 @@ public abstract class Util {
         } else {
             return 'O';
         }
+    }
+
+    public static GradientDrawable evaluatePercentageBG(float percentage, Context context) {
+        LocalDate today = LocalDate.now();
+        YearMonth yearMonthObject = YearMonth.of(today.getYear(), today.getMonth());
+        int daysInMonth = yearMonthObject.lengthOfMonth();
+        float monthProgress = (float) today.getDayOfMonth() / daysInMonth;
+
+        int bgColor;
+        if (percentage > monthProgress + 0.1) {
+            bgColor = context.getColor(R.color.colorNegative);
+        } else if (percentage < monthProgress - 0.1) {
+            bgColor = context.getColor(R.color.colorPositive);
+        } else {
+            bgColor = context.getColor(R.color.colorNeutral);
+        }
+        return createBackground(bgColor);
+    }
+
+    public static float calculateAdvancedPercentage(float current_budget, float current_sum, float allotted_budget) {
+        // calculate current percentage differentiate between cases:
+        if (current_budget > allotted_budget)
+            // current_budget > mean allotted amount -> normalize by current_budget
+            return current_sum / current_budget;
+        else if (current_budget > 0)
+            // current_budget < mean allotted amount -> normalize by halfway current_budget to mean allotted amount (assume halving of deficit)
+            return 2*current_sum / (current_budget + allotted_budget);
+        else
+            // current_budget < 0 -> normalize by mean allotted amount start at >100% (assume budget overflow)
+            return 1 + ((current_sum - current_budget) / allotted_budget);
     }
 
     public static List<File> getValidFiles(File dir) {
@@ -325,6 +380,42 @@ public abstract class Util {
         return drawable;
     }
 
+    public static boolean validatePeriod(String period) {
+        Pattern pattern = Pattern.compile("^\\d{4}-\\d{2}$");
+        if (!pattern.matcher(period).matches())
+            return false;
+
+        int year = Integer.parseInt(period.split("-")[0]);
+        int month = Integer.parseInt(period.split("-")[1]);
+        return !(year < 2000 || year > 2050 || month < 1 || month > 12);
+    }
+
+    public static String getCurrentPeriod() {
+        Calendar calendar = Calendar.getInstance();
+        // get current period in format YYYY-MM
+        String month = String.format(Locale.US, "%02d", calendar.get(Calendar.MONTH) + 1); // Calendar.MONTH is zero-based
+        String year = String.valueOf(calendar.get(Calendar.YEAR));
+        return year + "-" + month;
+    }
+
+    public static boolean isAfter(String periodA, String periodB) throws IllegalArgumentException {
+        // validate inputs
+        if (!validatePeriod(periodA) || !validatePeriod(periodB))
+            throw new IllegalArgumentException(String.format("Periods must have the format 'YYYY-MM'. Given: %s, %s", periodA, periodB));
+        // Parse the year and month from periodA
+        String[] partsA = periodA.split("-");
+        int yearA = Integer.parseInt(partsA[0]);
+        int monthA = Integer.parseInt(partsA[1]);
+
+        // Parse the year and month from periodB
+        String[] partsB = periodB.split("-");
+        int yearB = Integer.parseInt(partsB[0]);
+        int monthB = Integer.parseInt(partsB[1]);
+
+        // Compare the years and months
+        return yearA > yearB || (yearA == yearB && monthA > monthB);
+    }
+
     /**
      * Parses a string into a Date object.
      *
@@ -358,7 +449,6 @@ public abstract class Util {
         // Return the formatted filename
         return String.format("%04d-%02d-%s.jso", parts.year, parts.month, entityName);
     }
-
 
     public static FileNameParts parseFileName(String fileName) {
         // Check for null or empty string
@@ -438,10 +528,10 @@ public abstract class Util {
         try {
             String account_name = json_in.getString(Const.JSON_TAG_NAME);
             boolean is_active = json_in.getBoolean(Const.JSON_TAG_ISACTIVE);
-            boolean profit_neutral = json_in.getBoolean(Const.JSON_TAG_PROFIT_NEUTRAL);
+            boolean auto_renew = json_in.getBoolean(Const.JSON_TAG_AUTO_RENEW);
             new_account = new AccountBE(account_name);
             new_account.setActive(is_active);
-            new_account.setProfitNeutral(profit_neutral);
+            new_account.setAutoRenew(auto_renew);
         } catch (JSONException e) {
             Log.println(Log.ERROR, "parse_account",
                     String.format("Error parsing account: key does not exist! %s", e));
@@ -470,7 +560,29 @@ public abstract class Util {
         AccountBE parsed_account = parseJSON_Account(json_in);
         if (parsed_account == null)
                 return null;
-        BudgetAccountBE new_account = new BudgetAccountBE(parsed_account);
+
+        BudgetAccountBE new_account;
+        // check for project account status
+        try {
+            boolean isProject = json_in.getBoolean(Const.JSON_TAG_PROJECT_BUDGET);
+            new_account = isProject ? new ProjectBudgetBE(parsed_account) : new BudgetAccountBE(parsed_account);
+        } catch (JSONException e) {
+            // no entry for project budget
+            new_account = new BudgetAccountBE(parsed_account);
+        }
+
+        // try reading renewal information if new_account is not a project budget
+        try {
+            if (!(new_account instanceof ProjectBudgetBE)) {
+                new_account.setNextRenewal(json_in.getString(Const.JSON_TAG_RENEWAL_NEXT));
+                new_account.setRenewalPeriod(json_in.getInt(Const.JSON_TAG_RENEWAL_PERIOD));
+            }
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_budget_account",
+                    String.format("Error parsing budget account %s: key does not exist! %s",
+                            new_account.getName(), e));
+            return null;
+        }
 
         // try reading obligatory attributes
         try {
@@ -495,7 +607,7 @@ public abstract class Util {
         } catch (JSONException e) {
             Log.println(Log.INFO, "parse_budget_account",
                     String.format("No current budget for account: %s", new_account.getName()));
-            current_budget = new_account.indivYearlyBudget / 12;
+            current_budget = new_account.getMeanAllottedIndivBudget();
         } finally {
             new_account.setIndivAvailableBudget(current_budget);
         }
@@ -528,7 +640,7 @@ public abstract class Util {
     }
 
     public static RecurringTxBE parseJSON_RecurringOrder(JSONObject json_in) {
-        String description = "";
+        String description;
         try {
             description = json_in.getString(Const.JSON_TAG_DESCRIPTION);
         } catch (JSONException e) {
@@ -629,7 +741,7 @@ public abstract class Util {
             JSONObject serialised_account = new JSONObject();
             serialised_account.put(Const.JSON_TAG_NAME, account_in.getName());
             serialised_account.put(Const.JSON_TAG_ISACTIVE, account_in.getIsActive());
-            serialised_account.put(Const.JSON_TAG_PROFIT_NEUTRAL, account_in.getIsProfitNeutral());
+            serialised_account.put(Const.JSON_TAG_AUTO_RENEW, account_in.getAutoRenew());
             JSONArray entries = new JSONArray();
             for (TxBE current_entry : account_in.getTxList()) {
                 JSONObject serialised_entry = serialise_Entry(current_entry);
@@ -651,6 +763,20 @@ public abstract class Util {
         if (new_account == null)
             return null;
 
+        // add ProjectBudget attribute / renewal specifics
+        try {
+            if (budgetAccount_in instanceof ProjectBudgetBE) {
+                new_account.put(Const.JSON_TAG_PROJECT_BUDGET, true);
+            } else {
+                new_account.put(Const.JSON_TAG_PROJECT_BUDGET, false);
+                new_account.put(Const.JSON_TAG_RENEWAL_PERIOD, budgetAccount_in.getRenewalPeriod());
+                new_account.put(Const.JSON_TAG_RENEWAL_NEXT, budgetAccount_in.getNextRenewal());
+            }
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "serialise_BudgetAccount",
+                    String.format("Error serialising BudgetAccountBE %s: %s", budgetAccount_in.getName(), e));
+        }
+
         // add BudgetAccount specific attributes
         try {
             String otherEntity = budgetAccount_in.getOtherEntity();
@@ -661,7 +787,7 @@ public abstract class Util {
                 new_account.put(Const.JSON_TAG_CURRENT_BUDGET, Util.formatFloatSave(current_budget));
         } catch (JSONException e) {
             Log.println(Log.ERROR, "serialise_BudgetAccount",
-                    String.format("Error serialising AccountBE %s: %s", budgetAccount_in.getName(), e));
+                    String.format("Error serialising BudgetAccountBE %s: %s", budgetAccount_in.getName(), e));
         }
 
         // add sub budgets

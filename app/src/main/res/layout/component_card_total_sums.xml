@@ -27,7 +27,6 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="4"
-            android:layout_marginEnd="20dp"
             android:textStyle="bold"
             android:text="@string/dummy_current_value"
             android:gravity="end"
@@ -37,6 +36,7 @@
             android:id="@+id/total_current_percentage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
             android:text="@string/dummy_current_percentage"
@@ -46,9 +46,10 @@
 
         <TextView
             android:id="@+id/total_yearly_budget"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="2"
+            android:layout_marginStart="20dp"
+            android:layout_marginEnd="5dp"
             android:text="@string/dummy_yearly_budget"
             android:gravity="end"
             android:textSize="16sp" />

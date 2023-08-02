@@ -13,14 +13,20 @@ import com.privat.pitz.financehelper.R;
 
 public abstract class CreateBudgetAccountDialog {
     private final Context context;
+    private final boolean isProjectBudget;
 
     // View objects
     EditText subBudgetNameInput;
     EditText yearlyBudgetInput;
     EditText currentMonthBudgetInput;
 
-    public CreateBudgetAccountDialog(Context context) {
+    public CreateBudgetAccountDialog(Context context, boolean projectBudget) {
         this.context = context;
+        this.isProjectBudget = projectBudget;
+    }
+
+    public CreateBudgetAccountDialog(Context context) {
+        this(context, false);
     }
 
     public abstract void onConfirm(String subBudgetName, float currentMonthBudget, float yearlyBudget);
@@ -34,8 +40,14 @@ public abstract class CreateBudgetAccountDialog {
         subBudgetNameInput = view.findViewById(R.id.budget_name_input);
         yearlyBudgetInput = view.findViewById(R.id.yearly_budget_input);
         currentMonthBudgetInput = view.findViewById(R.id.current_month_budget_input);
+        if (isProjectBudget) {
+            view.findViewById(R.id.euro_sign).setVisibility(View.GONE);
+            currentMonthBudgetInput.setVisibility(View.GONE);
+            subBudgetNameInput.setHint(R.string.label_project_name);
+            yearlyBudgetInput.setHint(R.string.label_project_budget);
+        }
 
-        builder.setTitle(R.string.label_budget_account_new);
+        builder.setTitle(isProjectBudget ? R.string.label_project_budget_new : R.string.label_budget_account_new);
 
         builder.setView(view)
                 .setPositiveButton(context.getString(R.string.confirm), null)

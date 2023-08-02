@@ -39,6 +39,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     float totalSpent;
     float totalAvailableBudget;
     float totalYearlyBudget;
+    float totalAllottedBudget;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -88,15 +89,15 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
             }
         });
         populateUI();
-        // set Activity title
-        try {
-            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
-            String monthName = Const.getMonthNameById(parts.month - 1);
-            setCustomTitle(monthName + ":");
-            setCustomTitleDetails(getString(R.string.label_budgets));
-        } catch (IllegalArgumentException e) {
-            Log.println(Log.ERROR, "parse_file_name", e.toString());
-        }
+        setCustomTitle();
+    }
+
+    @Override
+    protected void setCustomTitle() {
+        super.setCustomTitle();
+        String titleDetails = getString(R.string.label_budgets) + String.format("  %sx",
+                Util.formatLargeFloatShort(model.sumAllExpenses())).replace("x", getString(R.string.label_currency));
+        setCustomTitleDetails(titleDetails);
     }
 
     @Override
@@ -115,10 +116,11 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         return super.onOptionsItemSelected(item);
     }
 
-    // not required
     @Override
     public void onRefresh() {
-
+        for (BudgetAccountTableRow row : budgetViews)
+            row.updateUI();
+        updateUISums();
     }
 
     public void addBudgetViewToBackend(BudgetAccountTableRow newItem) {
@@ -140,6 +142,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
                 populateUI();
             }
         });
+        setCustomTitle();
     }
 
     private void loadBudgets() {
@@ -149,6 +152,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         totalSpent = 0.0f;
         totalAvailableBudget = 0.0f;
         totalYearlyBudget = 0.0f;
+        totalAllottedBudget = 0.0f;
         for (int index = 0; index < count; index++) {
             BudgetAccountBE currentAccount = firstLevelBudgets.get(index);
             BudgetAccountTableRow newRow = BudgetAccountTableRow.getInstance(this);
@@ -156,6 +160,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
             totalSpent += currentAccount.getTotalSum();
             totalAvailableBudget += currentAccount.getTotalAvailableBudget();
             totalYearlyBudget += currentAccount.getTotalYearlyBudget();
+            totalAllottedBudget += currentAccount.getMeanAllottedTotalBudget();
         }
     }
 
@@ -262,7 +267,8 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     // set values of total sum text views
     @SuppressLint("DefaultLocale")
     private void updateUISums() {
-        float current_percentage = totalSpent / totalAvailableBudget;
+        float current_percentage = Util.calculateAdvancedPercentage(totalAvailableBudget, totalSpent, totalAllottedBudget);
+
         String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(totalAvailableBudget),5);
         String currentSumString = String.format("%s / %s",
                 Util.formatLargeFloatShort(totalSpent),
@@ -275,12 +281,6 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         totalYearly.setText(yearly_budget_string);
 
         // color percentage label
-        char percentageEval = Util.evaluatePercentage(current_percentage);
-        if (percentageEval == '+')
-            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorNegative)));
-        if (percentageEval == '-')
-            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorPositive)));
-        if (percentageEval == 'O')
-            totalPercentage.setBackground(Util.createBackground(getColor(R.color.colorNeutral)));
+        totalPercentage.setBackground(Util.evaluatePercentageBG(current_percentage, this));
     }
 }

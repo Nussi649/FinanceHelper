@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TableRow xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center">
+    <TextView
+        android:id="@+id/tv_account_name"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="@string/label_account_name_new"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_margin="5dp" />
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:background="@color/colorSubtleDistinction">
+        <CheckBox
+            android:id="@+id/cb_active"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text=""
+            android:layout_gravity="center"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="5dp"/>
+    </FrameLayout>
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent">
+        <CheckBox
+            android:id="@+id/cb_auto_renew"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:text=""
+            android:layout_gravity="center"
+            android:layout_marginStart="5dp"
+            android:layout_marginEnd="5dp"/>
+    </FrameLayout>
+    <ImageView
+        android:id="@+id/iv_trigger_renew"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:src="@drawable/ic_transfer_arrow_24"
+        android:padding="5dp"
+        android:background="@color/colorSubtleDistinction" />
+
+</TableRow>

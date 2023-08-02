@@ -13,24 +13,28 @@
 
     <!-- Labels -->
         <!-- General -->
-    <string name="label_time">Datum</string>
+    <string name="label_date">Datum</string>
+    <string name="label_time">Uhrzeit</string>
     <string name="label_save">Speichern</string>
     <string name="label_description">Bezeichnung</string>
     <string name="label_amount">Betrag</string>
     <string name="label_currency">€</string>
     <string name="label_file">Datei</string>
-    <string name="label_file_name">Dateiname:</string>
-    <string name="label_or_file_name">oder:\nDateiname:</string>
+    <string name="label_file_name">Dateiname</string>
     <string name="label_settings">Einstellungen</string>
     <string name="label_are_u_sure">Sind Sie sicher?</string>
         <!--Account/Budget related -->
+    <string name="label_delta">&#x0394;</string>
     <string name="label_sum_tx">&#x03A3;</string>
     <string name="label_sum_total">Total &#x03A3;</string>
     <string name="label_save_accounts">Speichern unter…</string>
     <string name="label_load_accounts">Laden…</string>
     <string name="label_edit_savefile">Bearbeiten…</string>
-    <string name="label_new_account">Neues Konto</string>
-    <string name="label_new_accountname">Name</string>
+    <string name="label_account_new">Neues Konto</string>
+    <string name="label_account_name_new">Kontoname</string>
+    <string name="label_account_renewal">Periodizität</string>
+    <string name="label_renewal_period">Periode</string>
+    <string name="label_next_renewal">Nächste Ausführung</string>
     <string name="label_hidden">verstecken</string>
     <string name="label_delete_account">Konto löschen</string>
     <string name="label_budgets">Budgets</string>
@@ -41,6 +45,9 @@
     <string name="label_sub_budget_new">Neues Teilbudget</string>
     <string name="label_sub_budget_transfer">Teilbudget transferieren</string>
     <string name="label_sub_budget_select">Teilbudget auswählen</string>
+    <string name="label_project_name">Projektname</string>
+    <string name="label_project_budget">Projektbudget</string>
+    <string name="label_project_budget_new">Neues Projektbudget</string>
     <string name="label_available_budget">Verfügbares Budget</string>
     <string name="label_available_budget_adjust">Verfügbares Budget anpassen</string>
     <string name="label_available_budget_transfer">Verfügbares Budget senden</string>
@@ -48,9 +55,9 @@
     <string name="label_yearly_budget_set">Jahresbudget eintragen</string>
     <string name="label_yearly_budget_edit">Jahresbudget bearbeiten</string>
     <string name="label_yearly_budget_adjust">Jahresbudgets anpassen</string>
-    <string name="label_filter_accounts">Kontofilter</string>
         <!-- Transaction related -->
     <string name="label_recurring_orders">Daueraufträge</string>
+    <string name="label_transaction_edit">Transaktion bearbeiten</string>
     <string name="label_transaction_redirection_select_target">Zielkonto auswählen</string>
     <string name="label_add_entry">Einzeleintrag speichern</string>
     <string name="label_add_recurring_order">Dauerauftrag\n speichern</string>
@@ -64,12 +71,17 @@
     <string name="label_income_list">Einkommensliste</string>
     <string name="label_immediate_expenses">Unmittelbare Ausgaben</string>
         <!-- Export/Import -->
-    <string name="label_export">Exportieren</string>
-    <string name="label_import">Importieren</string>
+    <string name="label_export_code">Code Exportieren</string>
+    <string name="label_import_code">Code Importieren</string>
         <!-- Expand/Collapse -->
     <string name="label_expand_all">Ausklappen</string>
     <string name="label_collapse_all">Einklappen</string>
-        <!-- Miscellaneous -->
+        <!-- Settings -->
+    <string name="label_account_settings">Kontoeinstellungen</string>
+    <string name="label_account_active">Aktiv</string>
+    <string name="label_account_auto_renew">Auto\nRenew</string>
+    <string name="label_account_trigger_renew">Renew\ndurchführen</string>
+    <!-- Miscellaneous -->
     <string name="label_filter">Filtern…</string>
 
     <!-- Toasts -->
@@ -89,6 +101,7 @@
     <string name="toast_success_write_save_file">Die Konten wurden erfolgreich gespeichert.</string>
     <string name="toast_success_file_deleted">Die Datei wurde gelöscht.</string>
     <string name="toast_success_accounts_imported">Accounts erfolgreich importiert.</string>
+    <string name="toast_success_account_renewed">Konto erfolgreich zurückgesetzt.</string>
     <string name="toast_success_settings_loaded">Einstellungen wurden erfolgreich geladen.</string>
         <!-- Error -->
     <string name="toast_error_unknown">Ein unbekannter Fehler ist aufgetreten.</string>
@@ -104,6 +117,8 @@
     <string name="toast_error_account_name_taken">Es existiert bereits ein Konto mit diesem Namen.</string>
     <string name="toast_error_empty_amount">Es ist kein Betrag angegeben.</string>
     <string name="toast_error_empty_name">Es ist kein Name angegeben.</string>
+    <string name="toast_error_empty_renewal_period">Es ist keine Periode angegeben.</string>
+    <string name="toast_error_empty_next_renewal">Es ist kein nächster Ausführungstermin angegeben.</string>
     <string name="toast_error_no_receiver_selected">Es wurde kein Empfänger ausgewählt.</string>
     <string name="toast_error_invalid_amount">Der angegebene Betrag enthält ungültige Zeichen.</string>
     <string name="toast_error_invalid_request">Ungültige Anfrage.</string>
@@ -115,6 +130,9 @@
     <string name="toast_error_IOError">Es ist ein Fehler beim Schreiben der Speicherdatei aufgetreten. Es wurden keine Änderungen vorgenommen.</string>
         <!-- Info -->
     <string name="toast_info_blank_accounts">Es wurden leere Konten geladen.</string>
+
+    <!-- Snackbar -->
+    <string name="snackbar_tx_deleted">Transaktion gelöscht</string>
 
     <!-- Questions -->
     <string name="question_delete_savefile">Wollen Sie wirklich den aktuellen Speicherstand löschen?</string>
@@ -130,4 +148,5 @@
     <string name="dummy_current_value">aktuell</string>
     <string name="dummy_current_percentage">rel.</string>
     <string name="dummy_yearly_budget">Jahr</string>
+    <string name="dummy_renewal">1M (2024–01)</string>
 </resources>

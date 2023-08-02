@@ -7,6 +7,26 @@
     android:layout_height="wrap_content"
     android:padding="8dp">
 
+    <LinearLayout
+        android:id="@+id/renewal_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_gravity="center_horizontal">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:text="@string/label_account_renewal" />
+        <TextView
+            android:id="@+id/tv_renewal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="3dp"
+            android:text="@string/dummy_renewal"
+            android:background="@drawable/bg_default_button"/>
+    </LinearLayout>
+
 
     <include layout="@layout/component_card_total_sums"
         android:id="@+id/container_total_sum"/>
@@ -57,7 +77,7 @@
             android:id="@+id/sub_budget_overview_table_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:stretchColumns="*">
+            android:stretchColumns="1">
 
             <!-- BudgetAccountTableRow objects will be added here programmatically -->
 

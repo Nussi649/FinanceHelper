@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_date"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="5dp"
+        android:gravity="center"
+        android:text="@string/label_date"
+        android:background="@drawable/bg_default_button" />
+
+    <TextView
+        android:id="@+id/tv_time"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:padding="5dp"
+        android:gravity="center"
+        android:text="@string/label_time"
+        android:background="@drawable/bg_default_button" />
+
+    <EditText
+        android:id="@+id/et_description"
+        android:layout_margin="3dp"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:inputType="text"
+        android:hint="@string/label_description" />
+
+    <EditText
+        android:id="@+id/et_amount"
+        android:layout_margin="3dp"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:inputType="numberDecimal"
+        android:hint="@string/label_amount" />
+
+</LinearLayout>

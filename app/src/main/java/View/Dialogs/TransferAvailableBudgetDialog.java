@@ -7,7 +7,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
@@ -25,7 +24,6 @@ public abstract class TransferAvailableBudgetDialog {
     // View objects
     EditText amountInput;
     Spinner recipientSpinner;
-    CheckBox applyToYearlyBudget;
 
     public TransferAvailableBudgetDialog(Context context, List<BudgetAccountBE> allBudgetAccounts, BudgetAccountBE self) {
         this.context = context;
@@ -33,7 +31,7 @@ public abstract class TransferAvailableBudgetDialog {
         this.allBudgetAccounts.remove(self);
     }
 
-    public abstract void onConfirm(float amount, BudgetAccountBE selectedAccount, boolean applyToYearly);
+    public abstract void onConfirm(float amount, BudgetAccountBE selectedAccount);
 
     @SuppressLint("InflateParams")
     public void show() {
@@ -43,7 +41,6 @@ public abstract class TransferAvailableBudgetDialog {
         View view = inflater.inflate(R.layout.dialog_transfer_budget, null);
         amountInput = view.findViewById(R.id.amount_input);
         recipientSpinner = view.findViewById(R.id.recipient_spinner);
-        applyToYearlyBudget = view.findViewById(R.id.apply_to_yearly_budget);
 
         // Set up the spinner
         ArrayAdapter<BudgetAccountBE> adapter = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, allBudgetAccounts);
@@ -68,9 +65,8 @@ public abstract class TransferAvailableBudgetDialog {
                 else {
                     float amount = (float) Double.parseDouble(amountString);
                     BudgetAccountBE selectedAccount = (BudgetAccountBE) recipientSpinner.getSelectedItem();
-                    boolean applyToYearly = applyToYearlyBudget.isChecked();
 
-                    onConfirm(amount, selectedAccount, applyToYearly);
+                    onConfirm(amount, selectedAccount);
                     dialog.dismiss();
                 }
             });

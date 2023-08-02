@@ -4,7 +4,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -20,7 +19,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.Const;
 import Backend.Util;
 import Logic.AccountBE;
 import View.AccountWidget;
@@ -46,13 +44,21 @@ public class AssetsActivity extends AbstractActivity {
         // only act, if activity has already been visited before
         if (!passedOnCreate) {
             // check if loaded widgets still equal model.asset_accounts
-            boolean canRefresh = checkLists();
-            runOnUiThread(canRefresh ? new Runnable() {
-                @Override
-                public void run() {
-                    onRefresh();
-                }
-            } : new Runnable() {
+//            boolean canRefresh = checkLists();
+//            runOnUiThread(canRefresh ? new Runnable() {
+//                @Override
+//                public void run() {
+//                    onRefresh();
+//                }
+//            } : new Runnable() {
+//                @Override
+//                public void run() {
+//                    reloadContent();
+//                }
+//            });
+            // for now no easy way identified to check, if reload is necessary or refresh suffices
+            // reload could be required not only if not all accounts are loaded but also if transactions within account differ
+            runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
                     reloadContent();
@@ -62,18 +68,11 @@ public class AssetsActivity extends AbstractActivity {
     }
 
     protected void populateUI() {
-        try {
-            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
-            String monthName = Const.getMonthNameById(parts.month - 1);
-            setCustomTitle(monthName + ":");
-            setCustomTitleDetails(getString(R.string.label_assets));
-        } catch (IllegalArgumentException e) {
-            Log.println(Log.ERROR, "parse_file_name", e.toString());
-        }
         for (AccountBE a : model.asset_accounts) {
             if (a.getIsActive())
                 addAccountToUI(a);
         }
+        setCustomTitle();
     }
 
     @Override
@@ -160,7 +159,7 @@ public class AssetsActivity extends AbstractActivity {
 
     protected void showNewAccountDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(R.string.label_new_account);
+        builder.setTitle(R.string.label_account_new);
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_new_account, null);
         final EditText newAccountName = dialogView.findViewById(R.id.edit_new_account_name);
         builder.setView(dialogView);
@@ -194,8 +193,17 @@ public class AssetsActivity extends AbstractActivity {
     }
 
     @Override
+    protected void setCustomTitle() {
+        super.setCustomTitle();
+        String titleDetails = getString(R.string.label_assets) + String.format("  %sx",
+                Util.formatLargeFloatShort(model.sumAllAssets())).replace("x", getString(R.string.label_currency));
+        setCustomTitleDetails(titleDetails);
+    }
+
+    @Override
     public void onRefresh() {
         refreshContent();
+        setCustomTitle();
     }
 
     // region util

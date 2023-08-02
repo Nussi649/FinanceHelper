@@ -24,9 +24,11 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.List;
 
+import Backend.Const;
 import Backend.Controller;
 import Backend.Model;
 import Backend.RefreshListener;
+import Backend.Util;
 
 public abstract class AbstractActivity extends AppCompatActivity implements RefreshListener {
     Controller controller = Controller.instance;
@@ -60,7 +62,7 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         }).start();
     }
 
-    private void setupActionBar() {
+    protected void setupActionBar() {
         try {
             // set custom Action Bar
             getSupportActionBar().setDisplayOptions(ActionBar.DISPLAY_SHOW_CUSTOM);
@@ -217,7 +219,7 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
             showToast(R.string.toast_success_settings_loaded);
         else
             showToast(R.string.toast_error_settings_not_loaded);
-        List<String> availableEntities = controller.getCurrentAvailableEntities();
+        List<String> availableEntities = controller.getAllAvailableEntities();
         if (availableEntities.size() > 0)
             model.availableEntities = availableEntities;
     }
@@ -239,5 +241,16 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
 
     protected void setCustomTitleDetails(String value) {
         titleDetailsView.setText(value);
+    }
+
+    protected void setCustomTitle() {
+        // set Activity title
+        try {
+            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
+            String monthName = Const.getMonthNameById(parts.month - 1);
+            setCustomTitle(monthName + ":");
+        } catch (IllegalArgumentException e) {
+            Log.println(Log.ERROR, "parse_file_name", e.toString());
+        }
     }
 }

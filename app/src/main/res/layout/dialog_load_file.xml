@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp"
+    android:gravity="center_horizontal">
+
+    <Button
+        android:id="@+id/button_import"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:text="@string/label_import_code"/>
+
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="250dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="10dp"
+        android:padding="5dp"
+        android:background="@drawable/bg_primary_light_rounded_10dp">
+
+        <LinearLayout
+            android:id="@+id/layout_available_files"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"/>
+    </ScrollView>
+
+    <EditText
+        android:id="@+id/edit_load_name"
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:hint="@string/label_file_name"/>
+
+</LinearLayout>

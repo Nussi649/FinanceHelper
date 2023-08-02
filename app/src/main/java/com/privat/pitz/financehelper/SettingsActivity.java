@@ -2,15 +2,10 @@ package com.privat.pitz.financehelper;
 
 import android.os.Bundle;
 import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
+import android.widget.ImageView;
 import android.widget.TableLayout;
-import android.widget.TableRow;
-
-import java.util.ArrayList;
-import java.util.List;
+import android.widget.TextView;
 
 import Logic.AccountBE;
 
@@ -24,59 +19,55 @@ public class SettingsActivity extends AbstractActivity {
     @Override
     protected void endWorkingThread() {
         populateUI();
+        setCustomTitle();
     }
 
     private void populateUI() {
-        TableLayout content = findViewById(R.id.layout_filter_container);
-        List<AccountBE> allAccounts = new ArrayList<>();
-        allAccounts.addAll(model.asset_accounts);
-        allAccounts.addAll(model.budget_accounts);
-        int size = allAccounts.size();
-        for (int i = 0; i<size/2; i++) {
-            final CheckBox check1 = new CheckBox(this);
-            check1.setText(allAccounts.get(2*i).getName());
-            check1.setChecked(allAccounts.get(2*i).getIsActive());
-            check1.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    model.getAccountByName(check1.getText().toString()).setActive(b);
-                }
+        // Get a reference to the TableLayout in the activity_settings layout
+        TableLayout layoutContainer = findViewById(R.id.layout_container);
+
+        // For each account in the model's accounts
+        for (AccountBE account : model.getAllAccounts()) {
+            // Inflate the list_item_account_settings layout and initialize the views
+            View view = getLayoutInflater().inflate(R.layout.list_item_account_settings, layoutContainer, false);
+
+            // Get references to the views in the list_item_account_settings layout
+            TextView tvName = view.findViewById(R.id.tv_account_name);
+            CheckBox cbActive = view.findViewById(R.id.cb_active);
+            CheckBox cbAutoRenew = view.findViewById(R.id.cb_auto_renew);
+            ImageView ivRenew = view.findViewById(R.id.iv_trigger_renew);
+
+            // Set the account name tv text
+            tvName.setText(account.toString());
+
+            // Set the state of the checkboxes based on the account's properties
+            cbActive.setChecked(account.getIsActive());
+            cbAutoRenew.setChecked(account.getAutoRenew());
+
+            // Set up a listener for the active checkbox to update the account's isActive property
+            cbActive.setOnCheckedChangeListener((buttonView, isChecked) -> account.setActive(isChecked));
+
+            // Set up a listener for the auto renew checkbox to update the account's autoRenew property
+            cbAutoRenew.setOnCheckedChangeListener((buttonView, isChecked) -> account.setAutoRenew(isChecked));
+
+            // Set up a listener for the renew ImageView to call the account's renew method
+            ivRenew.setOnClickListener(v -> {
+                account.tryRenew();
+                showToastLong(R.string.toast_success_account_renewed);
             });
-            check1.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0.5f));
-            final CheckBox check2 = new CheckBox(this);
-            check2.setText(allAccounts.get(2*i+1).getName());
-            check2.setChecked(allAccounts.get(2*i+1).getIsActive());
-            check2.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    model.getAccountByName(check2.getText().toString()).setActive(b);
-                }
-            });
-            check2.setLayoutParams(new TableRow.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, 0.5f));
-            TableRow row = new TableRow(this);
-            row.addView(check1);
-            row.addView(check2);
-            content.addView(row);
+
+            // Add the initialized list_item_account_settings view to the layoutContainer TableLayout
+            layoutContainer.addView(view);
         }
-        if (size % 2 == 1) {
-            final CheckBox check = new CheckBox(this);
-            check.setText(allAccounts.get(size-1).getName());
-            check.setChecked(allAccounts.get(size-1).getIsActive());
-            check.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    model.getAccountByName(check.getText().toString()).setActive(b);
-                }
-            });
-            TableRow row = new TableRow(this);
-            row.addView(check);
-            content.addView(row);
-        }
-        setCustomTitle(getString(R.string.label_settings) + ":");
     }
 
     @Override
     public void onRefresh() {
 
+    }
+
+    @Override
+    public void setCustomTitle() {
+        setCustomTitle(getString(R.string.label_account_settings));
     }
 }

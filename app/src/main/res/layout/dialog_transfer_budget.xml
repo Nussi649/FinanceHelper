@@ -40,12 +40,4 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp" />
 
-    <CheckBox
-        android:id="@+id/apply_to_yearly_budget"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/label_yearly_budget_adjust"
-        android:gravity="center_vertical"/>
-
 </LinearLayout>

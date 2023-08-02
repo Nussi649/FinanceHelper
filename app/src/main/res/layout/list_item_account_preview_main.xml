@@ -35,7 +35,7 @@
                 android:layout_weight="1"
                 android:singleLine="true"
                 android:layout_marginStart="5dp"
-                android:text="@string/label_new_accountname"
+                android:text="@string/label_account_name_new"
                 android:textSize="16sp"
                 android:ellipsize="marquee"
                 android:marqueeRepeatLimit="marquee_forever"

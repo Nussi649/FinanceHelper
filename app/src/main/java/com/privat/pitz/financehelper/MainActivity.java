@@ -5,7 +5,8 @@ import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Looper;
 import android.app.AlertDialog;
-import android.util.Log;
+import android.text.InputFilter;
+import android.text.Spanned;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -14,7 +15,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
-import android.widget.TableLayout;
 import android.widget.TextView;
 
 import org.json.JSONArray;
@@ -23,7 +23,6 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -33,7 +32,7 @@ import Backend.RbAccountManager;
 import Backend.Util;
 import View.Dialogs.AddIncomeDialog;
 import View.Dialogs.EditSourceCodeDialog;
-import View.Dialogs.IncomeListDialog;
+import View.Dialogs.CurrentIncomeDialog;
 import View.Dialogs.LoadFileDialog;
 import View.Dialogs.SaveFileDialog;
 import View.Dialogs.TransactionRedirectionDialog;
@@ -101,12 +100,7 @@ public class MainActivity extends AbstractActivity {
         // only act, if activity has already been visited before
         if (!passedOnCreate) {
             if (getModel().currentFileName != null)
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        onRefresh();
-                    }
-                });
+                runOnUiThread(this::onRefresh);
         }
     }
 
@@ -151,87 +145,81 @@ public class MainActivity extends AbstractActivity {
         Button addRecurringOrder = findViewById(R.id.button_add_recurring_order);
         newDescription = findViewById(R.id.edit_new_description);
         newAmount = findViewById(R.id.edit_new_amount);
-
-        open_assets_detailed.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(AssetsActivity.class);
-            }
+        newAmount.setFilters(new InputFilter[] {
+                (source, start, end, dest, dstart, dend) -> {
+                    for (int i = start; i < end; i++) {
+                        if (!Character.isDigit(source.charAt(i)) && source.charAt(i) != ',' && source.charAt(i) != '.') {
+                            return "";
+                        }
+                    }
+                    return null;
+                }
         });
 
-        open_budgets_detailed.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(BudgetsActivity.class);
-            }
-        });
+        open_assets_detailed.setOnClickListener(view -> startActivity(AssetsActivity.class));
+
+        open_budgets_detailed.setOnClickListener(view -> startActivity(BudgetsActivity.class));
 
         MainActivity parent = this;
-        addTx.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String des = newDescription.getText().toString();
-                String am = newAmount.getText().toString();
+        addTx.setOnClickListener(v -> {
+            String des = newDescription.getText().toString();
+            String am = newAmount.getText().toString();
 
-                if (des.equals("")) {
-                    showToastLong(R.string.toast_error_empty_description);
-                    return;
-                }
-                if (am.equals("")) {
-                    showToastLong(R.string.toast_error_empty_amount);
-                    return;
-                }
-                float amount = 0.0f;
-                try {
-                    amount = Float.parseFloat(am);
-                } catch (NumberFormatException e) {
-                    showToastLong(R.string.toast_error_invalid_amount);
-                    return;
-                }
-                // try creating a transaction and wait for result
-                boolean result = false;
-                try {
-                    result = controller.createTx(parent, des, amount);
-                } catch (JSONException | IOException e) {
-                    showErrorToast(e);
-                }
-                // if transaction was created successfully, clear input fields and show toast
-                if (result) {
-                    newDescription.setText("");
-                    newAmount.setText("");
-                    onRefresh();
-                    showToastLong(R.string.toast_success_new_entry);
-                }
+            if (des.equals("")) {
+                showToastLong(R.string.toast_error_empty_description);
+                return;
+            }
+            if (am.equals("")) {
+                showToastLong(R.string.toast_error_empty_amount);
+                return;
+            }
+            float amount = 0.0f;
+            try {
+                amount = Float.parseFloat(am.replace(",", "."));
+            } catch (NumberFormatException e) {
+                showToastLong(R.string.toast_error_invalid_amount);
+                return;
+            }
+            // try creating a transaction and wait for result
+            boolean result = false;
+            try {
+                result = controller.createTx(parent, des, amount);
+            } catch (JSONException | IOException e) {
+                showErrorToast(e);
+            }
+            // if transaction was created successfully, clear input fields and show toast
+            if (result) {
+                newDescription.setText("");
+                newAmount.setText("");
+                onRefresh();
+                showToastLong(R.string.toast_success_new_entry);
             }
         });
 
-        addRecurringOrder.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String amountString = newAmount.getText().toString().trim();
-                String description = newDescription.getText().toString().trim();
-                if (amountString.isEmpty()) {
-                    showToastLong(R.string.toast_error_empty_amount);
-                    return;
-                }
-                if (description.isEmpty()) {
-                    showToastLong(R.string.toast_error_empty_description);
-                    return;
-                }
+        addRecurringOrder.setOnClickListener(view -> {
+            String amountString = newAmount.getText().toString().trim();
+            String description = newDescription.getText().toString().trim();
+            if (amountString.isEmpty()) {
+                showToastLong(R.string.toast_error_empty_amount);
+                return;
+            }
+            if (description.isEmpty()) {
+                showToastLong(R.string.toast_error_empty_description);
+                return;
+            }
 
-                try {
-                    float amount = Float.parseFloat(amountString);
-                    boolean result = controller.addRecurringTx(parent, description, amount);
-                    if (result) {
-                        showToast(R.string.toast_success_new_recurring_tx);
-                        newDescription.setText("");
-                        newAmount.setText("");
-                    } else {
-                        showToastLong(R.string.toast_error_unknown);
-                    }
-                } catch (JSONException | IOException | NumberFormatException e) {
-                    showErrorToast(e);
+            try {
+                float amount = Float.parseFloat(amountString.replace(",", "."));
+                boolean result = controller.addRecurringTx(parent, description, amount);
+                if (result) {
+                    showToast(R.string.toast_success_new_recurring_tx);
+                    newDescription.setText("");
+                    newAmount.setText("");
+                } else {
+                    showToastLong(R.string.toast_error_unknown);
                 }
+            } catch (JSONException | IOException | NumberFormatException e) {
+                showErrorToast(e);
             }
         });
 
@@ -293,16 +281,16 @@ public class MainActivity extends AbstractActivity {
     }
 
     private void showIncomeListDialog() {
-        IncomeListDialog dialog = new IncomeListDialog(this, model.currentIncome);
+        CurrentIncomeDialog dialog = new CurrentIncomeDialog(this, model.currentIncome);
         dialog.show();
     }
 
     private void showSaveFileDialog() {
-        SaveFileDialog dialog = new SaveFileDialog(this) {
+        SaveFileDialog dialog = new SaveFileDialog(this, model.currentFileName) {
             @Override
             public void onConfirm(String saveName) {
                 try {
-                    getController().saveAccountsToInternal(saveName);
+                    getController().saveAccountsToInternal(saveName + Const.ACCOUNTS_FILE_TYPE);
                     showToastLong(R.string.toast_success_write_save_file);
                 } catch (JSONException | IOException e) {
                     showErrorToast(e);
@@ -324,7 +312,7 @@ public class MainActivity extends AbstractActivity {
             public void onConfirm(String filename) {
                 try {
                     controller.saveAppSettings();
-                    controller.readAccountsFromInternal(filename);
+                    controller.readAccountsFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
                     onRefresh();
                 } catch (JSONException | IOException e) {
                     showErrorToast(e);
@@ -338,14 +326,11 @@ public class MainActivity extends AbstractActivity {
 
             @Override
             public void onDelete(String filename) {
-                AlertDialog.OnClickListener listener = new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        if (getController().deleteSavefile(filename)) {
-                            showToastLong(R.string.toast_success_file_deleted);
-                        } else {
-                            showToastLong(R.string.toast_error_unknown);
-                        }
+                AlertDialog.OnClickListener listener = (dialog1, which) -> {
+                    if (getController().deleteSavefile(filename)) {
+                        showToastLong(R.string.toast_success_file_deleted);
+                    } else {
+                        showToastLong(R.string.toast_error_unknown);
                     }
                 };
                 showConfirmDialog(R.string.question_delete_savefile, listener);
@@ -356,7 +341,7 @@ public class MainActivity extends AbstractActivity {
 
     private void showExportDialog() {
         AlertDialog dialog = getBasicEditDialog();
-        dialog.setTitle(R.string.label_export);
+        dialog.setTitle(R.string.label_export_code);
         dialog.show();
         EditText showExport = dialog.findViewById(R.id.edit_text);
         try {
@@ -366,30 +351,22 @@ public class MainActivity extends AbstractActivity {
             dialog.dismiss();
             return;
         }
-        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.confirm), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.confirm), (dialog1, which) -> dialog1.dismiss());
     }
 
     private void showImportDialog() {
         AlertDialog dialog = getBasicEditDialog();
-        dialog.setTitle(R.string.label_import);
+        dialog.setTitle(R.string.label_import_code);
         dialog.show();
         EditText showImport = dialog.findViewById(R.id.edit_text);
-        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.label_import), new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                try {
-                    getController().importAccounts(showImport.getText().toString());
-                    showToast(R.string.toast_success_accounts_imported);
-                } catch (JSONException e) {
-                    showErrorToast(e);
-                }
-                dialog.dismiss();
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.label_import_code), (dialogInterface, i) -> {
+            try {
+                getController().importAccounts(showImport.getText().toString());
+                showToast(R.string.toast_success_accounts_imported);
+            } catch (JSONException e) {
+                showErrorToast(e);
             }
+            dialog.dismiss();
         });
     }
 
@@ -428,17 +405,12 @@ public class MainActivity extends AbstractActivity {
     @Override
     public void onRefresh() {
         reloadAccountLists();
-        try {
-            Util.FileNameParts parts = Util.parseFileName(getModel().currentFileName);
-            String monthName = Const.getMonthNameById(parts.month - 1);
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    setCustomTitle(String.format("%s:", monthName));
-                }
-            });
-        } catch (IllegalArgumentException e) {
-            Log.println(Log.ERROR, "parse_file_name", e.toString());
-        }
+        setupActionBar();
+        setCustomTitle();
+        float delta = model.sumAllIncome() - model.sumAllExpenses();
+        String firstOrder = String.format("%sx",
+                Util.formatLargeFloatShort(delta >= 0 ? delta : -delta)).replace("x", getString(R.string.label_currency));
+        String titleDetails = getString(R.string.label_delta) + String.format(delta >= 0 ? " %s" : " (%s)", firstOrder);
+        setCustomTitleDetails(titleDetails);
     }
 }

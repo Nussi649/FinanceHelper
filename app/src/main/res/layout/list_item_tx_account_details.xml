@@ -3,16 +3,15 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
+    android:gravity="center_vertical"
     android:weightSum="1.0">
 
     <TextView
         android:id="@+id/label_time"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_weight="0.25"
-        android:layout_marginTop="5dp"
-        android:layout_marginStart="10dp"
-        android:text="@string/label_time" />
+        android:layout_marginEnd="5dp"
+        android:text="@string/label_date" />
 
     <View
         android:layout_width="2dp"
@@ -23,7 +22,7 @@
         android:id="@+id/label_description"
         android:layout_height="wrap_content"
         android:layout_width="0dp"
-        android:layout_weight="0.55"
+        android:layout_weight="0.7"
         android:singleLine="true"
         android:ellipsize="marquee"
         android:marqueeRepeatLimit="marquee_forever"
@@ -68,7 +67,7 @@
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="0dp"
-        android:layout_weight="0.2"
+        android:layout_weight="0.3"
         android:layout_height="wrap_content"
         android:layout_marginEnd="4dp"
         android:gravity="end">
@@ -79,7 +78,6 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/label_amount"
-            android:layout_marginTop="5dp"
             android:textAlignment="viewEnd" />
 
 <!--        Alternative using ViewSwitcher, currently buggy-->
@@ -111,7 +109,6 @@
             android:id="@+id/eurosign"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/label_currency"
-            android:layout_marginTop="5dp"/>
+            android:text="@string/label_currency"/>
     </LinearLayout>
 </LinearLayout>

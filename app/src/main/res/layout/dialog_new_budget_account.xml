@@ -47,10 +47,11 @@
             android:hint="@string/label_available_budget" />
 
         <TextView
+            android:id="@+id/euro_sign"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_gravity="center"
             android:text="@string/label_currency"
-            android:textSize="16sp"
-            android:layout_gravity="center" />
+            android:textSize="16sp" />
     </LinearLayout>
 </LinearLayout>
