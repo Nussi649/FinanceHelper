@@ -540,7 +540,7 @@ public class Controller {
         if (to_acc instanceof BudgetAccountBE) {
             BudgetAccountBE to_budgetAcc = (BudgetAccountBE) to_acc;
             String otherEntity = to_budgetAcc.getOtherEntity();
-            if (otherEntity != null && !otherEntity.equals(""))
+            if (otherEntity != null && !otherEntity.isEmpty())
                 result = startTxRedirection(parentActivity, otherEntity, desc, amount);
         }
         if (result) {
@@ -822,8 +822,8 @@ public class Controller {
 
     private void triggerRecurringTx() throws JSONException, IOException {
         class AccountTxCombo {
-            AccountBE account;
-            TxBE tx;
+            final AccountBE account;
+            final TxBE tx;
 
             public AccountTxCombo(AccountBE acc, TxBE tx) {
                 this.account = acc;
@@ -889,6 +889,18 @@ public class Controller {
     // endregion
 
     // region Account Handling
+    public void sortAllTransactions() {
+        for (AccountBE account : model.asset_accounts) {
+            account.sortTxByDate();
+        }
+        for (BudgetAccountBE budgetAccount : model.budget_accounts) {
+            budgetAccount.sortTxByDate();
+            for (BudgetAccountBE subBudget : budgetAccount.getAllSubBudgets()) {
+                subBudget.sortTxByDate();
+            }
+        }
+    }
+
     public AccountBE createAssetAccount(String name) throws JSONException, IOException {
         // check if name is already in use
         AccountBE similarName = model.getAccountByName(name);
@@ -1137,7 +1149,7 @@ public class Controller {
             if (blank) {
                 resetAccountLists();
                 return CREATED_BLANK;
-            } else if (model.currentEntity == null || model.currentEntity.equals("")) {
+            } else if (model.currentEntity == null || model.currentEntity.isEmpty()) {
                 // no current entity stored in model. loadEntity won't know what to load. crash safely
                 Log.println(Log.ERROR, "load_accounts",
                         "Error loading default entity: no entity available in model. Loading no accounts.");
@@ -1203,7 +1215,7 @@ public class Controller {
         for (BudgetAccountBE budget_account : model.budget_accounts) {
             transformed_budget_accounts.add(budget_account);
             List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
-            if (sub_budgets.size() > 0)
+            if (!sub_budgets.isEmpty())
                 transformed_budget_accounts.addAll(sub_budgets);
 
         }
@@ -1258,11 +1270,11 @@ public class Controller {
         // then transform budget accounts and first order sub budgets
         List<AccountBE> transformed_budget_accounts = new ArrayList<>();
         for (BudgetAccountBE budget_account : model.budget_accounts) {
-            transformed_budget_accounts.add((AccountBE) budget_account);
+            transformed_budget_accounts.add(budget_account);
             List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
-            if (sub_budgets.size() > 0)
+            if (!sub_budgets.isEmpty())
                 for (BudgetAccountBE sub_budget : sub_budgets)
-                    transformed_budget_accounts.add((AccountBE) sub_budget);
+                    transformed_budget_accounts.add(sub_budget);
 
         }
         // and add to toSearch list

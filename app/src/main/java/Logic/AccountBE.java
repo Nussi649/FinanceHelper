@@ -74,9 +74,13 @@ public class AccountBE {
     }
 
     public void dropLastTx() {
-        if (txList.size() == 0)
+        if (txList.isEmpty())
             return;
         txList.remove(txList.size() -1);
+    }
+
+    public void sortTxByDate() {
+        txList.sort((o1, o2) -> o1.getDate().compareTo(o2.getDate()));
     }
     //endregion
 

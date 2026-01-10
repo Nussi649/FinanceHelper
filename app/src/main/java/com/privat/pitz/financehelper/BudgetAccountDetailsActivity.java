@@ -139,7 +139,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     @Override
     protected boolean hasEntries() {
         // needs to override because mAccount is different from parent's mAccount
-        return mAccount.getTxList().size() > 0;
+        return !mAccount.getTxList().isEmpty();
     }
 
     @Override
@@ -164,12 +164,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         } else {
             String renewalString = String.format(Locale.US, "%01dM (%s)", mAccount.getRenewalPeriod(), mAccount.getNextRenewal());
             tvRenewal.setText(renewalString);
-            tvRenewal.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    showEditRenewalDialog();
-                }
-            });
+            tvRenewal.setOnClickListener(v -> showEditRenewalDialog());
         }
         // populate sub budget entries
         // remove all table rows (there is no header)
@@ -392,11 +387,6 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         budgetViews = new ArrayList<>();
         loadSubBudgets();
         // This will ensure your UI is up-to-date with the current state of budgetViews
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                populateUI();
-            }
-        });
+        runOnUiThread(this::populateUI);
     }
 }

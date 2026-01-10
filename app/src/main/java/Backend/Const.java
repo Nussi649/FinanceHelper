@@ -50,29 +50,29 @@ public class Const {
 
     public static String getMonthNameById(int month) {
         if (month == 0)
-            return "January";
+            return "Jan";
         if (month == 1)
-            return "February";
+            return "Feb";
         if (month == 2)
-            return "March";
+            return "Mar";
         if (month == 3)
-            return "April";
+            return "Apr";
         if (month == 4)
             return "May";
         if (month == 5)
-            return "June";
+            return "Jun";
         if (month == 6)
-            return "July";
+            return "Jul";
         if (month == 7)
-            return "August";
+            return "Aug";
         if (month == 8)
-            return "September";
+            return "Sep";
         if (month == 9)
-            return "October";
+            return "Oct";
         if (month == 10)
-            return "November";
+            return "Nov";
         if (month == 11)
-            return "December";
+            return "Dec";
         return null;
     }
 
