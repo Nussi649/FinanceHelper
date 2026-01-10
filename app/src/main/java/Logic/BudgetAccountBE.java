@@ -212,7 +212,7 @@ public class BudgetAccountBE extends AccountBE{
     @Override
     public void tryRenew() {
         try {
-            if (!Util.isAfter(nextRenewal, Util.getCurrentPeriod())) {
+            if (!Util.isAfter(nextRenewal, Util.getPresentPeriod())) {
                 indivAvailableBudget += getMeanAllottedIndivBudget() - getSum();
                 txList = new ArrayList<>();
                 incrementRenewalPeriod();

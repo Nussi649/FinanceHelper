@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import Backend.BudgetAccountListHandler;
-import Backend.Const;
 import Backend.Util;
 import Logic.BudgetAccountBE;
 import View.BudgetAccountTableRow;
@@ -68,25 +67,22 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         totalPercentage = findViewById(R.id.total_current_percentage);
         totalYearly = findViewById(R.id.total_yearly_budget);
         expandCollapse = findViewById(R.id.label_expand_contract);
-        expandCollapse.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String currentState = expandCollapse.getText().toString();
-                // initiate icon with value for collapse to please compiler
-                Drawable icon = ContextCompat.getDrawable(context, R.drawable.ic_collapse_24);
-                if (currentState.equals(getString(R.string.label_expand_all))) {
-                    expandAll();
-                    expandCollapse.setText(R.string.label_collapse_all);
-                } else if (currentState.equals(getString(R.string.label_collapse_all))) {
-                    collapseAll();
-                    expandCollapse.setText(R.string.label_expand_all);
-                    // overwrite with value for expand if necessary
-                    icon = ContextCompat.getDrawable(context, R.drawable.ic_expand_24);
-                } else {
-                    Log.println(Log.INFO, "budgets_overview", "Unexpected Text of Expand/Reduce button! Did not perform any action.");
-                }
-                expandCollapse.setCompoundDrawablesWithIntrinsicBounds(icon, null, null, null);
+        expandCollapse.setOnClickListener(v -> {
+            String currentState = expandCollapse.getText().toString();
+            // initiate icon with value for collapse to please compiler
+            Drawable icon = ContextCompat.getDrawable(context, R.drawable.ic_collapse_24);
+            if (currentState.equals(getString(R.string.label_expand_all))) {
+                expandAll();
+                expandCollapse.setText(R.string.label_collapse_all);
+            } else if (currentState.equals(getString(R.string.label_collapse_all))) {
+                collapseAll();
+                expandCollapse.setText(R.string.label_expand_all);
+                // overwrite with value for expand if necessary
+                icon = ContextCompat.getDrawable(context, R.drawable.ic_expand_24);
+            } else {
+                Log.println(Log.INFO, "budgets_overview", "Unexpected Text of Expand/Reduce button! Did not perform any action.");
             }
+            expandCollapse.setCompoundDrawablesWithIntrinsicBounds(icon, null, null, null);
         });
         populateUI();
         setCustomTitle();
@@ -96,7 +92,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     protected void setCustomTitle() {
         super.setCustomTitle();
         String titleDetails = getString(R.string.label_budgets) + String.format("  %sx",
-                Util.formatLargeFloatShort(model.sumCurrentPeriodExpenses())).replace("x", getString(R.string.label_currency));
+                Util.formatLargeFloatShort(model.sumLoadedPeriodExpenses())).replace("x", getString(R.string.label_currency));
         setCustomTitleDetails(titleDetails);
     }
 
@@ -135,12 +131,9 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         budgetViews = new ArrayList<>();
         loadBudgets();
         // This will ensure your UI is up-to-date with the current state of budgetViews
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                clearTable();
-                populateUI();
-            }
+        runOnUiThread(() -> {
+            clearTable();
+            populateUI();
         });
         setCustomTitle();
     }

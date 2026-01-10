@@ -2,7 +2,6 @@ package com.privat.pitz.financehelper;
 
 import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
@@ -15,10 +14,10 @@ import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.widget.SearchView;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.snackbar.Snackbar;
@@ -193,7 +192,7 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
     }
 
     protected boolean hasEntries() {
-        return mAccount.getTxList().size() > 0;
+        return !mAccount.getTxList().isEmpty();
     }
 
     protected void populateUI() {
@@ -269,6 +268,7 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
             @Override
             public void onConfirm(TxBE tx) {
                 try {
+                    sortAccountTx();
                     controller.saveAccountsToInternal();
                     onRefresh();
                 } catch (JSONException | IOException e) {
@@ -312,6 +312,10 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
             }
         });
         snackbar.show();
+    }
+
+    protected void sortAccountTx() {
+        mAccount.sortTxByDate();
     }
 
     protected void deleteAccount() {

@@ -94,7 +94,7 @@ public abstract class Util {
             // get all children (down every hierarchy layer)
             List<ListItemAccountPreview> children = newItem.getAllChildren();
             // abort if there are none
-            if (children.size() == 0)
+            if (children.isEmpty())
                 continue;
             // iterate through all children
             for (ListItemAccountPreview child : children) {
@@ -160,7 +160,7 @@ public abstract class Util {
             // get all children (down every hierarchy layer)
             List<ListItemAccountPreview> children = newItem.getAllChildren();
             // abort if there are none
-            if (children.size() == 0)
+            if (children.isEmpty())
                 continue;
             // iterate through all children
             for (ListItemAccountPreview child : children) {
@@ -390,7 +390,7 @@ public abstract class Util {
         return !(year < 2000 || year > 2050 || month < 1 || month > 12);
     }
 
-    public static String getCurrentPeriod() {
+    public static String getPresentPeriod() {
         Calendar calendar = Calendar.getInstance();
         // get current period in format YYYY-MM
         String month = String.format(Locale.US, "%02d", calendar.get(Calendar.MONTH) + 1); // Calendar.MONTH is zero-based
@@ -792,7 +792,7 @@ public abstract class Util {
 
         // add sub budgets
         List<BudgetAccountBE> sub_budgets = budgetAccount_in.getDirectSubBudgets();
-        if (sub_budgets != null && sub_budgets.size() > 0) {
+        if (sub_budgets != null && !sub_budgets.isEmpty()) {
             JSONArray sub_budgets_json = new JSONArray();
             for (BudgetAccountBE sub_budget : sub_budgets) {
                 JSONObject sub_budget_json = serialise_BudgetAccount(sub_budget);

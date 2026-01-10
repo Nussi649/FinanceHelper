@@ -90,8 +90,7 @@ public class Model {
 
     public List<AccountBE> getAllAccounts() {
         List<AccountBE> result = new ArrayList<>(asset_accounts);
-        for (BudgetAccountBE budgetAcc : getAllBudgetAccounts())
-            result.add((AccountBE) budgetAcc);
+        result.addAll(getAllBudgetAccounts());
         return result;
     }
 
@@ -137,8 +136,8 @@ public class Model {
         return sum;
     }
 
-    public float sumCurrentPeriodExpenses() {
-        String period = Util.getCurrentPeriod();
+    public float sumLoadedPeriodExpenses() {
+        String period = currentFileName.substring(0, 7);
         float sum = 0.0f;
         List<BudgetAccountBE> allBudgets = getAllBudgetAccounts();
         for (BudgetAccountBE acc : allBudgets) {

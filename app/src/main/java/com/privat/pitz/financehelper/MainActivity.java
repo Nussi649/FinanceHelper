@@ -162,15 +162,15 @@ public class MainActivity extends AbstractActivity {
             String des = newDescription.getText().toString();
             String am = newAmount.getText().toString();
 
-            if (des.equals("")) {
+            if (des.isEmpty()) {
                 showToastLong(R.string.toast_error_empty_description);
                 return;
             }
-            if (am.equals("")) {
+            if (am.isEmpty()) {
                 showToastLong(R.string.toast_error_empty_amount);
                 return;
             }
-            float amount = 0.0f;
+            float amount;
             try {
                 amount = Float.parseFloat(am.replace(",", "."));
             } catch (NumberFormatException e) {
@@ -373,6 +373,7 @@ public class MainActivity extends AbstractActivity {
             public void onConfirm(String newContent) {
                 try {
                     getController().importAccounts(newContent);
+                    getController().sortAllTransactions();
                     showToast(R.string.toast_success_accounts_imported);
                 } catch (JSONException e) {
                     showErrorToast(e);
@@ -408,7 +409,7 @@ public class MainActivity extends AbstractActivity {
 
     public void setTitle() {
         setCustomTitle();
-        float delta = model.sumAllIncome() - model.sumCurrentPeriodExpenses();
+        float delta = model.sumAllIncome() - model.sumLoadedPeriodExpenses();
         String firstOrder = String.format("%sx",
                 Util.formatLargeFloatShort(delta >= 0 ? delta : -delta)).replace("x", getString(R.string.label_currency));
         String titleDetails = getString(R.string.label_delta) + String.format(delta >= 0 ? " %s" : " (%s)", firstOrder);

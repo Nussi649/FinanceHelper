@@ -13,8 +13,6 @@ import android.widget.RadioButton;
 import android.widget.TextView;
 
 import androidx.core.content.ContextCompat;
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
 
 import com.privat.pitz.financehelper.MainActivity;
 import com.privat.pitz.financehelper.R;
@@ -22,7 +20,6 @@ import com.privat.pitz.financehelper.R;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.RefreshListener;
 import Backend.Util;
 import Logic.AccountBE;
 import Logic.BudgetAccountBE;
@@ -73,22 +70,19 @@ public class ListItemAccountPreview extends LinearLayout {
         receiverRB = findViewById(R.id.radioButton_Receiver);
         spacer = findViewById(R.id.indent_view);
 
-        nameLabel.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                switch (event.getAction()) {
-                    case MotionEvent.ACTION_DOWN:
-                        // When finger touches the view, set it to selected to start the marquee
-                        v.setSelected(true);
-                        break;
-                    case MotionEvent.ACTION_UP:
-                    case MotionEvent.ACTION_CANCEL:
-                        // When finger lifts up or the touch event is cancelled, stop the marquee
-                        v.setSelected(false);
-                        break;
-                }
-                return true; // return true to indicate that the event is consumed
+        nameLabel.setOnTouchListener((v, event) -> {
+            switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    // When finger touches the view, set it to selected to start the marquee
+                    v.setSelected(true);
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    // When finger lifts up or the touch event is cancelled, stop the marquee
+                    v.setSelected(false);
+                    break;
             }
+            return true; // return true to indicate that the event is consumed
         });
 
     }
@@ -128,40 +122,38 @@ public class ListItemAccountPreview extends LinearLayout {
     // region UI related including refresh
     @SuppressLint("DefaultLocale")
     public void updateUI() {
-        parentActivity.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                // set account name
-                nameLabel.setText(referenceAccount.getName());
+        parentActivity.runOnUiThread(() -> {
+            // set account name
+            nameLabel.setText(referenceAccount.getName());
 
-                // set spacer width for indentation of lower hierarchical levels
-                ViewGroup.LayoutParams params = spacer.getLayoutParams();
-                params.width = (int) (10 * hierarchyLevel * getResources().getDisplayMetrics().density);
-                spacer.setLayoutParams(params);
+            // set spacer width for indentation of lower hierarchical levels
+            ViewGroup.LayoutParams params = spacer.getLayoutParams();
+            params.width = (int) (10 * hierarchyLevel * getResources().getDisplayMetrics().density);
+            spacer.setLayoutParams(params);
 
-                // set name text size according to hierarchyLevel
-                nameLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16 - 2 * hierarchyLevel);
+            // set name text size according to hierarchyLevel
+            nameLabel.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16 - 2 * hierarchyLevel);
 
-                // Set background color based on hierarchy level
-                if (hierarchyLevel > 0)
-                    setBackgroundColor(ContextCompat.getColor(getContext(), R.color.colorSubtleDistinction2));  // Light grey color
-                else
-                    setBackgroundColor(ContextCompat.getColor(getContext(), R.color.colorSubtleDistinction));  // Lighter grey color
+            // Set background color based on hierarchy level
+            if (hierarchyLevel > 0)
+                setBackgroundColor(ContextCompat.getColor(getContext(), R.color.colorSubtleDistinction2));  // Light grey color
+            else
+                setBackgroundColor(ContextCompat.getColor(getContext(), R.color.colorSubtleDistinction));  // Lighter grey color
 
-                // check if referenceAccount is a BudgetAccount, otherwise it's an AssetAccount
-                if (referenceAccount instanceof BudgetAccountBE) {
-                    BudgetAccountBE budget_account = (BudgetAccountBE) referenceAccount;
-                    float current_sum = referenceAccount.getSum();
-                    float current_budget = budget_account.indivAvailableBudget;
-                    String value = String.format("%s (%.0f%%)",
-                            Util.formatLargeFloatShort(current_sum),
-                            (current_sum / current_budget) * 100);
-                    valueLabel.setText(value);
-                    senderRB.setVisibility(GONE);
-                } else {
-                    valueLabel.setText(Util.formatLargeFloatShort(referenceAccount.getSum()));
-                    senderRB.setVisibility(VISIBLE);
-                }
+            // check if referenceAccount is a BudgetAccount, otherwise it's an AssetAccount
+            if (referenceAccount instanceof BudgetAccountBE) {
+                BudgetAccountBE budget_account = (BudgetAccountBE) referenceAccount;
+                float current_sum = referenceAccount.getSum();
+                float current_budget = budget_account.indivAvailableBudget;
+                float current_percentage = Util.calculateAdvancedPercentage(current_budget, current_sum, budget_account.getMeanAllottedIndivBudget());
+                String value = String.format("%s (%.0f%%)",
+                        Util.formatLargeFloatShort(current_sum),
+                        current_percentage * 100);
+                valueLabel.setText(value);
+                senderRB.setVisibility(GONE);
+            } else {
+                valueLabel.setText(Util.formatLargeFloatShort(referenceAccount.getSum()));
+                senderRB.setVisibility(VISIBLE);
             }
         });
     }
@@ -186,7 +178,7 @@ public class ListItemAccountPreview extends LinearLayout {
             BudgetAccountBE budget_account = (BudgetAccountBE) referenceAccount;
             // check if budgetAccount has sub budgets
             List<BudgetAccountBE> subBudgets = budget_account.getDirectSubBudgets();
-            if (subBudgets.size() > 0) {
+            if (!subBudgets.isEmpty()) {
                 for (BudgetAccountBE subBudget : subBudgets) {
                     ListItemAccountPreview newItem = getInstance(parentActivity, parentContainer);
                     newItem.init(subBudget, hierarchyLevel + 1);
