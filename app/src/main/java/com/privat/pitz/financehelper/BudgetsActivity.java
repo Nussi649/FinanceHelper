@@ -23,10 +23,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.BudgetAccountListHandler;
-import Backend.Util;
-import Logic.BudgetAccountBE;
-import View.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.BudgetAccountBE;
+import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
 
 public class BudgetsActivity extends AbstractActivity implements BudgetAccountListHandler {
     List<BudgetAccountTableRow> budgetViews = new ArrayList<>();

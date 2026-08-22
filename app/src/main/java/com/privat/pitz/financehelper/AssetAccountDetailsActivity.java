@@ -29,11 +29,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import Backend.TxListAdapter;
-import Backend.Util;
-import Logic.AccountBE;
-import Logic.TxBE;
-import View.Dialogs.EditTxDialog;
+import com.privat.pitz.financehelper.ui.adapter.TxListAdapter;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.AccountBE;
+import com.privat.pitz.financehelper.data.TxBE;
+import com.privat.pitz.financehelper.ui.dialog.EditTxDialog;
 
 public class AssetAccountDetailsActivity extends AbstractActivity {
     AccountBE mAccount;

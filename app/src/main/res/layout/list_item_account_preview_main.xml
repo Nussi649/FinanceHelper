@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<View.ListItemAccountPreview xmlns:android="http://schemas.android.com/apk/res/android"
+<com.privat.pitz.financehelper.ui.ListItemAccountPreview xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="35dp"
     android:gravity="center_vertical"
@@ -67,4 +67,4 @@
             android:layout_height="1dp"
             android:background="@color/colorPrimaryDark" />
 
-</View.ListItemAccountPreview>
+</com.privat.pitz.financehelper.ui.ListItemAccountPreview>

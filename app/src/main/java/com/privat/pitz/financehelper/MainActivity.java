@@ -31,17 +31,17 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-import Backend.Const;
-import Backend.Controller;
-import Backend.IntegrityChecker;
-import Backend.RbAccountManager;
-import Backend.Util;
-import View.Dialogs.AddIncomeDialog;
-import View.Dialogs.EditSourceCodeDialog;
-import View.Dialogs.CurrentIncomeDialog;
-import View.Dialogs.LoadFileDialog;
-import View.Dialogs.SaveFileDialog;
-import View.Dialogs.TransactionRedirectionDialog;
+import com.privat.pitz.financehelper.core.Const;
+import com.privat.pitz.financehelper.core.Controller;
+import com.privat.pitz.financehelper.core.IntegrityChecker;
+import com.privat.pitz.financehelper.ui.RbAccountManager;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.ui.dialog.AddIncomeDialog;
+import com.privat.pitz.financehelper.ui.dialog.EditSourceCodeDialog;
+import com.privat.pitz.financehelper.ui.dialog.CurrentIncomeDialog;
+import com.privat.pitz.financehelper.ui.dialog.LoadFileDialog;
+import com.privat.pitz.financehelper.ui.dialog.SaveFileDialog;
+import com.privat.pitz.financehelper.ui.dialog.TransactionRedirectionDialog;
 
 public class MainActivity extends AbstractActivity {
 

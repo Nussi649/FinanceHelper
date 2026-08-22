@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.Util;
-import Logic.AccountBE;
-import View.AccountWidget;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.AccountBE;
+import com.privat.pitz.financehelper.ui.AccountWidget;
 
 public class AssetsActivity extends AbstractActivity {
     List<AccountWidget> loadedWidgets = new ArrayList<>();

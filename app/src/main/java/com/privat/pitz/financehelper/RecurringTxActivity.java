@@ -11,8 +11,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.RecurringTxAdapter;
-import Logic.RecurringTxBE;
+import com.privat.pitz.financehelper.ui.adapter.RecurringTxAdapter;
+import com.privat.pitz.financehelper.data.RecurringTxBE;
 
 public class RecurringTxActivity extends AssetAccountDetailsActivity {
     RecurringTxAdapter listAdapter;

@@ -24,11 +24,11 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.List;
 
-import Backend.Const;
-import Backend.Controller;
-import Backend.Model;
-import Backend.RefreshListener;
-import Backend.Util;
+import com.privat.pitz.financehelper.core.Const;
+import com.privat.pitz.financehelper.core.Controller;
+import com.privat.pitz.financehelper.core.Model;
+import com.privat.pitz.financehelper.ui.RefreshListener;
+import com.privat.pitz.financehelper.core.Util;
 
 public abstract class AbstractActivity extends AppCompatActivity implements RefreshListener {
     Controller controller = Controller.instance;

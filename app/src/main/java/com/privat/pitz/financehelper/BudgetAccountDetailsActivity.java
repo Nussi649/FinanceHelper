@@ -16,18 +16,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import Backend.BudgetAccountListHandler;
-import Backend.Util;
-import Logic.AccountBE;
-import Logic.BudgetAccountBE;
-import Logic.ProjectBudgetBE;
-import Logic.TxBE;
-import View.BudgetAccountTableRow;
-import View.Dialogs.CreateBudgetAccountDialog;
-import View.Dialogs.EditRenewalDialog;
-import View.Dialogs.SetYearlyBudgetDialog;
-import View.Dialogs.TransferAvailableBudgetDialog;
-import View.Dialogs.TransferSubBudgetDialog;
+import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.AccountBE;
+import com.privat.pitz.financehelper.data.BudgetAccountBE;
+import com.privat.pitz.financehelper.data.ProjectBudgetBE;
+import com.privat.pitz.financehelper.data.TxBE;
+import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.dialog.CreateBudgetAccountDialog;
+import com.privat.pitz.financehelper.ui.dialog.EditRenewalDialog;
+import com.privat.pitz.financehelper.ui.dialog.SetYearlyBudgetDialog;
+import com.privat.pitz.financehelper.ui.dialog.TransferAvailableBudgetDialog;
+import com.privat.pitz.financehelper.ui.dialog.TransferSubBudgetDialog;
 
 public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity implements BudgetAccountListHandler {
     BudgetAccountBE mAccount;
