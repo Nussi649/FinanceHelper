@@ -13,13 +13,8 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -50,20 +45,30 @@ public class Controller {
     public static Controller instance;
     Model model;
     Context context;
+    SavefileStorage storage;
 
     public static int LOADED_ACCOUNTS = 10;
     public static int LOADED_NEW_MONTH = 11;
     public static int CREATED_BLANK = 12;
 
-    private Controller(Context context) { this.context = context; }
+    private Controller(Context context, SavefileStorage storage) {
+        this.context = context;
+        this.storage = storage;
+        initController();
+    }
+
+    Controller(SavefileStorage storage) {
+        this.storage = storage;
+        this.model = new Model();
+    }
 
     private void initController() {
         model = new Model();
     }
 
     public static void createInstance(Context context) {
-        instance = new Controller(context);
-        instance.initController();
+        Context app = context.getApplicationContext();
+        instance = new Controller(app, new DirectoryStorage(app.getFilesDir()));
     }
 
     public Model getModel() { return model; }
@@ -209,36 +214,11 @@ public class Controller {
     }
 
     public void writeToInternal(String data, String filename) throws IOException {
-        File file = new File(context.getFilesDir(), filename);
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-        FileWriter writer = new FileWriter(file);
-        writer.append(data);
-        writer.flush();
-        writer.close();
+        storage.write(filename, data);
     }
 
     public String readFromInternal(String filename) throws IOException {
-        StringBuilder data = new StringBuilder();
-
-        File file = new File(context.getFilesDir(), filename);
-        FileReader fReader;
-        try {
-            fReader = new FileReader(file);
-        } catch (FileNotFoundException e) {
-            Log.println(Log.ERROR, "load_file",
-                    String.format("Error reading file: File not found: %s", e));
-            throw e;
-        }
-        BufferedReader reader = new BufferedReader(fReader);
-        String line;
-        while ((line = reader.readLine()) != null) {
-            data.append(line).append("\n");
-        }
-        reader.close();
-        fReader.close();
-        return data.toString();
+        return storage.read(filename);
     }
 
     public void saveAccountsToInternal() throws JSONException, IOException {
@@ -273,23 +253,21 @@ public class Controller {
     // bundles all save files (and the app settings) into a single zip file at the given SAF Uri,
     // so it can be picked up by a file manager, cloud sync folder, or copied off the device over USB
     public int exportAllSavefilesToUri(Uri targetUri) throws IOException {
-        File[] files = context.getFilesDir().listFiles();
+        List<String> names = storage.list();
         int count = 0;
         OutputStream os = context.getContentResolver().openOutputStream(targetUri);
         if (os == null)
             throw new IOException("Could not open output stream for target Uri");
         try (ZipOutputStream zos = new ZipOutputStream(os)) {
-            if (files != null) {
-                for (File file : files) {
-                    if (!Util.isSyncableName(file.getName()))
-                        continue;
-                    zos.putNextEntry(new ZipEntry(file.getName()));
-                    try (FileInputStream fis = new FileInputStream(file)) {
-                        Util.copyStream(fis, zos);
-                    }
-                    zos.closeEntry();
-                    count++;
+            for (String name : names) {
+                if (!Util.isSyncableName(name))
+                    continue;
+                zos.putNextEntry(new ZipEntry(name));
+                try (InputStream is = storage.openRead(name)) {
+                    Util.copyStream(is, zos);
                 }
+                zos.closeEntry();
+                count++;
             }
         }
         return count;
@@ -311,9 +289,8 @@ public class Controller {
                     zis.closeEntry();
                     continue;
                 }
-                File outFile = new File(context.getFilesDir(), name);
-                try (FileOutputStream fos = new FileOutputStream(outFile)) {
-                    Util.copyStream(zis, fos);
+                try (OutputStream os = storage.openWrite(name)) {
+                    Util.copyStream(zis, os);
                 }
                 zis.closeEntry();
                 count++;
@@ -330,28 +307,25 @@ public class Controller {
         DocumentFile treeDir = DocumentFile.fromTreeUri(context, treeUri);
         if (treeDir == null || !treeDir.canWrite())
             throw new IOException("Cannot write to the selected sync folder");
-        File[] files = context.getFilesDir().listFiles();
+        List<String> names = storage.list();
         int count = 0;
-        if (files != null) {
-            for (File file : files) {
-                String name = file.getName();
-                if (!Util.isSyncableName(name))
-                    continue;
-                // remove any existing file with the same name so createFile doesn't produce a duplicate
-                DocumentFile existing = treeDir.findFile(name);
-                if (existing != null)
-                    existing.delete();
-                DocumentFile target = treeDir.createFile("application/octet-stream", name);
-                if (target == null)
-                    continue;
-                OutputStream os = context.getContentResolver().openOutputStream(target.getUri());
-                if (os == null)
-                    continue;
-                try (OutputStream out = os; FileInputStream fis = new FileInputStream(file)) {
-                    Util.copyStream(fis, out);
-                }
-                count++;
+        for (String name : names) {
+            if (!Util.isSyncableName(name))
+                continue;
+            // remove any existing file with the same name so createFile doesn't produce a duplicate
+            DocumentFile existing = treeDir.findFile(name);
+            if (existing != null)
+                existing.delete();
+            DocumentFile target = treeDir.createFile("application/octet-stream", name);
+            if (target == null)
+                continue;
+            OutputStream os = context.getContentResolver().openOutputStream(target.getUri());
+            if (os == null)
+                continue;
+            try (OutputStream out = os; InputStream is = storage.openRead(name)) {
+                Util.copyStream(is, out);
             }
+            count++;
         }
         return count;
     }
@@ -372,9 +346,8 @@ public class Controller {
             InputStream is = context.getContentResolver().openInputStream(child.getUri());
             if (is == null)
                 continue;
-            File outFile = new File(context.getFilesDir(), name);
-            try (InputStream in = is; FileOutputStream fos = new FileOutputStream(outFile)) {
-                Util.copyStream(in, fos);
+            try (InputStream in = is; OutputStream out = storage.openWrite(name)) {
+                Util.copyStream(in, out);
             }
             count++;
         }
@@ -433,14 +406,13 @@ public class Controller {
     }
 
     public boolean deleteCurrentSave() {
-        File file = new File(context.getFilesDir(), getModel().currentFileName + Const.ACCOUNTS_FILE_TYPE);
+        String name = getModel().currentFileName + Const.ACCOUNTS_FILE_TYPE;
         resetAccounts();
-        return file.delete();
+        return storage.delete(name);
     }
 
     public boolean deleteSavefile(String name) {
-        File file = new File(context.getFilesDir(), Util.reduceFileTypeEnding(name) + Const.ACCOUNTS_FILE_TYPE);
-        return file.delete();
+        return storage.delete(Util.reduceFileTypeEnding(name) + Const.ACCOUNTS_FILE_TYPE);
     }
 
     // PARAMS: String period: a String representing the period in which to look for entities with existing save files
@@ -453,15 +425,15 @@ public class Controller {
         }
 
         // Get all files in the directory
-        File[] files = context.getFilesDir().listFiles();
+        List<String> names = storage.list();
         List<String> entityNames = new ArrayList<>();
-        if (files == null || files.length == 0)
+        if (names.isEmpty())
             return entityNames;
 
         // Filter the file names and extract the entity names
         Pattern pattern = Pattern.compile("^" + period + "-([^.]+)\\.jso$");
-        for (File file : files) {
-            Matcher matcher = pattern.matcher(file.getName());
+        for (String name : names) {
+            Matcher matcher = pattern.matcher(name);
             if (matcher.matches()) {
                 entityNames.add(matcher.group(1));
             }
@@ -486,15 +458,15 @@ public class Controller {
     // searches for save files of financial entities regardless of period
     public List<String> getAllAvailableEntities() {
         // Get all files in the directory
-        File[] files = context.getFilesDir().listFiles();
+        List<String> names = storage.list();
         Set<String> entityNames = new HashSet<>();
-        if (files == null || files.length == 0)
+        if (names.isEmpty())
             return new ArrayList<>(entityNames);
 
         // Filter the file names and extract the entity names
         Pattern pattern = Pattern.compile("^\\d{4}-\\d{2}-([^.]+)\\.jso$");
-        for (File file : files) {
-            Matcher matcher = pattern.matcher(file.getName());
+        for (String name : names) {
+            Matcher matcher = pattern.matcher(name);
             if (matcher.matches()) {
                 entityNames.add(matcher.group(1));
             }
@@ -504,15 +476,15 @@ public class Controller {
 
     public List<String> getAllPeriodsForEntity(String entityName) {
         // Get all files in the directory
-        File[] files = context.getFilesDir().listFiles();
+        List<String> names = storage.list();
         List<String> periods = new ArrayList<>();
-        if (files == null || files.length == 0)
+        if (names.isEmpty())
             return periods;
 
         // Filter the file names and extract the periods for the specified entity
         Pattern pattern = Pattern.compile("^(\\d{4}-\\d{2})-" + Pattern.quote(entityName) + "\\.jso$");
-        for (File file : files) {
-            Matcher matcher = pattern.matcher(file.getName());
+        for (String name : names) {
+            Matcher matcher = pattern.matcher(name);
             if (matcher.matches()) {
                 periods.add(matcher.group(1));  // This will match the YYYY-MM part of the filename
             }
@@ -1181,24 +1153,24 @@ public class Controller {
     @SuppressLint("SimpleDateFormat")
     public void initiateNewPeriod() throws JSONException, IOException {
         Calendar cal = Calendar.getInstance();
-        File[] availableFiles = context.getFilesDir().listFiles();
+        List<String> availableFiles = storage.list();
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM");
         Date latestDate = null;
-        File latestFile = null;
+        String latestFile = null;
         String entityPattern = "\\d{4}-\\d{2}-" + model.currentEntity + "\\.jso";
         // Check if availableFiles is null or empty
-        if (availableFiles == null || availableFiles.length == 0) {
+        if (availableFiles.isEmpty()) {
             throw new FileNotFoundException("Error while trying to read save files in internal storage. No files were found.");
         }
         // Inspect available files
-        for (File file : availableFiles) {
-            if (file.getName().matches(entityPattern)) {
+        for (String name : availableFiles) {
+            if (name.matches(entityPattern)) {
                 try {
-                    Date fileDate = sdf.parse(file.getName().substring(0, 7));
+                    Date fileDate = sdf.parse(name.substring(0, 7));
                     assert fileDate != null;
                     if (latestDate == null || fileDate.after(latestDate)) {
                         latestDate = fileDate;
-                        latestFile = file;
+                        latestFile = name;
                     }
                 } catch (ParseException pe) {
                     pe.printStackTrace();
@@ -1224,8 +1196,8 @@ public class Controller {
         // If the latest date is earlier than the current month, initiate the transfer process
         try {
             // check if it is already loaded (possible for special cases)
-            if (!latestFile.getName().equals(model.currentFileName))
-                readAccountsFromInternal(latestFile.getName());
+            if (!latestFile.equals(model.currentFileName))
+                readAccountsFromInternal(latestFile);
         } catch (JSONException | IOException e) {
             if (e instanceof JSONException)
                 Log.println(Log.ERROR, "initiate_period",
