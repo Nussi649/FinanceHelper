@@ -1,6 +1,8 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
+import android.app.Dialog;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -8,6 +10,8 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TextView;
+
+import com.google.android.material.snackbar.Snackbar;
 
 import org.json.JSONException;
 
@@ -24,13 +28,16 @@ import com.privat.pitz.financehelper.data.ProjectBudgetBE;
 import com.privat.pitz.financehelper.data.TxBE;
 import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
 import com.privat.pitz.financehelper.ui.PercentageBackground;
+import com.privat.pitz.financehelper.ui.TxListSection;
+import com.privat.pitz.financehelper.ui.adapter.TxListAdapter;
 import com.privat.pitz.financehelper.ui.dialog.CreateBudgetAccountDialog;
 import com.privat.pitz.financehelper.ui.dialog.EditRenewalDialog;
+import com.privat.pitz.financehelper.ui.dialog.EditTxDialog;
 import com.privat.pitz.financehelper.ui.dialog.SetYearlyBudgetDialog;
 import com.privat.pitz.financehelper.ui.dialog.TransferAvailableBudgetDialog;
 import com.privat.pitz.financehelper.ui.dialog.TransferSubBudgetDialog;
 
-public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity implements BudgetAccountListHandler {
+public class BudgetAccountDetailsActivity extends AbstractActivity implements BudgetAccountListHandler {
     BudgetAccountBE mAccount;
     List<BudgetAccountTableRow> budgetViews = new ArrayList<>();
     LinearLayout rootLayout;
@@ -38,6 +45,12 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     TextView totalPercentage;
     TextView totalYearly;
     TextView tvRenewal;
+
+    TxListSection section;
+    TxListAdapter listAdapter;
+    TextView indivValue;
+    TextView indivPercentage;
+    TextView indivYearly;
 
     // region AbstractActivity & Activity Overrides
     @Override
@@ -61,9 +74,64 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     }
 
     @Override
+    protected void endWorkingThread() {
+        setContentView(R.layout.activity_budget_account_details);
+
+        rootLayout = findViewById(R.id.root_layout);
+        tvRenewal = findViewById(R.id.tv_renewal);
+
+        View containerTx = findViewById(R.id.container_tx_sum);
+        indivValue = containerTx.findViewById(R.id.total_current_value);
+        indivPercentage = containerTx.findViewById(R.id.total_current_percentage);
+        indivYearly = containerTx.findViewById(R.id.total_yearly_budget);
+
+        View containerTotal = findViewById(R.id.container_total_sum);
+        totalValue = containerTotal.findViewById(R.id.total_current_value);
+        totalPercentage = containerTotal.findViewById(R.id.total_current_percentage);
+        totalYearly = containerTotal.findViewById(R.id.total_yearly_budget);
+
+        listAdapter = new TxListAdapter();
+        section = new TxListSection(
+                rootLayout,
+                listAdapter,
+                () -> mAccount.getTxList(),
+                TxListSection.MATCH_DESCRIPTION,
+                this::renderTxSum,
+                new TxListSection.TxActions() {
+                    @Override
+                    public void onEditRequested(int position, TxBE tx) {
+                        showEditTxDialog(position, tx);
+                    }
+
+                    @Override
+                    public void onDeleteRequested(int position, TxBE tx) {
+                        deleteTx(position, tx);
+                    }
+                });
+
+        // TxListSection hides these two by default (plain asset-account screens don't use them),
+        // but the budget screen needs them visible to show percentage/yearly budget alongside
+        // the sum - restore what BudgetAccountDetailsActivity.initViews() used to do by
+        // re-enabling them after super.initViews() had hidden them.
+        indivPercentage.setVisibility(View.VISIBLE);
+        indivYearly.setVisibility(View.VISIBLE);
+
+        // The inherited populateUI() used to force this label to the short "Σ" form (rather than
+        // the layout's default "Total Σ") for the per-entry sum card. Preserve that.
+        TextView labelSigma = containerTx.findViewById(R.id.label_sigma);
+        labelSigma.setText(R.string.label_sum_tx);
+
+        populateUI();
+    }
+
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_budgetaccount_details, menu);
+        // AssetAccountDetailsActivity used to contribute this second menu via its own
+        // onCreateOptionsMenu() through the super call. Now that the inheritance link is gone,
+        // this activity inflates it directly so "delete budget account" keeps showing up.
+        inflater.inflate(R.menu.menu_account_details, menu);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -80,42 +148,21 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
             showCreateProjectBudgetDialog();
         } else if (itemId == R.id.item_transfer_sub_budget) {
             showTransferSubBudgetDialog();
+        } else if (itemId == R.id.item_delete_account) {
+            // AssetAccountDetailsActivity used to handle this item through the super call.
+            // Handle it directly now that this activity no longer extends it.
+            deleteAccount();
         }
         return super.onOptionsItemSelected(item);
     }
     // endregion
 
-    // region AssetAccountDetailsActivity Overrides
-    @Override
-    protected void setContentLayout() {
-        setContentView(R.layout.activity_budget_account_details);
-    }
-
-    @Override
-    protected void initViews() {
-        super.initViews();
-        rootLayout = findViewById(R.id.root_layout);
-        tvRenewal = findViewById(R.id.tv_renewal);
-        indivYearly.setVisibility(View.VISIBLE);
-        indivPercentage.setVisibility(View.VISIBLE);
-        View containerTotal = findViewById(R.id.container_total_sum);
-        totalValue = containerTotal.findViewById(R.id.total_current_value);
-        totalPercentage = containerTotal.findViewById(R.id.total_current_percentage);
-        totalYearly = containerTotal.findViewById(R.id.total_yearly_budget);
-    }
-
-    @Override
-    protected void redirectAfterAccountDelete() {
-        startActivity(BudgetsActivity.class);
-    }
-
     @SuppressLint("DefaultLocale")
-    @Override
-    protected void setTxSum(float newValue) {
+    private void renderTxSum(float newValue) {
         float allotted_budget = mAccount.getMeanAllottedIndivBudget();
 
         float current_percentage = Util.calculateAdvancedPercentage(mAccount.indivAvailableBudget, newValue, allotted_budget);
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatDisplay(mAccount.indivAvailableBudget),5);
+        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatDisplay(mAccount.indivAvailableBudget), 5);
         String currentSumString = String.format("%sx / %sx",
                 Util.formatLargeFloatDisplay(newValue),
                 currentBudgetString);
@@ -130,34 +177,21 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         indivYearly.setText(yearly_budget_string.replace("x", currency));
     }
 
-    @Override
-    protected void setTitle() {
-        // needs to override because mAccount is different from parent's mAccount
+    private void setTitle() {
         setCustomTitle();
         setCustomTitleDetails(mAccount.toString());
     }
 
-    @Override
-    protected boolean hasEntries() {
-        // needs to override because mAccount is different from parent's mAccount
-        return !mAccount.getTxList().isEmpty();
-    }
-
-    @Override
-    protected List<TxBE> getEntries() {
-        // needs to override because mAccount is different from parent's mAccount
-        return mAccount.getTxList();
-    }
-
-    @Override
-    protected AccountBE getReference() {
-        return mAccount;
-    }
-
     @SuppressLint("DefaultLocale")
-    protected void populateUI() {
-        // populate tx entries
-        super.populateUI();
+    private void populateUI() {
+        // Reset the search state and repopulate entries against the (possibly freshly reloaded)
+        // mAccount data, mirroring the inherited AssetAccountDetailsActivity.populateUI() ->
+        // filterEntries(null) call this used to rely on via super.populateUI().
+        section.applyFilter(null);
+        if (section.isEmpty()) {
+            showToastLong(R.string.toast_error_no_entries);
+        }
+
         // if budget is a project budget, color background
         if (mAccount instanceof ProjectBudgetBE) {
             rootLayout.setBackgroundColor(getColor(R.color.colorSecondaryLight));
@@ -184,15 +218,90 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     public void onRefresh() {
         for (BudgetAccountTableRow row : budgetViews)
             row.updateUI();
-        setTxSum(mAccount.getSum());
+        renderTxSum(mAccount.getSum());
         updateUITotalSums();
     }
 
-    @Override
-    protected void sortAccountTx() {
+    // region Tx swipe actions (copied from AssetAccountDetailsActivity for now; a later step
+    // extracts these into a shared TxSwipeActions class used by both activities)
+    private void showEditTxDialog(int position, TxBE tx) {
+        EditTxDialog dialog = new EditTxDialog(this, tx) {
+            @Override
+            public void onConfirm(TxBE tx) {
+                try {
+                    sortAccountTx();
+                    controller.saveAccountsToInternal();
+                    onRefresh();
+                } catch (JSONException | IOException e) {
+                    if (e instanceof JSONException)
+                        Log.println(Log.ERROR, "edit_tx",
+                                String.format("Error serializing safe file after editing a transaction (%s): %s", tx, e));
+                    else
+                        Log.println(Log.ERROR, "edit_tx",
+                                String.format("Error writing safe file after editing a transaction (%s): %s", tx, e));
+                }
+                // Update the list
+                listAdapter.notifyItemChanged(position);
+            }
+        };
+
+        // Show the dialog
+        dialog.show();
+    }
+
+    private void deleteTx(int position, TxBE tx) {
+        // Temporarily remove the transaction from the list
+        listAdapter.removeEntry(tx);
+
+        // Show a Snackbar with an "Undo" action
+        Snackbar snackbar = Snackbar.make(section.getRecyclerView(), R.string.snackbar_tx_deleted, Snackbar.LENGTH_LONG);
+        snackbar.setAction("Undo", view -> {
+            // User clicked the "Undo" action, so put the transaction back into the list
+            listAdapter.addEntry(position, tx);
+        });
+        snackbar.addCallback(new Snackbar.Callback() {
+            @Override
+            public void onDismissed(Snackbar snackbar, int event) {
+                if (event != Snackbar.Callback.DISMISS_EVENT_ACTION) {
+                    try {
+                        controller.deleteTx(mAccount, tx);
+                        onRefresh();
+                    } catch (JSONException | IOException e) {
+                        showErrorToast(e);
+                    }
+                }
+            }
+        });
+        snackbar.show();
+    }
+
+    private void sortAccountTx() {
         mAccount.sortTxByDate();
     }
     // endregion
+
+    private void redirectAfterAccountDelete() {
+        startActivity(BudgetsActivity.class);
+    }
+
+    private void deleteAccount() {
+        Dialog.OnClickListener listener = (dialogInterface, i) -> {
+            try {
+                boolean result = controller.deleteAccount(mAccount);
+                if (result) {
+                    redirectAfterAccountDelete();
+                    showToastLong(R.string.toast_success_delete_account);
+                } else {
+                    showToastLong(R.string.toast_error_account_not_found);
+                }
+            } catch (JSONException e) {
+                showToastLong(R.string.toast_error_JSONError);
+            } catch (IOException e) {
+                showToastLong(R.string.toast_error_IOError);
+            }
+        };
+        showConfirmDialog(R.string.question_delete_account, listener);
+    }
 
     // region BudgetAccountListHandler Overrides
     @Override
