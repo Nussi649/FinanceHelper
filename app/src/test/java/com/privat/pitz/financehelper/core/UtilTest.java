@@ -1,5 +1,6 @@
 package com.privat.pitz.financehelper.core;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -10,6 +11,9 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -170,6 +174,76 @@ public class UtilTest {
         // first four characters of ".json" as well, so a ".json" file is also accepted even though
         // the intent (see ACCOUNTS_FILE_TYPE / knownFileTypes) appears to be ".jso" specifically.
         assertTrue(Util.isValidSavefileName("2024-05-Household.json"));
+    }
+
+    // endregion
+
+    // region isSyncableName
+
+    @Test
+    public void isSyncableName_validSavefileName_returnsTrue() {
+        assertTrue(Util.isSyncableName("2026-08-User.jso"));
+    }
+
+    @Test
+    public void isSyncableName_applicationSettingsFilename_returnsTrue() {
+        assertTrue(Util.isSyncableName(Const.APPLICATION_SETTINGS_FILENAME));
+    }
+
+    @Test
+    public void isSyncableName_null_returnsFalse() {
+        assertFalse(Util.isSyncableName(null));
+    }
+
+    @Test
+    public void isSyncableName_unrelatedName_returnsFalse() {
+        assertFalse(Util.isSyncableName("notes.txt"));
+    }
+
+    @Test
+    public void isSyncableName_singleDigitMonth_returnsFalse() {
+        assertFalse(Util.isSyncableName("2026-8-User.jso"));
+    }
+
+    // endregion
+
+    // region copyStream
+
+    @Test
+    public void copyStream_emptyInput_producesEmptyOutput() throws IOException {
+        ByteArrayInputStream in = new ByteArrayInputStream(new byte[0]);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        Util.copyStream(in, out);
+
+        assertEquals(0, out.size());
+    }
+
+    @Test
+    public void copyStream_contentShorterThanBuffer_roundTripsByteForByte() throws IOException {
+        byte[] data = "Hello, Finance Helper!".getBytes();
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        Util.copyStream(in, out);
+
+        assertArrayEquals(data, out.toByteArray());
+    }
+
+    @Test
+    public void copyStream_contentLargerThanBuffer_roundTripsByteForByte() throws IOException {
+        // 10000 bytes of varied content (not all zeros) exceeds the 4096-byte buffer size used
+        // internally, catching any off-by-one error in the copy loop.
+        byte[] data = new byte[10000];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) (i % 251);
+        }
+        ByteArrayInputStream in = new ByteArrayInputStream(data);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        Util.copyStream(in, out);
+
+        assertArrayEquals(data, out.toByteArray());
     }
 
     // endregion

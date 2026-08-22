@@ -22,6 +22,9 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -351,6 +354,26 @@ public abstract class Util {
 
     public static boolean isValidSavefileName(String filename) {
         return SAVEFILE_NAME_PATTERN.matcher(filename).find();
+    }
+
+    /**
+     * True if the file is one the backup/sync feature should carry: either a save file
+     * (YYYY-MM-Entity.jso) or the application settings file. Null-safe.
+     */
+    public static boolean isSyncableName(String filename) {
+        if (filename == null) return false;
+        return isValidSavefileName(filename) || filename.equals(Const.APPLICATION_SETTINGS_FILENAME);
+    }
+
+    /**
+     * Copies all bytes from in to out using a 4096-byte buffer. Neither stream is closed.
+     */
+    public static void copyStream(InputStream in, OutputStream out) throws IOException {
+        byte[] buffer = new byte[4096];
+        int len;
+        while ((len = in.read(buffer)) > 0) {
+            out.write(buffer, 0, len);
+        }
     }
 
     public static List<File> getValidFiles(File dir) {

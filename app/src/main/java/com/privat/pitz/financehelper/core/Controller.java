@@ -281,15 +281,11 @@ public class Controller {
         try (ZipOutputStream zos = new ZipOutputStream(os)) {
             if (files != null) {
                 for (File file : files) {
-                    if (!Util.isValidSavefileName(file.getName()) && !file.getName().equals(Const.APPLICATION_SETTINGS_FILENAME))
+                    if (!Util.isSyncableName(file.getName()))
                         continue;
                     zos.putNextEntry(new ZipEntry(file.getName()));
                     try (FileInputStream fis = new FileInputStream(file)) {
-                        byte[] buffer = new byte[4096];
-                        int len;
-                        while ((len = fis.read(buffer)) > 0) {
-                            zos.write(buffer, 0, len);
-                        }
+                        Util.copyStream(fis, zos);
                     }
                     zos.closeEntry();
                     count++;
@@ -311,17 +307,13 @@ public class Controller {
             while ((entry = zis.getNextEntry()) != null) {
                 // use only the plain file name to prevent path traversal ("zip slip") via entry names
                 String name = new File(entry.getName()).getName();
-                if (!Util.isValidSavefileName(name) && !name.equals(Const.APPLICATION_SETTINGS_FILENAME)) {
+                if (!Util.isSyncableName(name)) {
                     zis.closeEntry();
                     continue;
                 }
                 File outFile = new File(context.getFilesDir(), name);
                 try (FileOutputStream fos = new FileOutputStream(outFile)) {
-                    byte[] buffer = new byte[4096];
-                    int len;
-                    while ((len = zis.read(buffer)) > 0) {
-                        fos.write(buffer, 0, len);
-                    }
+                    Util.copyStream(zis, fos);
                 }
                 zis.closeEntry();
                 count++;
@@ -343,7 +335,7 @@ public class Controller {
         if (files != null) {
             for (File file : files) {
                 String name = file.getName();
-                if (!Util.isValidSavefileName(name) && !name.equals(Const.APPLICATION_SETTINGS_FILENAME))
+                if (!Util.isSyncableName(name))
                     continue;
                 // remove any existing file with the same name so createFile doesn't produce a duplicate
                 DocumentFile existing = treeDir.findFile(name);
@@ -356,11 +348,7 @@ public class Controller {
                 if (os == null)
                     continue;
                 try (OutputStream out = os; FileInputStream fis = new FileInputStream(file)) {
-                    byte[] buffer = new byte[4096];
-                    int len;
-                    while ((len = fis.read(buffer)) > 0) {
-                        out.write(buffer, 0, len);
-                    }
+                    Util.copyStream(fis, out);
                 }
                 count++;
             }
@@ -379,18 +367,14 @@ public class Controller {
             if (child.isDirectory())
                 continue;
             String name = child.getName();
-            if (name == null || (!Util.isValidSavefileName(name) && !name.equals(Const.APPLICATION_SETTINGS_FILENAME)))
+            if (!Util.isSyncableName(name))
                 continue;
             InputStream is = context.getContentResolver().openInputStream(child.getUri());
             if (is == null)
                 continue;
             File outFile = new File(context.getFilesDir(), name);
             try (InputStream in = is; FileOutputStream fos = new FileOutputStream(outFile)) {
-                byte[] buffer = new byte[4096];
-                int len;
-                while ((len = in.read(buffer)) > 0) {
-                    fos.write(buffer, 0, len);
-                }
+                Util.copyStream(in, fos);
             }
             count++;
         }
@@ -463,15 +447,9 @@ public class Controller {
     // Format: "YYYY-MM"
     public List<String> getAvailableEntitiesForPeriod(String period) throws IllegalArgumentException {
         // Verify the format and plausibility of the period
-        Pattern pattern = Pattern.compile("^\\d{4}-\\d{2}$");
-        if (!pattern.matcher(period).matches()) {
-            throw new IllegalArgumentException("The period should have the format 'YYYY-MM'");
-        }
-
-        int year = Integer.parseInt(period.split("-")[0]);
-        int month = Integer.parseInt(period.split("-")[1]);
-        if (year < 2000 || year > 2050 || month < 1 || month > 12) {
-            throw new IllegalArgumentException("The year should be between 2000 and 2050 and the month should be between 1 and 12");
+        if (!Util.validatePeriod(period)) {
+            throw new IllegalArgumentException(
+                    "The period should have the format 'YYYY-MM', with year 2000-2050 and month 01-12. Given: " + period);
         }
 
         // Get all files in the directory
@@ -481,7 +459,7 @@ public class Controller {
             return entityNames;
 
         // Filter the file names and extract the entity names
-        pattern = Pattern.compile("^" + period + "-([^.]+)\\.jso$");
+        Pattern pattern = Pattern.compile("^" + period + "-([^.]+)\\.jso$");
         for (File file : files) {
             Matcher matcher = pattern.matcher(file.getName());
             if (matcher.matches()) {
@@ -492,11 +470,7 @@ public class Controller {
     }
 
     public List<String> getCurrentAvailableEntities() {
-        Calendar calendar = Calendar.getInstance();
-        // get current period in format YYYY-MM
-        String month = String.format(Locale.US, "%02d", calendar.get(Calendar.MONTH) + 1); // Calendar.MONTH is zero-based
-        String year = String.valueOf(calendar.get(Calendar.YEAR));
-        String period = year + "-" + month;
+        String period = Util.getPresentPeriod();
 
         try {
             // return getAvailableEntitiesForPeriod(period)
