@@ -8,3 +8,7 @@
 /build
 /captures
 .externalNativeBuild
+
+# IDE state - volatile, machine-specific. Only the shared code style is tracked.
+/.idea/*
+!/.idea/codeStyles/
