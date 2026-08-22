@@ -2,6 +2,7 @@ package com.privat.pitz.financehelper.core;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -180,6 +181,90 @@ public class ControllerTest {
         } catch (IllegalArgumentException expected) {
             // expected
         }
+    }
+
+    // endregion
+
+    // region revert-on-failed-save paths (saveOrRevert)
+
+    @Test
+    public void createAssetAccount_revertsOnFailedSave() throws JSONException, IOException {
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+        controller.getModel().currentFileName = "2026-08-User.jso";
+
+        storage.failWrites = true;
+        try {
+            controller.createAssetAccount("Girokonto");
+            fail("expected IOException");
+        } catch (IOException expected) {
+            // expected
+        }
+
+        assertTrue(controller.getModel().asset_accounts.isEmpty());
+        assertNull(controller.getModel().getAssetAccountByName("Girokonto"));
+    }
+
+    @Test
+    public void createRootBudget_revertsOnFailedSave() throws JSONException, IOException {
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+        controller.getModel().currentFileName = "2026-08-User.jso";
+
+        storage.failWrites = true;
+        try {
+            controller.createRootBudget("Lebensmittel", 100f, 1200f);
+            fail("expected IOException");
+        } catch (IOException expected) {
+            // expected
+        }
+
+        assertTrue(controller.getModel().budget_accounts.isEmpty());
+        assertNull(controller.getModel().getRootBudgetAccountByName("Lebensmittel"));
+    }
+
+    @Test
+    public void addFunds_revertsOnFailedSave() throws JSONException, IOException {
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+        Model model = controller.getModel();
+        model.currentFileName = "2026-08-User.jso";
+        AccountBE girokonto = new AccountBE("Girokonto");
+        model.currentReceiver = girokonto;
+
+        storage.failWrites = true;
+        try {
+            controller.addFunds(100f, "Gehalt");
+            fail("expected IOException");
+        } catch (IOException expected) {
+            // expected
+        }
+
+        assertTrue(girokonto.getTxList().isEmpty());
+        assertTrue(model.currentIncome.isEmpty());
+    }
+
+    @Test
+    public void deleteTx_revertsOnFailedSave() throws JSONException, IOException {
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+        Model model = controller.getModel();
+        model.currentFileName = "2026-08-User.jso";
+        AccountBE girokonto = new AccountBE("Girokonto");
+        TxBE tx = new TxBE(-50f, "Einkauf", date(2026, 8, 5, 14, 30));
+        girokonto.addTx(tx);
+        model.asset_accounts.add(girokonto);
+
+        storage.failWrites = true;
+        try {
+            controller.deleteTx(girokonto, tx);
+            fail("expected IOException");
+        } catch (IOException expected) {
+            // expected
+        }
+
+        assertEquals(1, girokonto.getTxList().size());
+        assertTrue(girokonto.getTxList().contains(tx));
     }
 
     // endregion

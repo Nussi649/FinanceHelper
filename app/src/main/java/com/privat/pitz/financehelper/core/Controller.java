@@ -230,6 +230,30 @@ public class Controller {
         writeToInternal(payload, filename);
     }
 
+    /**
+     * The optimistic-mutate / save / revert-on-failure pattern used by every mutating operation:
+     * the caller mutates the model first, then calls this with an action that undoes that mutation
+     * if persisting fails.
+     *
+     * @param logTag log tag, e.g. "save_file"
+     * @param what   noun phrase completing "... after %s", e.g. "adding funds"
+     * @param revert undoes the caller's in-memory mutation; must not throw
+     */
+    private void saveOrRevert(String logTag, String what, Runnable revert)
+            throws JSONException, IOException {
+        try {
+            saveAccountsToInternal();
+        } catch (JSONException | IOException e) {
+            revert.run();
+            Log.println(Log.ERROR, logTag, String.format(
+                    e instanceof JSONException
+                            ? "Error serializing save file after %s: %s%nChanges have been reverted."
+                            : "Error writing save file after %s: %s%nChanges have been reverted.",
+                    what, e));
+            throw e;
+        }
+    }
+
     public void readAccountsFromInternal(String filename) throws JSONException, IOException {
         String payload = readFromInternal(filename);
         boolean filenameValid = setCurrentFileName(filename);
@@ -627,20 +651,11 @@ public class Controller {
                 result = startTxRedirection(parentActivity, otherEntity, desc, amount);
         }
         if (result) {
-            try {
-                saveAccountsToInternal();
-                return true;
-            } catch (JSONException | IOException e) {
+            saveOrRevert("save_file", "creating a Tx", () -> {
                 from_acc.removeTx(entry_from);
                 to_acc.removeTx(entry_to);
-                if (e instanceof JSONException)
-                    Log.println(Log.ERROR, "save_file",
-                            String.format("Error serializing the JSONObject to save changes after creating a Tx: %s\nChanges have been reverted.", e));
-                else
-                    Log.println(Log.ERROR, "save_file",
-                            String.format("Error writing save file after creating a Tx: %s\nChanges have been reverted.", e));
-                throw e;
-            }
+            });
+            return true;
         }
         return false;
     }
@@ -814,19 +829,8 @@ public class Controller {
         if (position == -1)
             return false;
         parent.removeTx(tx);
-        try {
-            saveAccountsToInternal();
-            return true;
-        } catch (JSONException | IOException e) {
-            parent.addTx(position, tx);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "delete_tx",
-                        String.format("Error serializing the JSONObject to save changes after deleting tx (%s): %s\nChanges have been reverted.", tx, e));
-            else
-                Log.println(Log.ERROR, "delete_tx",
-                        String.format("Error writing save file after deleting tx (%s): %s\nChanges have been reverted.", tx, e));
-            throw e;
-        }
+        saveOrRevert("delete_tx", "deleting a transaction (" + tx + ")", () -> parent.addTx(position, tx));
+        return true;
     }
 
     // add funds to one account
@@ -835,21 +839,13 @@ public class Controller {
         if (model.currentReceiver == null) {
             return false;
         }
-        model.currentReceiver.addTx(newFunds);
+        final AccountBE receiver = model.currentReceiver;
+        receiver.addTx(newFunds);
         model.currentIncome.add(newFunds);
-        try {
-            saveAccountsToInternal();
-        } catch (JSONException | IOException e) {
-            model.currentReceiver.dropLastTx();
+        saveOrRevert("save_file", "adding funds", () -> {
+            receiver.dropLastTx();
             model.currentIncome.remove(newFunds);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing the JSONObject to save changes after adding funds: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after adding funds: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        });
         return true;
     }
 
@@ -867,18 +863,7 @@ public class Controller {
         }
         RecurringTxBE newOrder = new RecurringTxBE(amount, desc, calendar.getTime(), sender.getName(), receiver.getName());
         model.recurringTx.add(newOrder);
-        try {
-            saveAccountsToInternal();
-        } catch (JSONException | IOException e) {
-            model.recurringTx.remove(newOrder);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after adding recurring transaction: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after adding recurring transaction: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        saveOrRevert("save_file", "adding recurring transaction", () -> model.recurringTx.remove(newOrder));
         return true;
     }
 
@@ -886,20 +871,11 @@ public class Controller {
         int position = model.recurringTx.indexOf(recurringTx);
         if (position == -1)
             return false;
-        try {
-            model.recurringTx.remove(recurringTx);
-            saveAccountsToInternal();
-        } catch (JSONException | IOException e) {
-            // revert changes
-            model.recurringTx.add(position, recurringTx);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after deleting recurring transaction: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after deleting recurring transaction: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        // mutate before the save, matching every other site (the removal cannot throw a checked
+        // exception, so hoisting it out of the try is behaviour-identical)
+        model.recurringTx.remove(recurringTx);
+        saveOrRevert("save_file", "deleting recurring transaction",
+                () -> model.recurringTx.add(position, recurringTx));
         return true;
     }
 
@@ -953,21 +929,11 @@ public class Controller {
                                 r.getReceiverStr()));
             }
         }
-        try {
-            saveAccountsToInternal();
-        } catch (JSONException | IOException e) {
-            // revert changes
+        saveOrRevert("save_file", "triggering recurring transactions", () -> {
             for (AccountTxCombo entry : addedTx) {
                 entry.account.getTxList().remove(entry.tx);
             }
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after triggering recurring transactions: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after triggering recurring transactions: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        });
     }
     // endregion
 
@@ -992,19 +958,8 @@ public class Controller {
         }
         AccountBE newAccount = new AccountBE(name);
         model.asset_accounts.add(newAccount);
-        try {
-            saveAccountsToInternal();
-            return newAccount;
-        } catch (JSONException | IOException e) {
-            model.asset_accounts.remove(newAccount);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after creating asset account: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after creating asset account: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        saveOrRevert("save_file", "creating asset account", () -> model.asset_accounts.remove(newAccount));
+        return newAccount;
     }
 
     public BudgetAccountBE createRootBudget(String name,float currentBudget, float yearlyBudget) throws JSONException, IOException {
@@ -1015,19 +970,8 @@ public class Controller {
         }
         BudgetAccountBE newAccount = new BudgetAccountBE(name, currentBudget, yearlyBudget);
         model.budget_accounts.add(newAccount);
-        try {
-            saveAccountsToInternal();
-            return newAccount;
-        } catch (JSONException | IOException e) {
-            model.budget_accounts.remove(newAccount);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after creating budget account: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after creating budget account: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        saveOrRevert("save_file", "creating root budget", () -> model.budget_accounts.remove(newAccount));
+        return newAccount;
     }
 
     public BudgetAccountBE createSubBudget(BudgetAccountBE parent,
@@ -1041,19 +985,8 @@ public class Controller {
         }
         BudgetAccountBE newAccount = new BudgetAccountBE(name, current_budget, yearly_budget);
         parent.addSubBudget(newAccount);
-        try {
-            saveAccountsToInternal();
-            return newAccount;
-        } catch (JSONException | IOException e) {
-            parent.getDirectSubBudgets().remove(newAccount);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after creating budget account: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after creating budget account: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        saveOrRevert("save_file", "creating sub budget", () -> parent.getDirectSubBudgets().remove(newAccount));
+        return newAccount;
     }
 
     public BudgetAccountBE createSubBudget(BudgetAccountBE parent,
@@ -1071,20 +1004,11 @@ public class Controller {
         ProjectBudgetBE newAccount = new ProjectBudgetBE(name, total_budget);
         parent.addSubBudget(newAccount);
         parent.adjustIndivYearlyBudget(-total_budget);
-        try {
-            saveAccountsToInternal();
-            return newAccount;
-        } catch (JSONException | IOException e) {
+        saveOrRevert("save_file", "creating project budget", () -> {
             parent.getDirectSubBudgets().remove(newAccount);
             parent.adjustIndivYearlyBudget(total_budget);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after creating budget account: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after creating budget account: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        });
+        return newAccount;
     }
 
     public boolean deleteAccount(String accountName) throws JSONException, IOException {
@@ -1124,25 +1048,20 @@ public class Controller {
         // if account to be deleted could not be found, return false
         if (position == -1)
             return false;
-        try {
-            saveAccountsToInternal();
-            return true;
-        } catch (JSONException | IOException e) {
+        // both are reassigned in the search loop above, so they are not effectively final and
+        // cannot be captured by the revert lambda directly
+        final int removedAt = position;
+        final BudgetAccountBE removedFrom = parentBudget;
+        saveOrRevert("save_file", "deleting account", () -> {
             if (account instanceof BudgetAccountBE) {
-                if (parentBudget == null)
-                    model.budget_accounts.add(position, (BudgetAccountBE) account);
+                if (removedFrom == null)
+                    model.budget_accounts.add(removedAt, (BudgetAccountBE) account);
                 else
-                    parentBudget.getDirectSubBudgets().add(position, (BudgetAccountBE) account);
+                    removedFrom.getDirectSubBudgets().add(removedAt, (BudgetAccountBE) account);
             } else
-                model.asset_accounts.add(position, account);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error serializing save file after deleting account: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after deleting account: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+                model.asset_accounts.add(removedAt, account);
+        });
+        return true;
     }
     // endregion
 
@@ -1289,6 +1208,9 @@ public class Controller {
         // if none was found, then return false
         if (sourceEntry == null)
             return false;
+        // assigned inside the search loop above, so not effectively final and not capturable by
+        // the revert lambda without a copy
+        final TxBE foundEntry = sourceEntry;
 
         // setup list of all accounts to search for other part of transaction
         // for this take asset accounts which are already of type AccountBE
@@ -1315,21 +1237,12 @@ public class Controller {
             for (TxBE entry : account.getTxList()) {
                 if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
                     entry.setAmount(newAmount * (-1.0f));
-                    sourceEntry.setAmount(newAmount);
-                    try {
-                        saveAccountsToInternal();
-                        return true;
-                    } catch (JSONException | IOException e) {
+                    foundEntry.setAmount(newAmount);
+                    saveOrRevert("save_file", "updating entry amount", () -> {
                         entry.setAmount(oldAmount * (-1.0f));
-                        sourceEntry.setAmount(oldAmount);
-                        if (e instanceof JSONException)
-                            Log.println(Log.ERROR, "save_file",
-                                    String.format("Error serializing save file after updating entry amount: %s\nChanges have been reverted.", e));
-                        else
-                            Log.println(Log.ERROR, "save_file",
-                                    String.format("Error writing save file after updating entry amount: %s\nChanges have been reverted.", e));
-                        throw e;
-                    }
+                        foundEntry.setAmount(oldAmount);
+                    });
+                    return true;
                 }
             }
         }
@@ -1347,6 +1260,9 @@ public class Controller {
         // if none was found, then return false
         if (sourceEntry == null)
             return false;
+        // assigned inside the search loop above, so not effectively final and not capturable by
+        // the revert lambda without a copy
+        final TxBE foundEntry = sourceEntry;
 
         // setup list of all accounts to search for other part of transaction
         // for this take asset accounts which are already of type AccountBE
@@ -1371,21 +1287,12 @@ public class Controller {
             for (TxBE entry : account.getTxList()) {
                 if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
                     entry.setDescription(newDescription);
-                    sourceEntry.setDescription(newDescription);
-                    try {
-                        saveAccountsToInternal();
-                        return true;
-                    } catch (JSONException | IOException e) {
+                    foundEntry.setDescription(newDescription);
+                    saveOrRevert("save_file", "updating entry description", () -> {
                         entry.setDescription(description);
-                        sourceEntry.setDescription(description);
-                        if (e instanceof JSONException)
-                            Log.println(Log.ERROR, "save_file",
-                                    String.format("Error serializing save file after updating entry description: %s\nChanges have been reverted.", e));
-                        else
-                            Log.println(Log.ERROR, "save_file",
-                                    String.format("Error writing save file after updating entry description: %s\nChanges have been reverted.", e));
-                        throw e;
-                    }
+                        foundEntry.setDescription(description);
+                    });
+                    return true;
                 }
             }
         }
@@ -1398,20 +1305,11 @@ public class Controller {
         account.setIndivYearlyBudget(newBudget);
         if (adjustAvailable)
             account.setIndivAvailableBudget(oldAvailableBudget + (newBudget - oldYearlyBudget) * (account.getRenewalPeriod() / 12.0f));
-        try {
-            saveAccountsToInternal();
-        }  catch (JSONException | IOException e) {
+        saveOrRevert("save_file", "updating yearly budget", () -> {
             account.setIndivYearlyBudget(oldYearlyBudget);
             if (adjustAvailable)
                 account.setIndivAvailableBudget(oldAvailableBudget);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                    String.format("Error serializing save file after updating yearly budget: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after updating yearly budget: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        });
     }
 
     public void transferAvailableBudget(float amount, BudgetAccountBE sender, BudgetAccountBE recipient) throws JSONException, IOException, InvalidParameterException {
@@ -1423,36 +1321,16 @@ public class Controller {
         sender.setIndivAvailableBudget(oldSenderCurrent - amount);
         recipient.setIndivAvailableBudget(oldRecipientCurrent + amount);
 
-        try {
-            saveAccountsToInternal();
-        }  catch (JSONException | IOException e) {
+        saveOrRevert("save_file", "transferring available budget", () -> {
             sender.setIndivAvailableBudget(oldSenderCurrent);
             recipient.setIndivAvailableBudget(oldRecipientCurrent);
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_file",
-                    String.format("Error serializing save file after transferring available budget: %s\nChanges have been reverted.", e));
-            else
-                Log.println(Log.ERROR, "save_file",
-                        String.format("Error writing save file after transferring available budget: %s\nChanges have been reverted.", e));
-            throw e;
-        }
+        });
     }
 
     public boolean transferSubBudget(BudgetAccountBE parent, BudgetAccountBE object, BudgetAccountBE target) throws JSONException, IOException {
         boolean result = parent.transferSubBudget(object, target);
         if (result)
-            try {
-                saveAccountsToInternal();
-            }  catch (JSONException | IOException e) {
-                target.transferSubBudget(object, parent);
-                if (e instanceof JSONException)
-                    Log.println(Log.ERROR, "save_file",
-                            String.format("Error serializing save file after transferring sub budget: %s\nChanges have been reverted.", e));
-                else
-                    Log.println(Log.ERROR, "save_file",
-                            String.format("Error writing save file after transferring sub budget: %s\nChanges have been reverted.", e));
-                throw e;
-            }
+            saveOrRevert("save_file", "transferring sub budget", () -> target.transferSubBudget(object, parent));
         return result;
     }
 }
