@@ -105,6 +105,24 @@ Found while moving these two methods out of `core/Util` into the UI layer (the l
 Deliberately **preserved as-is** during that move so the commit stayed behaviour-preserving. Fix
 is a two-token change plus a check of what selecting a child row is then expected to do.
 
+### 2. Tx sum disagrees with the visible list while a search filter is active
+
+Both details screens render the sum two different ways depending on which code path ran last:
+
+- `TxListSection.applyFilter` sums the **visible (filtered)** entries — so typing a search query
+  shows the sum of the matches.
+- `onRefresh()` in both `AssetAccountDetailsActivity` and `BudgetAccountDetailsActivity` renders
+  the **full, unfiltered** account sum (`renderTxSum(mAccount.getSum())`).
+
+So editing or deleting a transaction while a filter is active repaints the sum as the whole
+account's total while the list still shows only the filtered subset. Clearing and retyping the
+query flips it back.
+
+Pre-existing — the old `filterEntries`/`setTxSum(getReference().getSum())` pair behaved exactly the
+same way. Preserved deliberately through the composition refactor so those commits stayed
+behaviour-preserving. The fix is one line in each `onRefresh` (call `section.refresh()` instead),
+but it is a behaviour change and needs a decision about which number is actually wanted.
+
 ## Historical: issues as originally found (kept for reference)
 
 ### 1. `listAdapter` field-shadowing NPE on swipe gesture in `RecurringTxActivity`

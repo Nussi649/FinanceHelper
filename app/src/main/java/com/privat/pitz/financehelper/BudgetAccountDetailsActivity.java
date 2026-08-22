@@ -2,7 +2,6 @@ package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
 import android.app.Dialog;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -10,8 +9,6 @@ import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TableLayout;
 import android.widget.TextView;
-
-import com.google.android.material.snackbar.Snackbar;
 
 import org.json.JSONException;
 
@@ -25,14 +22,13 @@ import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.data.AccountBE;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.data.ProjectBudgetBE;
-import com.privat.pitz.financehelper.data.TxBE;
 import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
 import com.privat.pitz.financehelper.ui.PercentageBackground;
 import com.privat.pitz.financehelper.ui.TxListSection;
+import com.privat.pitz.financehelper.ui.TxSwipeActions;
 import com.privat.pitz.financehelper.ui.adapter.TxListAdapter;
 import com.privat.pitz.financehelper.ui.dialog.CreateBudgetAccountDialog;
 import com.privat.pitz.financehelper.ui.dialog.EditRenewalDialog;
-import com.privat.pitz.financehelper.ui.dialog.EditTxDialog;
 import com.privat.pitz.financehelper.ui.dialog.SetYearlyBudgetDialog;
 import com.privat.pitz.financehelper.ui.dialog.TransferAvailableBudgetDialog;
 import com.privat.pitz.financehelper.ui.dialog.TransferSubBudgetDialog;
@@ -91,23 +87,15 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
         totalYearly = containerTotal.findViewById(R.id.total_yearly_budget);
 
         listAdapter = new TxListAdapter();
+        View recyclerView = rootLayout.findViewById(R.id.recyclerView);
+        TxSwipeActions swipeActions = new TxSwipeActions(this, controller, mAccount, listAdapter, recyclerView, this);
         section = new TxListSection(
                 rootLayout,
                 listAdapter,
                 () -> mAccount.getTxList(),
                 TxListSection.MATCH_DESCRIPTION,
                 this::renderTxSum,
-                new TxListSection.TxActions() {
-                    @Override
-                    public void onEditRequested(int position, TxBE tx) {
-                        showEditTxDialog(position, tx);
-                    }
-
-                    @Override
-                    public void onDeleteRequested(int position, TxBE tx) {
-                        deleteTx(position, tx);
-                    }
-                });
+                swipeActions);
 
         // TxListSection hides these two by default (plain asset-account screens don't use them),
         // but the budget screen needs them visible to show percentage/yearly budget alongside
@@ -221,64 +209,6 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
         renderTxSum(mAccount.getSum());
         updateUITotalSums();
     }
-
-    // region Tx swipe actions (copied from AssetAccountDetailsActivity for now; a later step
-    // extracts these into a shared TxSwipeActions class used by both activities)
-    private void showEditTxDialog(int position, TxBE tx) {
-        EditTxDialog dialog = new EditTxDialog(this, tx) {
-            @Override
-            public void onConfirm(TxBE tx) {
-                try {
-                    sortAccountTx();
-                    controller.saveAccountsToInternal();
-                    onRefresh();
-                } catch (JSONException | IOException e) {
-                    if (e instanceof JSONException)
-                        Log.println(Log.ERROR, "edit_tx",
-                                String.format("Error serializing safe file after editing a transaction (%s): %s", tx, e));
-                    else
-                        Log.println(Log.ERROR, "edit_tx",
-                                String.format("Error writing safe file after editing a transaction (%s): %s", tx, e));
-                }
-                // Update the list
-                listAdapter.notifyItemChanged(position);
-            }
-        };
-
-        // Show the dialog
-        dialog.show();
-    }
-
-    private void deleteTx(int position, TxBE tx) {
-        // Temporarily remove the transaction from the list
-        listAdapter.removeEntry(tx);
-
-        // Show a Snackbar with an "Undo" action
-        Snackbar snackbar = Snackbar.make(section.getRecyclerView(), R.string.snackbar_tx_deleted, Snackbar.LENGTH_LONG);
-        snackbar.setAction("Undo", view -> {
-            // User clicked the "Undo" action, so put the transaction back into the list
-            listAdapter.addEntry(position, tx);
-        });
-        snackbar.addCallback(new Snackbar.Callback() {
-            @Override
-            public void onDismissed(Snackbar snackbar, int event) {
-                if (event != Snackbar.Callback.DISMISS_EVENT_ACTION) {
-                    try {
-                        controller.deleteTx(mAccount, tx);
-                        onRefresh();
-                    } catch (JSONException | IOException e) {
-                        showErrorToast(e);
-                    }
-                }
-            }
-        });
-        snackbar.show();
-    }
-
-    private void sortAccountTx() {
-        mAccount.sortTxByDate();
-    }
-    // endregion
 
     private void redirectAfterAccountDelete() {
         startActivity(BudgetsActivity.class);
