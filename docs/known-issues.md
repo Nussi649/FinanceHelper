@@ -55,6 +55,14 @@ written when this was still open). Fixed by overriding `initListGestures()` in
 button (`RecurringTxAdapter` → `parentActivity.deleteOrder(entry)`), so the base swipe handler
 (built for `TxBE`/`TxListAdapter`) was never meant to be attached here in the first place.
 
+**Superseded**: `RecurringTxActivity` no longer extends `AssetAccountDetailsActivity` at all — it
+now extends `AbstractActivity` directly and owns a `ui/TxListSection` instead of inheriting a list.
+The shadowed `listAdapter` field (and the `initListGestures()`/`hasEntries()`/`filterEntries()`
+overrides that existed only to work around the inheritance) are gone from the file entirely. The
+no-op override above was a correct fix at the time, but it was still a workaround for a shadowed
+field that could, in principle, be reintroduced by a careless future edit; now that the field no
+longer exists, this whole NPE class is structurally impossible rather than merely avoided.
+
 ### 5. Unguarded/locale-unsafe numeric parsing — FIXED
 
 All six sites listed below were fixed by wrapping each parse in a `try/catch (NumberFormatException)`
