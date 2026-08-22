@@ -23,12 +23,8 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -44,6 +40,7 @@ public class Controller {
     Model model;
     Context context;
     SavefileStorage storage;
+    SaveFileRepository repo;
 
     public static int LOADED_ACCOUNTS = 10;
     public static int LOADED_NEW_MONTH = 11;
@@ -53,11 +50,13 @@ public class Controller {
         this.context = context;
         this.storage = storage;
         initController();
+        repo = new SaveFileRepository(storage, model);
     }
 
     Controller(SavefileStorage storage) {
         this.storage = storage;
         this.model = new Model();
+        repo = new SaveFileRepository(storage, model);
     }
 
     private void initController() {
@@ -77,19 +76,11 @@ public class Controller {
         model.budget_accounts = new ArrayList<>();
         model.recurringTx = new ArrayList<>();
         model.currentIncome = new ArrayList<>();
-        setCurrentFileName(Const.getCurrentMonthFileName(model.currentEntity));
+        repo.setCurrentFileName(Const.getCurrentMonthFileName(model.currentEntity));
     }
 
     public boolean setCurrentFileName(String newFileName) {
-        try {
-            model.currentFileAttributes = Util.parseFileName(newFileName);
-        } catch (IllegalArgumentException e) {
-            Log.println(Log.ERROR, "parse_file_name",
-                    String.format("Tried parsing illegal file name: %s", e));
-            return false;
-        }
-        model.currentFileName = newFileName;
-        return true;
+        return repo.setCurrentFileName(newFileName);
     }
 
     public void resetAccounts() {
@@ -118,158 +109,31 @@ public class Controller {
 
     //region Import/Export Account Saves
     public String exportAccounts() throws JSONException {
-        JSONObject json = new JSONObject();
-
-        // save Asset accounts
-        JSONArray asset_accounts_json = new JSONArray();
-        for (AccountBE account : model.asset_accounts) {
-            JSONObject new_account_json = Util.serialise_Account(account);
-            if (new_account_json != null)
-                asset_accounts_json.put(new_account_json);
-        }
-        json.put(Const.JSON_TAG_ASSET_ACCOUNTS, asset_accounts_json);
-
-        // save Budget accounts
-        JSONArray budget_accounts_json = new JSONArray();
-        for (BudgetAccountBE budget_account : model.budget_accounts) {
-            JSONObject new_budget_account_json = Util.serialise_BudgetAccount(budget_account);
-            if (new_budget_account_json != null)
-                budget_accounts_json.put(new_budget_account_json);
-        }
-        json.put(Const.JSON_TAG_BUDGET_ACCOUNTS, budget_accounts_json);
-
-        // save Recurring Orders
-        JSONArray recurring_orders_json = new JSONArray();
-        for (RecurringTxBE recurring_order : model.recurringTx) {
-            JSONObject new_recurring_order_json = Util.serialise_RecurringOrder(recurring_order);
-            if (new_recurring_order_json != null)
-                recurring_orders_json.put(new_recurring_order_json);
-        }
-        json.put(Const.JSON_TAG_RECURRING_TX, recurring_orders_json);
-
-        // save Income list
-        JSONArray income_list_json = Util.serialise_Income(model.currentIncome);
-        json.put(Const.JSON_TAG_CURRENT_INCOME, income_list_json);
-        return json.toString(4);
+        return repo.exportAccounts();
     }
 
     public void importAccounts(String data) throws JSONException {
-        JSONObject json = new JSONObject(data);
-        JSONArray accounts;
-
-        // get asset accounts
-        model.asset_accounts = new ArrayList<>();
-        JSONArray asset_accounts_json = json.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
-        for (int i = 0; i < asset_accounts_json.length(); i++) {
-            // get JSONObject of current account
-            JSONObject current_account_json = asset_accounts_json.getJSONObject(i);
-            // parse new account using parse function in Util
-            AccountBE new_account = Util.parseJSON_Account(current_account_json);
-            if (new_account != null) {
-                model.asset_accounts.add(new_account);
-                Model.EntityDefaults defaults = model.getCurrentDefaults();
-                if (defaults != null) {
-                    // check if account is default Sender account
-                    if (defaults.defaultSender.equals(new_account.toString()))
-                        model.currentSender = new_account;
-                    // check if account is default Receiver account
-                    if (defaults.defaultReceiver.equals(new_account.toString()))
-                        model.currentReceiver = new_account;
-                }
-            }
-        }
-
-        // get budget accounts
-        model.budget_accounts = new ArrayList<>();
-        JSONArray budget_accounts_json = json.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
-        for (int i = 0; i < budget_accounts_json.length(); i++) {
-            // get JSONObject of current budget account
-            JSONObject current_budget_account_json = budget_accounts_json.getJSONObject(i);
-            // parse new budget account using parse function in Util
-            BudgetAccountBE new_budget_account = Util.parseJSON_BudgetAccount(current_budget_account_json);
-            if (new_budget_account != null) {
-                model.budget_accounts.add(new_budget_account);
-                Model.EntityDefaults defaults = model.getCurrentDefaults();
-                if (defaults != null) {
-                    // check if account is default Receiver account
-                    if (defaults.defaultReceiver.equals(new_budget_account.toString()))
-                        model.currentReceiver = new_budget_account;
-                }
-            }
-        }
-
-        // get recurring Orders
-        model.recurringTx = new ArrayList<>();
-        accounts = json.getJSONArray(Const.JSON_TAG_RECURRING_TX);
-        for (int i = 0; i < accounts.length(); i++) {
-            RecurringTxBE new_order = Util.parseJSON_RecurringOrder(accounts.getJSONObject(i));
-            if (new_order != null)
-                model.recurringTx.add(new_order);
-        }
-
-        // get income List
-        model.currentIncome = Util.parseJSON_IncomeList(json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME));
+        repo.importAccounts(data);
     }
 
     public void writeToInternal(String data, String filename) throws IOException {
-        storage.write(filename, data);
+        repo.writeToInternal(data, filename);
     }
 
     public String readFromInternal(String filename) throws IOException {
-        return storage.read(filename);
+        return repo.readFromInternal(filename);
     }
 
     public void saveAccountsToInternal() throws JSONException, IOException {
-        saveAccountsToInternal(getModel().currentFileName);
+        repo.saveAccountsToInternal();
     }
 
     public void saveAccountsToInternal(String filename) throws JSONException, IOException {
-        String payload = exportAccounts();
-        writeToInternal(payload, filename);
-    }
-
-    /**
-     * The optimistic-mutate / save / revert-on-failure pattern used by every mutating operation:
-     * the caller mutates the model first, then calls this with an action that undoes that mutation
-     * if persisting fails.
-     *
-     * @param logTag log tag, e.g. "save_file"
-     * @param what   noun phrase completing "... after %s", e.g. "adding funds"
-     * @param revert undoes the caller's in-memory mutation; must not throw
-     */
-    private void saveOrRevert(String logTag, String what, Runnable revert)
-            throws JSONException, IOException {
-        try {
-            saveAccountsToInternal();
-        } catch (JSONException | IOException e) {
-            revert.run();
-            Log.println(Log.ERROR, logTag, String.format(
-                    e instanceof JSONException
-                            ? "Error serializing save file after %s: %s%nChanges have been reverted."
-                            : "Error writing save file after %s: %s%nChanges have been reverted.",
-                    what, e));
-            throw e;
-        }
+        repo.saveAccountsToInternal(filename);
     }
 
     public void readAccountsFromInternal(String filename) throws JSONException, IOException {
-        String payload = readFromInternal(filename);
-        boolean filenameValid = setCurrentFileName(filename);
-        if (filenameValid) {
-            importAccounts(payload);
-            Util.FileNameParts parts = Util.parseFileName(filename);
-            model.currentEntity = parts.entityName;
-            model.settings.defaultEntityName = parts.entityName;
-            Model.EntityDefaults defaults = model.getCurrentDefaults();
-            if (defaults != null) {
-                AccountBE sender = model.getAccountByName(defaults.defaultSender);
-                AccountBE receiver = model.getAccountByName(defaults.defaultReceiver);
-                if (sender != null)
-                    model.currentSender = sender;
-                if (receiver != null)
-                    model.currentReceiver = receiver;
-            }
-        }
+        repo.readAccountsFromInternal(filename);
     }
 
     // bundles all save files (and the app settings) into a single zip file at the given SAF Uri,
@@ -390,12 +254,12 @@ public class Controller {
 
     public void loadEntity(String entityName) throws JSONException, IllegalArgumentException, IOException {
         // Validate parameter - check if the entity exists in the available entities
-        List<String> allEntities = getAllAvailableEntities();
+        List<String> allEntities = repo.getAllAvailableEntities();
         if (!allEntities.contains(entityName))
             throw new IllegalArgumentException("No save file found for that entity.");
 
         // Find all available periods for the given entity
-        List<String> availablePeriods = getAllPeriodsForEntity(entityName); // Will return list of strings with format "YYYY-MM"
+        List<String> availablePeriods = repo.getAllPeriodsForEntity(entityName); // Will return list of strings with format "YYYY-MM"
 
         // Select the latest period. We can order the periods in descending order and get the first one,
         // which will be the latest. Since the first validation passed, we know the list is non-empty.
@@ -434,89 +298,31 @@ public class Controller {
     }
 
     public boolean deleteSavefile(String name) {
-        return storage.delete(Util.reduceFileTypeEnding(name) + Const.ACCOUNTS_FILE_TYPE);
+        return repo.deleteSavefile(name);
     }
 
     // PARAMS: String period: a String representing the period in which to look for entities with existing save files
     // Format: "YYYY-MM"
     public List<String> getAvailableEntitiesForPeriod(String period) throws IllegalArgumentException {
-        // Verify the format and plausibility of the period
-        if (!Util.validatePeriod(period)) {
-            throw new IllegalArgumentException(
-                    "The period should have the format 'YYYY-MM', with year 2000-2050 and month 01-12. Given: " + period);
-        }
-
-        // Get all files in the directory
-        List<String> names = storage.list();
-        List<String> entityNames = new ArrayList<>();
-        if (names.isEmpty())
-            return entityNames;
-
-        // Filter the file names and extract the entity names
-        Pattern pattern = Pattern.compile("^" + period + "-([^.]+)\\.jso$");
-        for (String name : names) {
-            Matcher matcher = pattern.matcher(name);
-            if (matcher.matches()) {
-                entityNames.add(matcher.group(1));
-            }
-        }
-        return entityNames;
+        return repo.getAvailableEntitiesForPeriod(period);
     }
 
     public List<String> getCurrentAvailableEntities() {
-        String period = Util.getPresentPeriod();
-
-        try {
-            // return getAvailableEntitiesForPeriod(period)
-            return getAvailableEntitiesForPeriod(period);
-        } catch (IllegalArgumentException e) {
-            // exception handling should log an Error
-            Log.println(Log.ERROR, "settings_backend",
-                    String.format("Error getting available entities for current period: %s", e));
-            return new ArrayList<>(); // return an empty list in case of an error
-        }
+        return repo.getCurrentAvailableEntities();
     }
 
     // searches for save files of financial entities regardless of period
     public List<String> getAllAvailableEntities() {
-        // Get all files in the directory
-        List<String> names = storage.list();
-        Set<String> entityNames = new HashSet<>();
-        if (names.isEmpty())
-            return new ArrayList<>(entityNames);
-
-        // Filter the file names and extract the entity names
-        Pattern pattern = Pattern.compile("^\\d{4}-\\d{2}-([^.]+)\\.jso$");
-        for (String name : names) {
-            Matcher matcher = pattern.matcher(name);
-            if (matcher.matches()) {
-                entityNames.add(matcher.group(1));
-            }
-        }
-        return new ArrayList<>(entityNames);
+        return repo.getAllAvailableEntities();
     }
 
     public List<String> getAllPeriodsForEntity(String entityName) {
-        // Get all files in the directory
-        List<String> names = storage.list();
-        List<String> periods = new ArrayList<>();
-        if (names.isEmpty())
-            return periods;
-
-        // Filter the file names and extract the periods for the specified entity
-        Pattern pattern = Pattern.compile("^(\\d{4}-\\d{2})-" + Pattern.quote(entityName) + "\\.jso$");
-        for (String name : names) {
-            Matcher matcher = pattern.matcher(name);
-            if (matcher.matches()) {
-                periods.add(matcher.group(1));  // This will match the YYYY-MM part of the filename
-            }
-        }
-        return periods;
+        return repo.getAllPeriodsForEntity(entityName);
     }
 
     public void switchToEntity(String targetEntity) throws JSONException, IOException, IllegalArgumentException {
         // first validate argument
-        List<String> availableEntities = getAllAvailableEntities();
+        List<String> availableEntities = repo.getAllAvailableEntities();
         if (!availableEntities.contains(targetEntity)) {
             Log.println(Log.ERROR, "switch_entity",
                     "Error while trying to switch entity. Entity not valid. Aborting process!");
@@ -525,7 +331,7 @@ public class Controller {
         // save current state
         String oldEntity = model.currentEntity;
         try {
-            saveAccountsToInternal();
+            repo.saveAccountsToInternal();
         } catch (JSONException | IOException e) {
             if (e instanceof JSONException)
                 Log.println(Log.ERROR, "switch_entity",
@@ -577,55 +383,11 @@ public class Controller {
     }
 
     public boolean loadAppSettings() {
-        try {
-            String payload = readFromInternal(Const.APPLICATION_SETTINGS_FILENAME);
-            model.settings = Util.parseJSON_Settings(new JSONObject(payload));
-            model.currentEntity = model.settings.defaultEntityName;
-            return true;
-        } catch (JSONException | IOException e) {
-            // settings could not be read due to any reason
-            // set current financial entity name (nothing to load, so set default)
-            model.currentEntity = "User";
-            // set default name to settings
-            model.settings.defaultEntityName = "User";
-
-            // differentiate between exceptions
-            if (e instanceof FileNotFoundException) {
-                Log.println(Log.ERROR, "load_settings",
-                        String.format("Error reading settings file. The file could not be located. Loaded defaults and saved them: %s", e));
-                // no settings file available (e.g. at first start) -> save newly created settings
-                try {
-                    saveAppSettings();
-                } catch (JSONException | IOException newE) {
-                    newE.printStackTrace();
-                }
-            } else if (e instanceof IOException) {
-                // the file exists but could not be read
-                Log.println(Log.ERROR, "load_settings",
-                        String.format("Error reading settings file. The file could be located but not read. Loaded defaults instead: %s", e));
-            } else {
-                // file could be read but is corrupted in some sort
-                Log.println(Log.ERROR, "load_settings",
-                        String.format("Error parsing settings file. The file is probably corrupted. Loaded defaults instead: %s", e));
-            }
-        }
-        return false;
+        return repo.loadAppSettings();
     }
 
     public void saveAppSettings() throws JSONException, IOException {
-        JSONObject settingsJSON;
-        try {
-            settingsJSON = Util.serialise_Settings(model.settings);
-            writeToInternal(settingsJSON.toString(), Const.APPLICATION_SETTINGS_FILENAME);
-        } catch (JSONException | IOException e) {
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "save_settings",
-                        String.format("Can't save... %s", e));
-            else
-                Log.println(Log.ERROR, "save_settings",
-                        String.format("Error trying to write settings to storage: %s", e));
-            throw e;
-        }
+        repo.saveAppSettings();
     }
     //endregion
 
@@ -649,7 +411,7 @@ public class Controller {
                 result = startTxRedirection(otherEntity, desc, amount, prompt);
         }
         if (result) {
-            saveOrRevert("save_file", "creating a Tx", () -> {
+            repo.saveOrRevert("save_file", "creating a Tx", () -> {
                 from_acc.removeTx(entry_from);
                 to_acc.removeTx(entry_to);
             });
@@ -827,7 +589,7 @@ public class Controller {
         if (position == -1)
             return false;
         parent.removeTx(tx);
-        saveOrRevert("delete_tx", "deleting a transaction (" + tx + ")", () -> parent.addTx(position, tx));
+        repo.saveOrRevert("delete_tx", "deleting a transaction (" + tx + ")", () -> parent.addTx(position, tx));
         return true;
     }
 
@@ -840,7 +602,7 @@ public class Controller {
         final AccountBE receiver = model.currentReceiver;
         receiver.addTx(newFunds);
         model.currentIncome.add(newFunds);
-        saveOrRevert("save_file", "adding funds", () -> {
+        repo.saveOrRevert("save_file", "adding funds", () -> {
             receiver.dropLastTx();
             model.currentIncome.remove(newFunds);
         });
@@ -861,7 +623,7 @@ public class Controller {
         }
         RecurringTxBE newOrder = new RecurringTxBE(amount, desc, calendar.getTime(), sender.getName(), receiver.getName());
         model.recurringTx.add(newOrder);
-        saveOrRevert("save_file", "adding recurring transaction", () -> model.recurringTx.remove(newOrder));
+        repo.saveOrRevert("save_file", "adding recurring transaction", () -> model.recurringTx.remove(newOrder));
         return true;
     }
 
@@ -872,7 +634,7 @@ public class Controller {
         // mutate before the save, matching every other site (the removal cannot throw a checked
         // exception, so hoisting it out of the try is behaviour-identical)
         model.recurringTx.remove(recurringTx);
-        saveOrRevert("save_file", "deleting recurring transaction",
+        repo.saveOrRevert("save_file", "deleting recurring transaction",
                 () -> model.recurringTx.add(position, recurringTx));
         return true;
     }
@@ -927,7 +689,7 @@ public class Controller {
                                 r.getReceiverStr()));
             }
         }
-        saveOrRevert("save_file", "triggering recurring transactions", () -> {
+        repo.saveOrRevert("save_file", "triggering recurring transactions", () -> {
             for (AccountTxCombo entry : addedTx) {
                 entry.account.getTxList().remove(entry.tx);
             }
@@ -956,7 +718,7 @@ public class Controller {
         }
         AccountBE newAccount = new AccountBE(name);
         model.asset_accounts.add(newAccount);
-        saveOrRevert("save_file", "creating asset account", () -> model.asset_accounts.remove(newAccount));
+        repo.saveOrRevert("save_file", "creating asset account", () -> model.asset_accounts.remove(newAccount));
         return newAccount;
     }
 
@@ -968,7 +730,7 @@ public class Controller {
         }
         BudgetAccountBE newAccount = new BudgetAccountBE(name, currentBudget, yearlyBudget);
         model.budget_accounts.add(newAccount);
-        saveOrRevert("save_file", "creating root budget", () -> model.budget_accounts.remove(newAccount));
+        repo.saveOrRevert("save_file", "creating root budget", () -> model.budget_accounts.remove(newAccount));
         return newAccount;
     }
 
@@ -983,7 +745,7 @@ public class Controller {
         }
         BudgetAccountBE newAccount = new BudgetAccountBE(name, current_budget, yearly_budget);
         parent.addSubBudget(newAccount);
-        saveOrRevert("save_file", "creating sub budget", () -> parent.getDirectSubBudgets().remove(newAccount));
+        repo.saveOrRevert("save_file", "creating sub budget", () -> parent.getDirectSubBudgets().remove(newAccount));
         return newAccount;
     }
 
@@ -1002,7 +764,7 @@ public class Controller {
         ProjectBudgetBE newAccount = new ProjectBudgetBE(name, total_budget);
         parent.addSubBudget(newAccount);
         parent.adjustIndivYearlyBudget(-total_budget);
-        saveOrRevert("save_file", "creating project budget", () -> {
+        repo.saveOrRevert("save_file", "creating project budget", () -> {
             parent.getDirectSubBudgets().remove(newAccount);
             parent.adjustIndivYearlyBudget(total_budget);
         });
@@ -1050,7 +812,7 @@ public class Controller {
         // cannot be captured by the revert lambda directly
         final int removedAt = position;
         final BudgetAccountBE removedFrom = parentBudget;
-        saveOrRevert("save_file", "deleting account", () -> {
+        repo.saveOrRevert("save_file", "deleting account", () -> {
             if (account instanceof BudgetAccountBE) {
                 if (removedFrom == null)
                     model.budget_accounts.add(removedAt, (BudgetAccountBE) account);
@@ -1236,7 +998,7 @@ public class Controller {
                 if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
                     entry.setAmount(newAmount * (-1.0f));
                     foundEntry.setAmount(newAmount);
-                    saveOrRevert("save_file", "updating entry amount", () -> {
+                    repo.saveOrRevert("save_file", "updating entry amount", () -> {
                         entry.setAmount(oldAmount * (-1.0f));
                         foundEntry.setAmount(oldAmount);
                     });
@@ -1286,7 +1048,7 @@ public class Controller {
                 if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
                     entry.setDescription(newDescription);
                     foundEntry.setDescription(newDescription);
-                    saveOrRevert("save_file", "updating entry description", () -> {
+                    repo.saveOrRevert("save_file", "updating entry description", () -> {
                         entry.setDescription(description);
                         foundEntry.setDescription(description);
                     });
@@ -1303,7 +1065,7 @@ public class Controller {
         account.setIndivYearlyBudget(newBudget);
         if (adjustAvailable)
             account.setIndivAvailableBudget(oldAvailableBudget + (newBudget - oldYearlyBudget) * (account.getRenewalPeriod() / 12.0f));
-        saveOrRevert("save_file", "updating yearly budget", () -> {
+        repo.saveOrRevert("save_file", "updating yearly budget", () -> {
             account.setIndivYearlyBudget(oldYearlyBudget);
             if (adjustAvailable)
                 account.setIndivAvailableBudget(oldAvailableBudget);
@@ -1319,7 +1081,7 @@ public class Controller {
         sender.setIndivAvailableBudget(oldSenderCurrent - amount);
         recipient.setIndivAvailableBudget(oldRecipientCurrent + amount);
 
-        saveOrRevert("save_file", "transferring available budget", () -> {
+        repo.saveOrRevert("save_file", "transferring available budget", () -> {
             sender.setIndivAvailableBudget(oldSenderCurrent);
             recipient.setIndivAvailableBudget(oldRecipientCurrent);
         });
@@ -1328,7 +1090,7 @@ public class Controller {
     public boolean transferSubBudget(BudgetAccountBE parent, BudgetAccountBE object, BudgetAccountBE target) throws JSONException, IOException {
         boolean result = parent.transferSubBudget(object, target);
         if (result)
-            saveOrRevert("save_file", "transferring sub budget", () -> target.transferSubBudget(object, parent));
+            repo.saveOrRevert("save_file", "transferring sub budget", () -> target.transferSubBudget(object, parent));
         return result;
     }
 }
