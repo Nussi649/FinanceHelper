@@ -8,6 +8,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
@@ -31,6 +32,30 @@ public class BudgetAccountTableRow extends TableRow {
         BudgetAccountTableRow row = (BudgetAccountTableRow) LayoutInflater.from(parentActivity).inflate(R.layout.table_row_budget_account_overview, null);
         row.setParentActivity(parentActivity);
         return row;
+    }
+
+    // walks the sub-budget tree of accountObject and adds the matching rows from viewPool to container.
+    // moved here from BudgetAccountBE (a plain data entity must not depend on Android views).
+    public static boolean addBudgetAccountViewsToContainer(BudgetAccountBE accountObject, List<BudgetAccountTableRow> viewPool, TableLayout container) {
+        // initiate variables
+        boolean result = true;
+        BudgetAccountTableRow own = null;
+        List<BudgetAccountTableRow> reducedPool = new ArrayList<>(viewPool);
+        // find corresponding row
+        for (BudgetAccountTableRow row : viewPool)
+            if (accountObject.equals(row.getReferenceAccount()))
+                own = row;
+        // add row to container if found otherwise set result false
+        if (own != null) {
+            container.addView(own);
+            reducedPool.remove(own);
+        }
+        else
+            result = false;
+        // recursively add sub budgets
+        for (BudgetAccountBE subBudget : accountObject.getDirectSubBudgets())
+            result = result && addBudgetAccountViewsToContainer(subBudget, reducedPool, container);
+        return result;
     }
 
     private BudgetAccountBE refAcc;
@@ -289,9 +314,9 @@ public class BudgetAccountTableRow extends TableRow {
         currentPercentageLabel.setText(currentPercentageString);
         yearlyBudgetLabel.setText(yearly_budget_string);
         if (refAcc instanceof ProjectBudgetBE) {
-            currentPercentageLabel.setBackground(Util.createBackground(ContextCompat.getColor(getContext(), R.color.colorNeutral)));
+            currentPercentageLabel.setBackground(PercentageBackground.createBackground(ContextCompat.getColor(getContext(), R.color.colorNeutral)));
         } else {
-            currentPercentageLabel.setBackground(Util.evaluatePercentageBG(current_percentage, parentActivity));
+            currentPercentageLabel.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, parentActivity));
         }
     }
     // endregion

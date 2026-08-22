@@ -23,6 +23,7 @@ import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.data.ProjectBudgetBE;
 import com.privat.pitz.financehelper.data.TxBE;
 import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.PercentageBackground;
 import com.privat.pitz.financehelper.ui.dialog.CreateBudgetAccountDialog;
 import com.privat.pitz.financehelper.ui.dialog.EditRenewalDialog;
 import com.privat.pitz.financehelper.ui.dialog.SetYearlyBudgetDialog;
@@ -374,7 +375,7 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         totalPercentage.setText(currentPercentageString);
         totalYearly.setText(yearly_budget_string);
 
-        totalPercentage.setBackground(Util.evaluatePercentageBG(current_percentage, this));
+        totalPercentage.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, this));
     }
 
     private void loadSubBudgets() {

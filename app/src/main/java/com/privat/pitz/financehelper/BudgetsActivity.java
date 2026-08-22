@@ -27,6 +27,7 @@ import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.PercentageBackground;
 
 public class BudgetsActivity extends AbstractActivity implements BudgetAccountListHandler {
     List<BudgetAccountTableRow> budgetViews = new ArrayList<>();
@@ -278,6 +279,6 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
         totalYearly.setText(yearly_budget_string);
 
         // color percentage label
-        totalPercentage.setBackground(Util.evaluatePercentageBG(current_percentage, this));
+        totalPercentage.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, this));
     }
 }

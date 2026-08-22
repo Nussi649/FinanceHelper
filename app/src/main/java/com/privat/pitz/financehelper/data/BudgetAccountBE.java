@@ -1,14 +1,12 @@
 package com.privat.pitz.financehelper.data;
 
 import android.util.Log;
-import android.widget.TableLayout;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 import com.privat.pitz.financehelper.core.Util;
-import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
 
 public class BudgetAccountBE extends AccountBE{
 
@@ -244,27 +242,5 @@ public class BudgetAccountBE extends AccountBE{
             return true;
         target.subBudgets.remove(subBudget);
         return false;
-    }
-
-    public boolean addBudgetAccountViewsToContainer(List<BudgetAccountTableRow> viewPool, TableLayout container) {
-        // initiate variables
-        boolean result = true;
-        BudgetAccountTableRow own = null;
-        List<BudgetAccountTableRow> reducedPool = new ArrayList<>(viewPool);
-        // find corresponding row
-        for (BudgetAccountTableRow row : viewPool)
-            if (equals(row.getReferenceAccount()))
-                own = row;
-        // add row to container if found otherwise set result false
-        if (own != null) {
-            container.addView(own);
-            reducedPool.remove(own);
-        }
-        else
-            result = false;
-        // recursively add sub budgets
-        for (BudgetAccountBE subBudget : subBudgets)
-            result = result && subBudget.addBudgetAccountViewsToContainer(reducedPool, container);
-        return result;
     }
 }

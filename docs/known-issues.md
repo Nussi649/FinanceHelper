@@ -74,7 +74,35 @@ why the crash was reported as budget-account-specific even though the underlying
 
 ## Not yet fixed
 
-(none currently — see "Already fixed this session" above for full history)
+### 1. Asset-preview child rows register the *parent's* radio buttons
+
+`ui/AccountPreviewList.populateAssetAccountsPreview` (lines 129 and 133) reads the child row's
+radio buttons off the wrong object:
+
+```java
+RadioButton rbReceiveChild = newItem.getRBReceiver();   // :129  should be child.getRBReceiver()
+RadioButton rbSendChild    = newItem.getRBSender();     // :133  should be child.getRBSender()
+```
+
+`newItem` is the **parent** list item; `child` is the row being processed. The budget variant of
+the same loop gets it right — `populateBudgetAccountsPreview` uses `child.getRBReceiver()`
+(line 63) — which is what makes this identifiable as a copy-paste slip rather than intent.
+
+Consequence: for an asset account with children, every child iteration re-registers the *parent's*
+two radio buttons in the `RbAccountManager`, overwriting the mapping each time. The child accounts'
+own radio buttons are never registered at all, so selecting a child as sender/receiver does not
+resolve to that child. The last child processed wins the parent's mapping.
+
+Found while moving these two methods out of `core/Util` into the UI layer (the layering refactor).
+Deliberately **preserved as-is** during that move so the commit stayed behaviour-preserving. Fix
+is a two-token change plus a check of what selecting a child row is then expected to do.
+
+### 2. `BudgetAccountTableRow.addBudgetAccountViewsToContainer` is dead
+
+Has no callers anywhere in `app/src/main` — it only recurses into itself. Originally lived on
+`Logic/BudgetAccountBE` and was the reason that entity class imported `android.widget.TableLayout`;
+it was moved to `ui/BudgetAccountTableRow` during the layering refactor rather than deleted, to
+keep that commit a pure move. It should either be wired up or deleted.
 
 ## Historical: issues as originally found (kept for reference)
 

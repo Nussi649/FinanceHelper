@@ -35,6 +35,7 @@ import com.privat.pitz.financehelper.core.Const;
 import com.privat.pitz.financehelper.core.Controller;
 import com.privat.pitz.financehelper.core.IntegrityChecker;
 import com.privat.pitz.financehelper.core.RedirectionPrompt;
+import com.privat.pitz.financehelper.ui.AccountPreviewList;
 import com.privat.pitz.financehelper.ui.RbAccountManager;
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.ui.dialog.AddIncomeDialog;
@@ -151,12 +152,12 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
         LinearLayout container_assets = findViewById(R.id.overview_asset_accounts);
         LinearLayout container_budgets = findViewById(R.id.overview_budget_accounts);
 
-        Util.populateAssetAccountsPreview(model.asset_accounts,
+        AccountPreviewList.populateAssetAccountsPreview(model.asset_accounts,
                 this,
                 container_assets,
                 rbReceiver,
                 rbSender);
-        Util.populateBudgetAccountsPreview(model.budget_accounts,
+        AccountPreviewList.populateBudgetAccountsPreview(model.budget_accounts,
                 this,
                 container_budgets,
                 rbReceiver);
