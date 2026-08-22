@@ -7,8 +7,6 @@ import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
-import com.privat.pitz.financehelper.MainActivity;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -633,9 +631,9 @@ public class Controller {
 
     // region perform transactions
     // create a transaction between two accounts
-    public boolean createTx(MainActivity parentActivity, String desc, float amount) throws JSONException, IOException {
-        AccountBE from_acc = parentActivity.model.currentSender;
-        AccountBE to_acc = parentActivity.model.currentReceiver;
+    public boolean createTx(String desc, float amount, RedirectionPrompt prompt) throws JSONException, IOException {
+        AccountBE from_acc = model.currentSender;
+        AccountBE to_acc = model.currentReceiver;
         Calendar calendar = Calendar.getInstance();
         TxBE entry_from = new TxBE(amount*(-1.0f), desc, calendar.getTime());
         TxBE entry_to = new TxBE(amount, desc, calendar.getTime());
@@ -648,7 +646,7 @@ public class Controller {
             BudgetAccountBE to_budgetAcc = (BudgetAccountBE) to_acc;
             String otherEntity = to_budgetAcc.getOtherEntity();
             if (otherEntity != null && !otherEntity.isEmpty())
-                result = startTxRedirection(parentActivity, otherEntity, desc, amount);
+                result = startTxRedirection(otherEntity, desc, amount, prompt);
         }
         if (result) {
             saveOrRevert("save_file", "creating a Tx", () -> {
@@ -661,7 +659,7 @@ public class Controller {
     }
 
     // Start the transaction redirection
-    public boolean startTxRedirection(MainActivity parentActivity, String targetEntity, String desc, float amount) throws JSONException, IOException {
+    public boolean startTxRedirection(String targetEntity, String desc, float amount, RedirectionPrompt prompt) throws JSONException, IOException {
         Util.FileNameParts curAttrs = model.currentFileAttributes;
         // try finding save file to other entity
         // construct filename to look for
@@ -688,7 +686,7 @@ public class Controller {
                         String.format("Error parsing other save file: %s", e));
             throw e;
         }
-        parentActivity.getTransactionRedirectionInput(fileNameOther, json, desc, amount, allAccounts);
+        prompt.getTransactionRedirectionInput(fileNameOther, json, desc, amount, allAccounts);
         return true;
     }
 
@@ -849,10 +847,10 @@ public class Controller {
         return true;
     }
 
-    public boolean addRecurringTx(MainActivity parent, String desc, float amount) throws JSONException, IOException{
+    public boolean addRecurringTx(String desc, float amount) throws JSONException, IOException{
         Calendar calendar = Calendar.getInstance();
-        AccountBE sender = parent.model.currentSender;
-        AccountBE receiver = parent.model.currentReceiver;
+        AccountBE sender = model.currentSender;
+        AccountBE receiver = model.currentReceiver;
         try {
             assert sender != null;
             assert receiver != null;

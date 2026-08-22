@@ -34,6 +34,7 @@ import java.util.Locale;
 import com.privat.pitz.financehelper.core.Const;
 import com.privat.pitz.financehelper.core.Controller;
 import com.privat.pitz.financehelper.core.IntegrityChecker;
+import com.privat.pitz.financehelper.core.RedirectionPrompt;
 import com.privat.pitz.financehelper.ui.RbAccountManager;
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.ui.dialog.AddIncomeDialog;
@@ -43,7 +44,7 @@ import com.privat.pitz.financehelper.ui.dialog.LoadFileDialog;
 import com.privat.pitz.financehelper.ui.dialog.SaveFileDialog;
 import com.privat.pitz.financehelper.ui.dialog.TransactionRedirectionDialog;
 
-public class MainActivity extends AbstractActivity {
+public class MainActivity extends AbstractActivity implements RedirectionPrompt {
 
 
     public EditText newDescription;
@@ -189,7 +190,6 @@ public class MainActivity extends AbstractActivity {
 
         open_budgets_detailed.setOnClickListener(view -> startActivity(BudgetsActivity.class));
 
-        MainActivity parent = this;
         addTx.setOnClickListener(v -> {
             String des = newDescription.getText().toString();
             String am = newAmount.getText().toString();
@@ -212,7 +212,7 @@ public class MainActivity extends AbstractActivity {
             // try creating a transaction and wait for result
             boolean result = false;
             try {
-                result = controller.createTx(parent, des, amount);
+                result = controller.createTx(des, amount, this);
             } catch (JSONException | IOException e) {
                 showErrorToast(e);
             }
@@ -239,7 +239,7 @@ public class MainActivity extends AbstractActivity {
 
             try {
                 float amount = Util.parseAmount(amountString);
-                boolean result = controller.addRecurringTx(parent, description, amount);
+                boolean result = controller.addRecurringTx(description, amount);
                 if (result) {
                     showToast(R.string.toast_success_new_recurring_tx);
                     newDescription.setText("");
@@ -277,6 +277,7 @@ public class MainActivity extends AbstractActivity {
         dialog.show();
     }
 
+    @Override
     public void getTransactionRedirectionInput(String targetFileName, JSONObject fileContent, String desc, float amount, JSONArray allAccounts) {
         // calculate list of account names as strings
         List<String> accountNames = new ArrayList<>();

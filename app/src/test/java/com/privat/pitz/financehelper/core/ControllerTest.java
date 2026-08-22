@@ -269,6 +269,35 @@ public class ControllerTest {
 
     // endregion
 
+    // region createTx (core, UI-independent)
+
+    @Test
+    public void createTx_movesFundsBetweenSenderAndReceiverAndSaves() throws JSONException, IOException {
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+        Model model = controller.getModel();
+        model.currentFileName = "2026-08-User.jso";
+
+        AccountBE girokonto = new AccountBE("Girokonto");
+        AccountBE sparkonto = new AccountBE("Sparkonto");
+        model.currentSender = girokonto;
+        model.currentReceiver = sparkonto;
+
+        // receiver is a plain AccountBE, not a BudgetAccountBE, so startTxRedirection is never
+        // reached and a null RedirectionPrompt is safe here.
+        boolean result = controller.createTx("Ueberweisung", 100f, null);
+
+        assertTrue(result);
+        assertEquals(1, girokonto.getTxList().size());
+        assertEquals(-100f, girokonto.getTxList().get(0).getAmount(), 0.001f);
+        assertEquals(1, sparkonto.getTxList().size());
+        assertEquals(100f, sparkonto.getTxList().get(0).getAmount(), 0.001f);
+        assertFalse(storage.files.isEmpty());
+        assertTrue(storage.writeCount > 0);
+    }
+
+    // endregion
+
     private void putEmpty(InMemorySavefileStorage storage, String name) {
         storage.files.put(name, new byte[0]);
     }
