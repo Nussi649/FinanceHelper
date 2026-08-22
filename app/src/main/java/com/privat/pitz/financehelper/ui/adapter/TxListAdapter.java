@@ -16,8 +16,9 @@ import java.util.List;
 
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.data.TxBE;
+import com.privat.pitz.financehelper.ui.TxListSection;
 
-public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewHolder> {
+public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewHolder> implements TxListSection.EntryListAdapter {
     static class EntryViewHolder extends RecyclerView.ViewHolder {
         TextView date;
         TextView labelDescription;
@@ -32,9 +33,14 @@ public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewH
     }
     protected List<TxBE> entries = new ArrayList<>();
 
+    @SuppressWarnings("unchecked")
     @SuppressLint("NotifyDataSetChanged")
-    public void setEntries(List<TxBE> entries) {
-        this.entries = entries;
+    @Override
+    public void setEntries(List<? extends TxBE> entries) {
+        // Stored by reference (not copied) so addEntry/removeEntry mutate the caller's list -
+        // pre-existing aliasing behavior, preserved as-is. The cast is safe in practice: every
+        // caller passes either a List<TxBE> or a freshly-built ArrayList<TxBE>.
+        this.entries = (List<TxBE>) entries;
         notifyDataSetChanged();
     }
 

@@ -18,8 +18,23 @@ import java.util.List;
 
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.data.RecurringTxBE;
+import com.privat.pitz.financehelper.data.TxBE;
+import com.privat.pitz.financehelper.ui.TxListSection;
 
-public class RecurringTxAdapter extends RecyclerView.Adapter<RecurringTxAdapter.RecurringEntryViewHolder> {
+import java.util.function.BiPredicate;
+
+public class RecurringTxAdapter extends RecyclerView.Adapter<RecurringTxAdapter.RecurringEntryViewHolder> implements TxListSection.EntryListAdapter {
+
+    /**
+     * Reproduces RecurringTxActivity.filterEntries's predicate: matches when the (case-sensitive)
+     * query is contained in the description, sender, or receiver.
+     */
+    public static final BiPredicate<TxBE, String> MATCH_SENDER_RECEIVER_OR_DESCRIPTION = (tx, query) -> {
+        RecurringTxBE entry = (RecurringTxBE) tx;
+        return entry.getDescription().contains(query) ||
+                entry.getSenderStr().contains(query) ||
+                entry.getReceiverStr().contains(query);
+    };
     static class RecurringEntryViewHolder extends RecyclerView.ViewHolder {
         TextView labelDescription;
         TextView labelAmount;
@@ -43,9 +58,13 @@ public class RecurringTxAdapter extends RecyclerView.Adapter<RecurringTxAdapter.
         this.parentActivity = parent;
     }
 
+    @SuppressWarnings("unchecked")
     @SuppressLint("NotifyDataSetChanged")
-    public void setEntries(List<RecurringTxBE> entries) {
-        this.entries = entries;
+    @Override
+    public void setEntries(List<? extends TxBE> entries) {
+        // Every caller supplies RecurringTxBE elements (see MATCH_SENDER_RECEIVER_OR_DESCRIPTION
+        // and RecurringTxActivity.getEntries()); cast is safe in practice.
+        this.entries = (List<RecurringTxBE>) entries;
         notifyDataSetChanged();
     }
 
