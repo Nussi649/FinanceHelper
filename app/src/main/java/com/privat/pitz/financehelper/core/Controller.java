@@ -157,12 +157,6 @@ public class Controller {
         entities.loadEntity(entityName);
     }
 
-    public boolean deleteCurrentSave() {
-        String name = getModel().currentFileName + Const.ACCOUNTS_FILE_TYPE;
-        resetAccounts();
-        return storage.delete(name);
-    }
-
     public boolean deleteSavefile(String name) {
         return repo.deleteSavefile(name);
     }

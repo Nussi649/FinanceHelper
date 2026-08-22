@@ -26,7 +26,6 @@ import org.json.JSONException;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 import com.privat.pitz.financehelper.ui.adapter.TxListAdapter;
@@ -335,42 +334,5 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
             }
         };
         showConfirmDialog(R.string.question_delete_account, listener);
-    }
-
-    public boolean updateEntryDescription(TxBE reference, String newDescription) {
-        Date referenceDate = reference.getDate();
-        String referenceDescription = reference.getDescription();
-        boolean result = false;
-        try {
-            result = controller.updateTx(referenceDate, referenceDescription, getReference(), newDescription);
-            if (result)
-                showToastLong(R.string.toast_success_update_entries);
-            else
-                showToastLong(R.string.toast_error_update_entries_no_partner);
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
-        }
-        return result;
-    }
-
-    public boolean updateEntryAmount(TxBE reference, String newAmount) {
-        Date referenceDate = reference.getDate();
-        String referenceDescription = reference.getDescription();
-        boolean result = false;
-        try {
-            float newAmountFloat = Float.parseFloat(newAmount);
-            result = controller.updateTx(referenceDate, referenceDescription, getReference(), newAmountFloat);
-            if (result)
-                showToastLong(R.string.toast_success_update_entries);
-            else
-                showToastLong(R.string.toast_error_update_entries_no_partner);
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
-        }
-        return result;
     }
 }

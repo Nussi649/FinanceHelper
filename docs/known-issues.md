@@ -97,13 +97,6 @@ Found while moving these two methods out of `core/Util` into the UI layer (the l
 Deliberately **preserved as-is** during that move so the commit stayed behaviour-preserving. Fix
 is a two-token change plus a check of what selecting a child row is then expected to do.
 
-### 2. `BudgetAccountTableRow.addBudgetAccountViewsToContainer` is dead
-
-Has no callers anywhere in `app/src/main` — it only recurses into itself. Originally lived on
-`Logic/BudgetAccountBE` and was the reason that entity class imported `android.widget.TableLayout`;
-it was moved to `ui/BudgetAccountTableRow` during the layering refactor rather than deleted, to
-keep that commit a pure move. It should either be wired up or deleted.
-
 ## Historical: issues as originally found (kept for reference)
 
 ### 1. `listAdapter` field-shadowing NPE on swipe gesture in `RecurringTxActivity`
