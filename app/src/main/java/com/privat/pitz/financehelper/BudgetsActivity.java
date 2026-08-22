@@ -211,11 +211,15 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
                     String currentMonthBudgetString = currentMonthBudgetInput.getText().toString();
 
                     if (!budgetNameString.isEmpty() && !yearlyBudgetString.isEmpty()) {
-                        float yearlyBudget = (float) Double.parseDouble(yearlyBudgetString);
-                        float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : (float) Double.parseDouble(currentMonthBudgetString);
+                        try {
+                            float yearlyBudget = Util.parseAmount(yearlyBudgetString);
+                            float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : Util.parseAmount(currentMonthBudgetString);
 
-                        createBudgetAccount(budgetNameString, currentMonthBudget, yearlyBudget);
-                        dialog.dismiss();
+                            createBudgetAccount(budgetNameString, currentMonthBudget, yearlyBudget);
+                            dialog.dismiss();
+                        } catch (NumberFormatException e) {
+                            showToastLong(R.string.toast_error_invalid_amount);
+                        }
                     } else {
                         showToastLong(R.string.toast_error_empty_amount);
                     }

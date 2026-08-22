@@ -1,6 +1,8 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Looper;
 import android.app.AlertDialog;
@@ -14,17 +16,24 @@ import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import Backend.Const;
 import Backend.Controller;
+import Backend.IntegrityChecker;
 import Backend.RbAccountManager;
 import Backend.Util;
 import View.Dialogs.AddIncomeDialog;
@@ -41,6 +50,16 @@ public class MainActivity extends AbstractActivity {
     public EditText newAmount;
     RbAccountManager rbSender;
     RbAccountManager rbReceiver;
+
+    private final ActivityResultLauncher<String> createBackupLauncher = registerForActivityResult(
+            new ActivityResultContracts.CreateDocument("application/zip"), this::onBackupTargetSelected);
+    private final ActivityResultLauncher<String[]> openRestoreLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocument(), this::onRestoreSourceSelected);
+    private final ActivityResultLauncher<Uri> pickSyncFolderLauncher = registerForActivityResult(
+            new ActivityResultContracts.OpenDocumentTree(), this::onSyncFolderPicked);
+    private enum PendingSyncAction { NONE, PUSH, PULL }
+    // set right before launching pickSyncFolderLauncher, so its callback knows which action (if any) to run afterwards
+    private PendingSyncAction pendingSyncAction = PendingSyncAction.NONE;
 
     //region overridden activity methods
     @Override
@@ -83,6 +102,19 @@ public class MainActivity extends AbstractActivity {
             showLoadFileDialog();
         } else if (itemId == R.id.item_edit) {
             showEditSavefileDialog();
+        } else if (itemId == R.id.item_backup_all) {
+            startBackupAll();
+        } else if (itemId == R.id.item_restore_all) {
+            startRestoreAll();
+        } else if (itemId == R.id.item_sync_push) {
+            triggerSync(PendingSyncAction.PUSH);
+        } else if (itemId == R.id.item_sync_pull) {
+            triggerSync(PendingSyncAction.PULL);
+        } else if (itemId == R.id.item_sync_change_folder) {
+            pendingSyncAction = PendingSyncAction.NONE;
+            pickSyncFolderLauncher.launch(null);
+        } else if (itemId == R.id.item_integrity_check) {
+            showIntegrityCheckDialog();
         } else if (itemId == R.id.item_settings) {
             startActivity(SettingsActivity.class);
         } else if (itemId == R.id.item_display_recurring_orders) {
@@ -172,7 +204,7 @@ public class MainActivity extends AbstractActivity {
             }
             float amount;
             try {
-                amount = Float.parseFloat(am.replace(",", "."));
+                amount = Util.parseAmount(am);
             } catch (NumberFormatException e) {
                 showToastLong(R.string.toast_error_invalid_amount);
                 return;
@@ -206,7 +238,7 @@ public class MainActivity extends AbstractActivity {
             }
 
             try {
-                float amount = Float.parseFloat(amountString.replace(",", "."));
+                float amount = Util.parseAmount(amountString);
                 boolean result = controller.addRecurringTx(parent, description, amount);
                 if (result) {
                     showToast(R.string.toast_success_new_recurring_tx);
@@ -386,6 +418,165 @@ public class MainActivity extends AbstractActivity {
         } catch (JSONException e) {
             showErrorToast(e);
         }
+    }
+
+    private void startBackupAll() {
+        try {
+            controller.saveAccountsToInternal();
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
+            return;
+        }
+        String defaultName = "FinanceHelper_Backup_" +
+                new SimpleDateFormat("yyyy-MM-dd", Locale.GERMANY).format(new Date()) + ".zip";
+        createBackupLauncher.launch(defaultName);
+    }
+
+    private void onBackupTargetSelected(Uri targetUri) {
+        // user cancelled the file picker
+        if (targetUri == null)
+            return;
+        try {
+            int count = getController().exportAllSavefilesToUri(targetUri);
+            showToastLong(getString(R.string.toast_success_backup_written, count));
+        } catch (IOException e) {
+            showToastLong(R.string.toast_error_backup_failed);
+        }
+    }
+
+    private void startRestoreAll() {
+        openRestoreLauncher.launch(new String[] {"application/zip", "application/x-zip-compressed", "*/*"});
+    }
+
+    private void onRestoreSourceSelected(Uri sourceUri) {
+        // user cancelled the file picker
+        if (sourceUri == null)
+            return;
+        int count;
+        try {
+            count = getController().importSavefilesFromZipUri(sourceUri);
+        } catch (IOException e) {
+            showToastLong(R.string.toast_error_restore_failed);
+            return;
+        }
+        if (count == 0) {
+            showToastLong(R.string.toast_error_restore_empty);
+            return;
+        }
+        showToastLong(getString(R.string.toast_success_backup_restored, count));
+        // reload settings and available entities, then restart the activity to pick up the restored state
+        controller.loadAppSettings();
+        List<String> availableEntities = controller.getAllAvailableEntities();
+        if (!availableEntities.isEmpty())
+            model.availableEntities = availableEntities;
+        recreate();
+    }
+
+    private void triggerSync(PendingSyncAction action) {
+        String stored = model.settings.syncFolderUri;
+        if (stored == null || stored.isEmpty()) {
+            pendingSyncAction = action;
+            pickSyncFolderLauncher.launch(null);
+        } else {
+            performSync(Uri.parse(stored), action);
+        }
+    }
+
+    private void onSyncFolderPicked(Uri treeUri) {
+        // user cancelled the folder picker
+        if (treeUri == null)
+            return;
+        // persist access to this folder across app/device restarts
+        getContentResolver().takePersistableUriPermission(treeUri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        model.settings.syncFolderUri = treeUri.toString();
+        try {
+            controller.saveAppSettings();
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
+        }
+        if (pendingSyncAction != PendingSyncAction.NONE)
+            performSync(treeUri, pendingSyncAction);
+        else
+            showToastLong(R.string.label_sync_change_folder);
+    }
+
+    private void performSync(Uri treeUri, PendingSyncAction action) {
+        try {
+            if (action == PendingSyncAction.PUSH) {
+                controller.saveAppSettings();
+                controller.saveAccountsToInternal();
+                int count = controller.pushSavefilesToFolder(treeUri);
+                showToastLong(getString(R.string.toast_success_sync_push, count));
+            } else if (action == PendingSyncAction.PULL) {
+                int count = controller.pullSavefilesFromFolder(treeUri);
+                if (count == 0) {
+                    showToastLong(R.string.toast_error_sync_folder_empty);
+                    return;
+                }
+                // reload whatever settings came down, then re-assert the sync folder link in case
+                // the pulled settings.json didn't carry it (e.g. an older or hand-edited copy)
+                controller.loadAppSettings();
+                model.settings.syncFolderUri = treeUri.toString();
+                controller.saveAppSettings();
+                List<String> availableEntities = controller.getAllAvailableEntities();
+                if (!availableEntities.isEmpty())
+                    model.availableEntities = availableEntities;
+                showToastLong(getString(R.string.toast_success_sync_pull, count));
+                recreate();
+            }
+        } catch (SecurityException e) {
+            // the persisted grant became invalid (folder removed/unshared, permission revoked, etc.)
+            model.settings.syncFolderUri = null;
+            showToastLong(R.string.toast_error_sync_folder_invalid);
+        } catch (IOException e) {
+            showToastLong(R.string.toast_error_sync_failed);
+        } catch (JSONException e) {
+            showErrorToast(e);
+        }
+    }
+
+    private void showIntegrityCheckDialog() {
+        List<File> availableFiles = Util.getValidFiles(getFilesDir());
+        List<String> names = Util.getFileNames(availableFiles);
+        if (names == null || names.isEmpty()) {
+            showToastLong(R.string.toast_error_no_valid_files);
+            return;
+        }
+        String[] namesArray = names.toArray(new String[0]);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.label_integrity_check_title_before)
+                .setItems(namesArray, (dialog, which) -> showIntegrityCheckAfterDialog(namesArray[which], namesArray))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void showIntegrityCheckAfterDialog(String beforeFileName, String[] namesArray) {
+        new AlertDialog.Builder(this)
+                .setTitle(getString(R.string.label_integrity_check_title_after, Util.reduceFileTypeEnding(beforeFileName)))
+                .setItems(namesArray, (dialog, which) -> runIntegrityCheck(beforeFileName, namesArray[which]))
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private void runIntegrityCheck(String beforeFileName, String afterFileName) {
+        IntegrityChecker.Result result = new IntegrityChecker(getController()).compare(beforeFileName, afterFileName);
+        AlertDialog dialog = getBasicEditDialog();
+        dialog.setTitle(getString(R.string.label_integrity_check_result, Util.reduceFileTypeEnding(afterFileName)));
+        dialog.show();
+        EditText resultText = dialog.findViewById(R.id.edit_text);
+        resultText.setText(formatIntegrityResult(result));
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.confirm), (d, w) -> d.dismiss());
+    }
+
+    private String formatIntegrityResult(IntegrityChecker.Result result) {
+        if (result.isClean())
+            return getString(R.string.label_integrity_check_clean);
+        StringBuilder sb = new StringBuilder();
+        for (IntegrityChecker.Finding finding : result.findings) {
+            sb.append("• ").append(finding.message).append("\n\n");
+        }
+        return sb.toString().trim();
     }
     //endregion
 

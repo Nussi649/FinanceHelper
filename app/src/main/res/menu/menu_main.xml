@@ -35,6 +35,34 @@
                 android:id="@+id/item_edit"
                 android:title="@string/label_edit_savefile"
                 android:orderInCategory="3" />
+            <item
+                android:id="@+id/item_integrity_check"
+                android:title="@string/label_integrity_check"
+                android:orderInCategory="4" />
+        </menu>
+    </item>
+    <item android:title="@string/label_sync">
+        <menu>
+            <item
+                android:id="@+id/item_backup_all"
+                android:title="@string/label_backup_all"
+                android:orderInCategory="1" />
+            <item
+                android:id="@+id/item_restore_all"
+                android:title="@string/label_restore_all"
+                android:orderInCategory="2" />
+            <item
+                android:id="@+id/item_sync_push"
+                android:title="@string/label_sync_push"
+                android:orderInCategory="3" />
+            <item
+                android:id="@+id/item_sync_pull"
+                android:title="@string/label_sync_pull"
+                android:orderInCategory="4" />
+            <item
+                android:id="@+id/item_sync_change_folder"
+                android:title="@string/label_sync_change_folder"
+                android:orderInCategory="5" />
         </menu>
     </item>
     <item

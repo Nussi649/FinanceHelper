@@ -2,7 +2,10 @@ package Backend;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.net.Uri;
 import android.util.Log;
+
+import androidx.documentfile.provider.DocumentFile;
 
 import com.privat.pitz.financehelper.MainActivity;
 
@@ -12,10 +15,14 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.security.InvalidParameterException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -29,6 +36,9 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import Logic.AccountBE;
 import Logic.BudgetAccountBE;
@@ -258,6 +268,133 @@ public class Controller {
                     model.currentReceiver = receiver;
             }
         }
+    }
+
+    // bundles all save files (and the app settings) into a single zip file at the given SAF Uri,
+    // so it can be picked up by a file manager, cloud sync folder, or copied off the device over USB
+    public int exportAllSavefilesToUri(Uri targetUri) throws IOException {
+        File[] files = context.getFilesDir().listFiles();
+        int count = 0;
+        OutputStream os = context.getContentResolver().openOutputStream(targetUri);
+        if (os == null)
+            throw new IOException("Could not open output stream for target Uri");
+        try (ZipOutputStream zos = new ZipOutputStream(os)) {
+            if (files != null) {
+                for (File file : files) {
+                    if (!Util.isValidSavefileName(file.getName()) && !file.getName().equals(Const.APPLICATION_SETTINGS_FILENAME))
+                        continue;
+                    zos.putNextEntry(new ZipEntry(file.getName()));
+                    try (FileInputStream fis = new FileInputStream(file)) {
+                        byte[] buffer = new byte[4096];
+                        int len;
+                        while ((len = fis.read(buffer)) > 0) {
+                            zos.write(buffer, 0, len);
+                        }
+                    }
+                    zos.closeEntry();
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    // extracts all save files (and app settings, if present) from a previously exported zip
+    // file at the given SAF Uri back into internal storage
+    public int importSavefilesFromZipUri(Uri sourceUri) throws IOException {
+        int count = 0;
+        InputStream is = context.getContentResolver().openInputStream(sourceUri);
+        if (is == null)
+            throw new IOException("Could not open input stream for source Uri");
+        try (ZipInputStream zis = new ZipInputStream(is)) {
+            ZipEntry entry;
+            while ((entry = zis.getNextEntry()) != null) {
+                // use only the plain file name to prevent path traversal ("zip slip") via entry names
+                String name = new File(entry.getName()).getName();
+                if (!Util.isValidSavefileName(name) && !name.equals(Const.APPLICATION_SETTINGS_FILENAME)) {
+                    zis.closeEntry();
+                    continue;
+                }
+                File outFile = new File(context.getFilesDir(), name);
+                try (FileOutputStream fos = new FileOutputStream(outFile)) {
+                    byte[] buffer = new byte[4096];
+                    int len;
+                    while ((len = zis.read(buffer)) > 0) {
+                        fos.write(buffer, 0, len);
+                    }
+                }
+                zis.closeEntry();
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // pushes all save files (and app settings) as individual, unzipped files into a SAF tree Uri
+    // (e.g. a folder inside a cloud-sync app like Google Drive), overwriting any same-named file
+    // already there. This is the "no zip" counterpart to exportAllSavefilesToUri, meant to let a
+    // remote tool/agent read and edit the plain JSON files directly.
+    public int pushSavefilesToFolder(Uri treeUri) throws IOException {
+        DocumentFile treeDir = DocumentFile.fromTreeUri(context, treeUri);
+        if (treeDir == null || !treeDir.canWrite())
+            throw new IOException("Cannot write to the selected sync folder");
+        File[] files = context.getFilesDir().listFiles();
+        int count = 0;
+        if (files != null) {
+            for (File file : files) {
+                String name = file.getName();
+                if (!Util.isValidSavefileName(name) && !name.equals(Const.APPLICATION_SETTINGS_FILENAME))
+                    continue;
+                // remove any existing file with the same name so createFile doesn't produce a duplicate
+                DocumentFile existing = treeDir.findFile(name);
+                if (existing != null)
+                    existing.delete();
+                DocumentFile target = treeDir.createFile("application/octet-stream", name);
+                if (target == null)
+                    continue;
+                OutputStream os = context.getContentResolver().openOutputStream(target.getUri());
+                if (os == null)
+                    continue;
+                try (OutputStream out = os; FileInputStream fis = new FileInputStream(file)) {
+                    byte[] buffer = new byte[4096];
+                    int len;
+                    while ((len = fis.read(buffer)) > 0) {
+                        out.write(buffer, 0, len);
+                    }
+                }
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // pulls all save files (and app settings) from a SAF tree Uri back into internal storage,
+    // overwriting local files of the same name. Counterpart to pushSavefilesToFolder.
+    public int pullSavefilesFromFolder(Uri treeUri) throws IOException {
+        DocumentFile treeDir = DocumentFile.fromTreeUri(context, treeUri);
+        if (treeDir == null || !treeDir.canRead())
+            throw new IOException("Cannot read from the selected sync folder");
+        int count = 0;
+        for (DocumentFile child : treeDir.listFiles()) {
+            if (child.isDirectory())
+                continue;
+            String name = child.getName();
+            if (name == null || (!Util.isValidSavefileName(name) && !name.equals(Const.APPLICATION_SETTINGS_FILENAME)))
+                continue;
+            InputStream is = context.getContentResolver().openInputStream(child.getUri());
+            if (is == null)
+                continue;
+            File outFile = new File(context.getFilesDir(), name);
+            try (InputStream in = is; FileOutputStream fos = new FileOutputStream(outFile)) {
+                byte[] buffer = new byte[4096];
+                int len;
+                while ((len = in.read(buffer)) > 0) {
+                    fos.write(buffer, 0, len);
+                }
+            }
+            count++;
+        }
+        return count;
     }
 
     public void loadEntityCurrentPeriod(String entityName) throws JSONException, IllegalArgumentException, IOException {
@@ -1209,7 +1346,8 @@ public class Controller {
 
         // setup list of all accounts to search for other part of transaction
         // for this take asset accounts which are already of type AccountBE
-        List<AccountBE> toSearch = model.asset_accounts;
+        // (copy the list! it must not be mutated, since it's the live model list)
+        List<AccountBE> toSearch = new ArrayList<>(model.asset_accounts);
         // then transform budget accounts and first order sub budgets
         List<AccountBE> transformed_budget_accounts = new ArrayList<>();
         for (BudgetAccountBE budget_account : model.budget_accounts) {
@@ -1266,7 +1404,8 @@ public class Controller {
 
         // setup list of all accounts to search for other part of transaction
         // for this take asset accounts which are already of type AccountBE
-        List<AccountBE> toSearch = model.asset_accounts;
+        // (copy the list! it must not be mutated, since it's the live model list)
+        List<AccountBE> toSearch = new ArrayList<>(model.asset_accounts);
         // then transform budget accounts and first order sub budgets
         List<AccountBE> transformed_budget_accounts = new ArrayList<>();
         for (BudgetAccountBE budget_account : model.budget_accounts) {

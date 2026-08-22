@@ -98,7 +98,8 @@ public class BudgetAccountTableRow extends TableRow {
     }
 
     public void clearChildren() {
-        for (BudgetAccountTableRow child : children) {
+        // iterate over a snapshot, since removeBudgetViewFromBackend() must not mutate `children` while it's being iterated
+        for (BudgetAccountTableRow child : new ArrayList<>(children)) {
             // safely remove children from budgetViews in parentActivity
             try {
                 assert budgetListener.removeBudgetViewFromBackend(child);
@@ -107,8 +108,8 @@ public class BudgetAccountTableRow extends TableRow {
                         String.format("A parent budget requested removal of a self proclaimed child " +
                                 "budget, which was not registered with the activity! %s", e));
             }
-            children.remove(child);
         }
+        children.clear();
     }
 
     public void setIsLast(boolean newIsLast) {

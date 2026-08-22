@@ -342,7 +342,7 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
         String referenceDescription = reference.getDescription();
         boolean result = false;
         try {
-            result = controller.updateTx(referenceDate, referenceDescription, mAccount, newDescription);
+            result = controller.updateTx(referenceDate, referenceDescription, getReference(), newDescription);
             if (result)
                 showToastLong(R.string.toast_success_update_entries);
             else
@@ -361,7 +361,7 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
         boolean result = false;
         try {
             float newAmountFloat = Float.parseFloat(newAmount);
-            result = controller.updateTx(referenceDate, referenceDescription, mAccount, newAmountFloat);
+            result = controller.updateTx(referenceDate, referenceDescription, getReference(), newAmountFloat);
             if (result)
                 showToastLong(R.string.toast_success_update_entries);
             else

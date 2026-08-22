@@ -52,9 +52,13 @@ public abstract class SetYearlyBudgetDialog {
             button.setOnClickListener(view1 -> {
                 String budgetString = budgetInput.getText().toString();
                 if (!budgetString.isEmpty()) {
-                    float budget = (float) Double.parseDouble(budgetString);
-                    onConfirm(budget, adjustCheck.isChecked());
-                    dialog.dismiss();
+                    try {
+                        float budget = Util.parseAmount(budgetString);
+                        onConfirm(budget, adjustCheck.isChecked());
+                        dialog.dismiss();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(context, context.getString(R.string.toast_error_invalid_amount), Toast.LENGTH_LONG).show();
+                    }
                 } else {
                     Toast.makeText(context, context.getString(R.string.toast_error_empty_amount), Toast.LENGTH_LONG).show();
                 }

@@ -11,6 +11,8 @@ import android.widget.Toast;
 
 import com.privat.pitz.financehelper.R;
 
+import Backend.Util;
+
 public abstract class CreateBudgetAccountDialog {
     private final Context context;
     private final boolean isProjectBudget;
@@ -67,11 +69,15 @@ public abstract class CreateBudgetAccountDialog {
                 else if (yearlyBudgetString.isEmpty())
                     Toast.makeText(context, context.getString(R.string.toast_error_empty_amount), Toast.LENGTH_LONG).show();
                 else {
-                    float yearlyBudget = (float) Double.parseDouble(yearlyBudgetString);
-                    float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : (float) Double.parseDouble(currentMonthBudgetString);
+                    try {
+                        float yearlyBudget = Util.parseAmount(yearlyBudgetString);
+                        float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : Util.parseAmount(currentMonthBudgetString);
 
-                    onConfirm(subBudgetNameString, currentMonthBudget, yearlyBudget);
-                    dialog.dismiss();
+                        onConfirm(subBudgetNameString, currentMonthBudget, yearlyBudget);
+                        dialog.dismiss();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(context, context.getString(R.string.toast_error_invalid_amount), Toast.LENGTH_LONG).show();
+                    }
                 }
             });
         });

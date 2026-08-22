@@ -15,6 +15,7 @@ import com.privat.pitz.financehelper.R;
 
 import java.util.List;
 
+import Backend.Util;
 import Logic.BudgetAccountBE;
 
 public abstract class TransferAvailableBudgetDialog {
@@ -63,11 +64,15 @@ public abstract class TransferAvailableBudgetDialog {
                 else if (recipientSpinner.getSelectedItem() == null)
                     Toast.makeText(context, context.getString(R.string.toast_error_no_receiver_selected), Toast.LENGTH_LONG).show();
                 else {
-                    float amount = (float) Double.parseDouble(amountString);
-                    BudgetAccountBE selectedAccount = (BudgetAccountBE) recipientSpinner.getSelectedItem();
+                    try {
+                        float amount = Util.parseAmount(amountString);
+                        BudgetAccountBE selectedAccount = (BudgetAccountBE) recipientSpinner.getSelectedItem();
 
-                    onConfirm(amount, selectedAccount);
-                    dialog.dismiss();
+                        onConfirm(amount, selectedAccount);
+                        dialog.dismiss();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(context, context.getString(R.string.toast_error_invalid_amount), Toast.LENGTH_LONG).show();
+                    }
                 }
             });
         });

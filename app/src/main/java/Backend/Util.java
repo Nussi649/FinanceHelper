@@ -212,6 +212,18 @@ public abstract class Util {
     }
 
     /**
+     * Parses a user-entered amount, accepting both '.' and ',' as the decimal separator
+     * (German-locale number keyboards produce ',').
+     *
+     * @param input The string to parse.
+     * @return The parsed float.
+     * @throws NumberFormatException if the input isn't a valid number.
+     */
+    public static float parseAmount(String input) throws NumberFormatException {
+        return Float.parseFloat(input.replace(",", "."));
+    }
+
+    /**
      * Formats a float to a string with two decimal places for display and with thousands separator.
      *
      * @param input The float to format.
@@ -334,14 +346,18 @@ public abstract class Util {
             return 1 + ((current_sum - current_budget) / allotted_budget);
     }
 
+    private static final Pattern SAVEFILE_NAME_PATTERN = Pattern.compile("\\d{4}-\\d{2}-\\S+\\.jso");
+
+    public static boolean isValidSavefileName(String filename) {
+        return SAVEFILE_NAME_PATTERN.matcher(filename).find();
+    }
+
     public static List<File> getValidFiles(File dir) {
         File[] files = dir.listFiles();
         ArrayList<File> matchingFiles = new ArrayList<>();
-        Pattern pattern = Pattern.compile("\\d{4}-\\d{2}-\\S+\\.jso");
         if (files != null) {
             for (File file : files) {
-                Matcher matcher = pattern.matcher(file.getName());
-                if (matcher.find()) {
+                if (isValidSavefileName(file.getName())) {
                     matchingFiles.add(file);
                 }
             }
@@ -484,6 +500,9 @@ public abstract class Util {
         Model.Settings settings = new Model.Settings();
         try {
             settings.defaultEntityName = json_in.getString(Const.JSON_TAG_DEFAULT_ENTITY);
+            // optional field, absent in settings files written before the folder-sync feature existed
+            settings.syncFolderUri = json_in.has(Const.JSON_TAG_SYNC_FOLDER_URI) ?
+                    json_in.getString(Const.JSON_TAG_SYNC_FOLDER_URI) : null;
 
             // Extract the defaults for each entity
             JSONArray entitiesArray = json_in.getJSONArray(Const.JSON_TAG_DEFAULT_ACCOUNTS);
@@ -697,6 +716,8 @@ public abstract class Util {
 
         try {
             settingsJSON.put(Const.JSON_TAG_DEFAULT_ENTITY, settings.defaultEntityName);
+            if (settings.syncFolderUri != null)
+                settingsJSON.put(Const.JSON_TAG_SYNC_FOLDER_URI, settings.syncFolderUri);
 
             // Create a JSON array to hold the defaults for each entity
             JSONArray entitiesArray = new JSONArray();

@@ -57,9 +57,13 @@ public abstract class EditRenewalDialog {
             else if (nextRenewal.isEmpty())
                 Toast.makeText(context, context.getString(R.string.toast_error_empty_next_renewal), Toast.LENGTH_LONG).show();
             else {
-                int renewalPeriod = Integer.parseInt(renewalPeriodString);
-                onConfirm(renewalPeriod, nextRenewal);
-                dialog.dismiss();
+                try {
+                    int renewalPeriod = Integer.parseInt(renewalPeriodString);
+                    onConfirm(renewalPeriod, nextRenewal);
+                    dialog.dismiss();
+                } catch (NumberFormatException e) {
+                    Toast.makeText(context, context.getString(R.string.toast_error_invalid_renewal_period), Toast.LENGTH_LONG).show();
+                }
             }
         }));
 

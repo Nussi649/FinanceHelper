@@ -27,6 +27,14 @@ android {
         }
     }
     namespace 'com.privat.pitz.financehelper'
+    testOptions {
+        unitTests {
+            // Android stub methods (e.g. android.util.Log.println, called from error paths in
+            // Logic/BudgetAccountBE and Backend/Util) throw by default under JVM unit tests;
+            // this makes them return default values instead so those code paths are testable.
+            returnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -37,7 +45,11 @@ dependencies {
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.lifecycle:lifecycle-viewmodel:2.6.1'
     implementation 'androidx.lifecycle:lifecycle-livedata:2.6.1'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
     testImplementation 'junit:junit:4.13.2'
+    // Real org.json implementation for JVM unit tests, since the Android SDK stub for org.json
+    // throws "not mocked" and returnDefaultValues does not make it produce real JSON behavior.
+    testImplementation 'org.json:json:20231013'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }

@@ -17,6 +17,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
 
+import Backend.Util;
 import Logic.TxBE;
 
 @SuppressLint("DefaultLocale")
@@ -93,12 +94,16 @@ public abstract class EditTxDialog {
                 else if (amountString.isEmpty())
                     Toast.makeText(context, context.getString(R.string.toast_error_empty_amount), Toast.LENGTH_LONG).show();
                 else {
-                    float amount = Float.parseFloat(amountString);
-                    tx.setDate(calendar.getTime());
-                    tx.setDescription(description);
-                    tx.setAmount(amount);
-                    onConfirm(tx);
-                    dialog.dismiss();
+                    try {
+                        float amount = Util.parseAmount(amountString);
+                        tx.setDate(calendar.getTime());
+                        tx.setDescription(description);
+                        tx.setAmount(amount);
+                        onConfirm(tx);
+                        dialog.dismiss();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(context, context.getString(R.string.toast_error_invalid_amount), Toast.LENGTH_LONG).show();
+                    }
                 }
             });
         });

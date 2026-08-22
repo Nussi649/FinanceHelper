@@ -14,6 +14,8 @@ public class Model {
     public static class Settings {
         public String defaultEntityName;
         public Map<String, EntityDefaults> entityDefaultsMap;
+        // persisted SAF tree Uri (as a string) of the folder chosen for the folder-based savefile sync feature; null if none chosen yet
+        public String syncFolderUri;
 
         public Settings() {
             entityDefaultsMap = new HashMap<>();

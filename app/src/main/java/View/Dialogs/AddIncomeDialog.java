@@ -11,6 +11,8 @@ import android.widget.Toast;
 
 import com.privat.pitz.financehelper.R;
 
+import Backend.Util;
+
 public abstract class AddIncomeDialog {
     private final Context context;
 
@@ -54,7 +56,7 @@ public abstract class AddIncomeDialog {
                             return;
                         }
                         try {
-                            float amount = Float.parseFloat(amountString);
+                            float amount = Util.parseAmount(amountString);
                             onConfirm(amount, description);
                             dialog.dismiss();
                         } catch (NumberFormatException e) {

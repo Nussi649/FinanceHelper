@@ -78,6 +78,14 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
     protected boolean hasEntries() {
         return model.currentIncome.size() > 0;
     }
+
+    @Override
+    protected void initListGestures() {
+        // no-op: the inherited swipe-to-edit/delete gesture is built for TxBE/TxListAdapter.
+        // Recurring orders (RecurringTxBE/RecurringTxAdapter) use a per-row delete button instead
+        // (see RecurringTxAdapter), so attaching the base ItemTouchHelper here would read the
+        // wrong (always-null) listAdapter field and crash on swipe.
+    }
     // endregion
 
     public void deleteOrder(RecurringTxBE recurringTx) {
