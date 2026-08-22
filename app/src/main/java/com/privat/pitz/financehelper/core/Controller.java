@@ -7,7 +7,6 @@ import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -41,6 +40,8 @@ public class Controller {
     Context context;
     SavefileStorage storage;
     SaveFileRepository repo;
+    TxRedirectionService redirection;
+    TxService txService;
 
     public static int LOADED_ACCOUNTS = 10;
     public static int LOADED_NEW_MONTH = 11;
@@ -50,13 +51,17 @@ public class Controller {
         this.context = context;
         this.storage = storage;
         initController();
-        repo = new SaveFileRepository(storage, model);
+        repo        = new SaveFileRepository(storage, model);
+        redirection = new TxRedirectionService(repo, model);
+        txService   = new TxService(repo, model, redirection);
     }
 
     Controller(SavefileStorage storage) {
         this.storage = storage;
         this.model = new Model();
-        repo = new SaveFileRepository(storage, model);
+        repo        = new SaveFileRepository(storage, model);
+        redirection = new TxRedirectionService(repo, model);
+        txService   = new TxService(repo, model, redirection);
     }
 
     private void initController() {
@@ -394,306 +399,34 @@ public class Controller {
     // region perform transactions
     // create a transaction between two accounts
     public boolean createTx(String desc, float amount, RedirectionPrompt prompt) throws JSONException, IOException {
-        AccountBE from_acc = model.currentSender;
-        AccountBE to_acc = model.currentReceiver;
-        Calendar calendar = Calendar.getInstance();
-        TxBE entry_from = new TxBE(amount*(-1.0f), desc, calendar.getTime());
-        TxBE entry_to = new TxBE(amount, desc, calendar.getTime());
-        from_acc.addTx(entry_from);
-        to_acc.addTx(entry_to);
-        boolean result = true;
-
-        // handle case if to_acc relays payment to other financial entity if it isn't a BudgetAccount, pass
-        if (to_acc instanceof BudgetAccountBE) {
-            BudgetAccountBE to_budgetAcc = (BudgetAccountBE) to_acc;
-            String otherEntity = to_budgetAcc.getOtherEntity();
-            if (otherEntity != null && !otherEntity.isEmpty())
-                result = startTxRedirection(otherEntity, desc, amount, prompt);
-        }
-        if (result) {
-            repo.saveOrRevert("save_file", "creating a Tx", () -> {
-                from_acc.removeTx(entry_from);
-                to_acc.removeTx(entry_to);
-            });
-            return true;
-        }
-        return false;
+        return txService.createTx(desc, amount, prompt);
     }
 
     // Start the transaction redirection
     public boolean startTxRedirection(String targetEntity, String desc, float amount, RedirectionPrompt prompt) throws JSONException, IOException {
-        Util.FileNameParts curAttrs = model.currentFileAttributes;
-        // try finding save file to other entity
-        // construct filename to look for
-        String fileNameOther = model.currentFileName.replace(
-                curAttrs.entityName, targetEntity);
-        JSONObject json;
-        JSONArray allAccounts = new JSONArray();
-        JSONArray budgetAccounts;
-        try {
-            String data = readFromInternal(fileNameOther);
-            json = new JSONObject(data);
-            budgetAccounts = json.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
-            json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME);
-            allAccounts = Util.copyJSONArray(json.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS));
-            for (int i = 0; i < budgetAccounts.length(); i++) {
-                allAccounts.put(budgetAccounts.getJSONObject(i));
-            }
-        } catch (IOException | JSONException e) {
-            if (e instanceof IOException)
-                Log.println(Log.ERROR, "load_other_file",
-                        String.format("Error loading other save file: %s", e));
-            else
-                Log.println(Log.ERROR, "load_other_file",
-                        String.format("Error parsing other save file: %s", e));
-            throw e;
-        }
-        prompt.getTransactionRedirectionInput(fileNameOther, json, desc, amount, allAccounts);
-        return true;
+        return redirection.startTxRedirection(targetEntity, desc, amount, prompt);
     }
 
     // Complete the transaction redirection
     public boolean completeTxRedirection(String targetFileName, String senderName, String desc, float amount, String accountName, JSONObject data) throws JSONException, IOException {
-        Calendar calendar = Calendar.getInstance();
-        TxBE new_entry = new TxBE(amount, desc, calendar.getTime());
-        boolean foundTargetAccount = false;
-        boolean foundAssetAccounts = false;
-        boolean foundBudgetAccounts = false;
-        JSONArray assetAccounts = new JSONArray();
-        JSONArray budgetAccounts = new JSONArray();
-        JSONArray incomeList = new JSONArray();
-        try {
-            incomeList = data.getJSONArray(Const.JSON_TAG_CURRENT_INCOME);
-        } catch (JSONException e) {
-            return false;
-        }
-        try {
-            assetAccounts = data.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
-            foundAssetAccounts = true;
-        } catch (JSONException ignored) { }
-        if (foundAssetAccounts) {
-            // iterate through all asset accounts as json objects
-            for (int i = 0; i < assetAccounts.length(); i++) {
-                // set variables for access out of try/catch
-                JSONObject currentAccount;
-                String currentAccountName;
-                // get current asset account as json object and corresponding account name
-                try {
-                    currentAccount = assetAccounts.getJSONObject(i);
-                    currentAccountName = currentAccount.getString(Const.JSON_TAG_NAME);
-                } catch (JSONException e) {
-                    continue;
-                }
-                // if current account name equals target account name
-                if (currentAccountName.equals(accountName)) {
-                    // parse current account
-                    AccountBE curAccount = Util.parseJSON_Account(currentAccount);
-                    // check if parsing worked
-                    if (curAccount != null) {
-                        // add pre-calculated entry to parsed account object
-                        curAccount.addTx(new_entry);
-                        // serialise adjusted account object and replace its old version in account list
-                        // replace asset accounts in save file json object
-                        try {
-                            assetAccounts.put(i, Util.serialise_Account(curAccount));
-                            data.put(Const.JSON_TAG_ASSET_ACCOUNTS, assetAccounts);
-                            foundTargetAccount = true;
-                            break;
-                        } catch (JSONException e) {
-                            Log.println(Log.ERROR, "pass_on_transaction",
-                                    String.format("Error serializing target asset account after adding new entry: %s", e));
-                            throw e;
-                        }
-                    }
-                    // error happened parsing the current account
-                    else {
-                        Log.println(Log.ERROR, "pass_on_transaction",
-                                String.format("Error passing on transaction. Could not parse asset account object! targetAccountName: %s", accountName));
-                        return false;
-                    }
-                }
-            }
-        }
-        // if target has not yet been found, iterate through all budget accounts as json objects
-        if (!foundTargetAccount) {
-            try {
-                budgetAccounts = data.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
-                foundBudgetAccounts = true;
-            } catch (JSONException ignored) {
-            }
-            if (foundBudgetAccounts) {
-                for (int i = 0; i < budgetAccounts.length(); i++) {
-                    // set variables for access out of try/catch
-                    JSONObject currentAccount;
-                    String currentAccountName;
-                    // get current budget account as json object and corresponding account name
-                    try {
-                        currentAccount = budgetAccounts.getJSONObject(i);
-                        currentAccountName = currentAccount.getString(Const.JSON_TAG_NAME);
-                    } catch (JSONException e) {
-                        continue;
-                    }
-                    // if current account name equals target account name
-                    if (currentAccountName.equals(accountName)) {
-                        // parse current account
-                        BudgetAccountBE curAccount = Util.parseJSON_BudgetAccount(currentAccount);
-                        if (curAccount != null) {
-                            // add pre-calculated entry to parsed account object
-                            curAccount.addTx(new_entry);
-                            // serialise adjusted account object and replace its old version in account list
-                            // replace budget accounts in save file json object
-                            try {
-                                budgetAccounts.put(i, Util.serialise_BudgetAccount(curAccount));
-                                data.put(Const.JSON_TAG_BUDGET_ACCOUNTS, budgetAccounts);
-                                foundTargetAccount = true;
-                                break;
-                            } catch (JSONException e) {
-                                Log.println(Log.ERROR, "pass_on_transaction",
-                                        String.format("Error serializing target budget account after adding new entry: %s", e));
-                                throw e;
-                            }
-                        }
-                        // error happened parsing the current account
-                        else {
-                            Log.println(Log.ERROR, "pass_on_transaction",
-                                    String.format("Error passing on transaction. Could not parse asset account object! targetAccountName: %s", accountName));
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-        if (! foundTargetAccount)
-            return false;
-        // create entry for other entities income list
-        TxBE incomeEntry = new TxBE(amount, String.format("%s: %s", senderName, desc), calendar.getTime());
-        incomeList.put(Util.serialise_Entry(incomeEntry));
-        // rewrite edited income list to json object
-        try {
-            data.put(Const.JSON_TAG_CURRENT_INCOME, incomeList);
-            writeToInternal(data.toString(), targetFileName);
-        } catch (JSONException | IOException e) {
-            if (e instanceof JSONException)
-                Log.println(Log.ERROR, "pass_on_transaction",
-                        String.format("Error putting adjusted income list into save file json object: %s", e));
-            else
-                Log.println(Log.ERROR, "pass_on_transaction",
-                        String.format("Error writing adjusted save file json object: %s", e));
-            throw e;
-        }
-        return true;
+        return redirection.completeTxRedirection(targetFileName, senderName, desc, amount, accountName, data);
     }
 
     public boolean deleteTx(AccountBE parent, TxBE tx) throws JSONException, IOException {
-        int position = parent.getTxIndex(tx);
-        if (position == -1)
-            return false;
-        parent.removeTx(tx);
-        repo.saveOrRevert("delete_tx", "deleting a transaction (" + tx + ")", () -> parent.addTx(position, tx));
-        return true;
+        return txService.deleteTx(parent, tx);
     }
 
     // add funds to one account
     public boolean addFunds(float amount, String desc) throws JSONException, IOException {
-        TxBE newFunds = new TxBE(amount, desc, Calendar.getInstance().getTime());
-        if (model.currentReceiver == null) {
-            return false;
-        }
-        final AccountBE receiver = model.currentReceiver;
-        receiver.addTx(newFunds);
-        model.currentIncome.add(newFunds);
-        repo.saveOrRevert("save_file", "adding funds", () -> {
-            receiver.dropLastTx();
-            model.currentIncome.remove(newFunds);
-        });
-        return true;
+        return txService.addFunds(amount, desc);
     }
 
     public boolean addRecurringTx(String desc, float amount) throws JSONException, IOException{
-        Calendar calendar = Calendar.getInstance();
-        AccountBE sender = model.currentSender;
-        AccountBE receiver = model.currentReceiver;
-        try {
-            assert sender != null;
-            assert receiver != null;
-        } catch (AssertionError e) {
-            Log.println(Log.ERROR, "get_tx_partners",
-                    String.format("Error trying to retrieve sender or receiver account from model: %s", e));
-            return false;
-        }
-        RecurringTxBE newOrder = new RecurringTxBE(amount, desc, calendar.getTime(), sender.getName(), receiver.getName());
-        model.recurringTx.add(newOrder);
-        repo.saveOrRevert("save_file", "adding recurring transaction", () -> model.recurringTx.remove(newOrder));
-        return true;
+        return txService.addRecurringTx(desc, amount);
     }
 
     public boolean deleteRecurringTx(RecurringTxBE recurringTx) throws JSONException, IOException {
-        int position = model.recurringTx.indexOf(recurringTx);
-        if (position == -1)
-            return false;
-        // mutate before the save, matching every other site (the removal cannot throw a checked
-        // exception, so hoisting it out of the try is behaviour-identical)
-        model.recurringTx.remove(recurringTx);
-        repo.saveOrRevert("save_file", "deleting recurring transaction",
-                () -> model.recurringTx.add(position, recurringTx));
-        return true;
-    }
-
-    private void triggerRecurringTx() throws JSONException, IOException {
-        class AccountTxCombo {
-            final AccountBE account;
-            final TxBE tx;
-
-            public AccountTxCombo(AccountBE acc, TxBE tx) {
-                this.account = acc;
-                this.tx = tx;
-            }
-        }
-
-        Calendar fom = Const.getFirstOfMonth();
-        List<AccountTxCombo> addedTx = new ArrayList<>();
-        for (RecurringTxBE r : getModel().recurringTx) {
-            AccountBE receiver = model.getAccountByName(r.getReceiverStr());
-            TxBE receiverTx = new TxBE(r.getAmount(), r.getDescription(), fom.getTime());
-            try {
-                assert receiver != null;
-            } catch (AssertionError e) {
-                Log.println(Log.INFO, "execute_recur_tx",
-                        String.format("Error triggering recurring Transactions: Could not find Sender (%s) or Receiver (%s) account",
-                                r.getSenderStr(),
-                                r.getReceiverStr()));
-                continue;
-            }
-            try {
-                assert !r.getSenderStr().equals("");
-            } catch (AssertionError e) {
-                // assuming RecurringTx is a recurring income -> add to currentIncome instead, ignore for addedTx
-                TxBE incomeTx = new TxBE(r.getAmount(), r.getDescription(), fom.getTime());
-                model.currentIncome.add(incomeTx);
-                receiver.addTx(receiverTx);
-                addedTx.add(new AccountTxCombo(receiver, receiverTx));
-                continue;
-            }
-            AccountBE sender = model.getAccountByName(r.getSenderStr());
-            try {
-                assert sender != null;
-                TxBE senderTx = new TxBE(r.getAmount()*(-1.0f), r.getDescription(), fom.getTime());
-                sender.addTx(senderTx);
-                receiver.addTx(receiverTx);
-                addedTx.add(new AccountTxCombo(sender, senderTx));
-                addedTx.add(new AccountTxCombo(receiver, receiverTx));
-            } catch (AssertionError e) {
-                Log.println(Log.INFO, "execute_recur_tx",
-                        String.format("Error triggering recurring Transactions: Could not find Sender (%s) or Receiver (%s) account",
-                                r.getSenderStr(),
-                                r.getReceiverStr()));
-            }
-        }
-        repo.saveOrRevert("save_file", "triggering recurring transactions", () -> {
-            for (AccountTxCombo entry : addedTx) {
-                entry.account.getTxList().remove(entry.tx);
-            }
-        });
+        return txService.deleteRecurringTx(recurringTx);
     }
     // endregion
 
@@ -892,7 +625,7 @@ public class Controller {
         setCurrentFileName(Const.getCurrentMonthFileName(model.currentEntity));
 
         try {
-            triggerRecurringTx();
+            txService.triggerRecurringTx();
         } catch (JSONException | IOException e) {
             // only log exception, changes have already been reverted
             Log.println(Log.ERROR, "initiate_period",
@@ -958,105 +691,11 @@ public class Controller {
 
     // region update objects
     public boolean updateTx(Date date, String description, AccountBE source, float newAmount) throws JSONException, IOException {
-        // try identifying the entry making the call
-        TxBE sourceEntry = null;
-        for (TxBE e : source.getTxList()) {
-            if (e.getDate().equals(date) && e.getDescription().equals(description)) {
-                sourceEntry = e;
-            }
-        }
-        // if none was found, then return false
-        if (sourceEntry == null)
-            return false;
-        // assigned inside the search loop above, so not effectively final and not capturable by
-        // the revert lambda without a copy
-        final TxBE foundEntry = sourceEntry;
-
-        // setup list of all accounts to search for other part of transaction
-        // for this take asset accounts which are already of type AccountBE
-        // (copy the list! it must not be mutated, since it's the live model list)
-        List<AccountBE> toSearch = new ArrayList<>(model.asset_accounts);
-        // then transform budget accounts and first order sub budgets
-        List<AccountBE> transformed_budget_accounts = new ArrayList<>();
-        for (BudgetAccountBE budget_account : model.budget_accounts) {
-            transformed_budget_accounts.add(budget_account);
-            List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
-            if (!sub_budgets.isEmpty())
-                transformed_budget_accounts.addAll(sub_budgets);
-
-        }
-        // and add to toSearch list
-        toSearch.addAll(transformed_budget_accounts);
-        // remove source account, which by then will inevitably have been added
-        toSearch.remove(source);
-
-        // store old amount for later in case, changes need to be reverted
-        float oldAmount = sourceEntry.getAmount();
-
-        for (AccountBE account : toSearch) {
-            for (TxBE entry : account.getTxList()) {
-                if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
-                    entry.setAmount(newAmount * (-1.0f));
-                    foundEntry.setAmount(newAmount);
-                    repo.saveOrRevert("save_file", "updating entry amount", () -> {
-                        entry.setAmount(oldAmount * (-1.0f));
-                        foundEntry.setAmount(oldAmount);
-                    });
-                    return true;
-                }
-            }
-        }
-        return false;
+        return txService.updateTx(date, description, source, newAmount);
     }
 
     public boolean updateTx(Date date, String description, AccountBE source, String newDescription) throws JSONException, IOException {
-        // try identifying the entry making the call
-        TxBE sourceEntry = null;
-        for (TxBE e : source.getTxList()) {
-            if (e.getDate().equals(date) && e.getDescription().equals(description)) {
-                sourceEntry = e;
-            }
-        }
-        // if none was found, then return false
-        if (sourceEntry == null)
-            return false;
-        // assigned inside the search loop above, so not effectively final and not capturable by
-        // the revert lambda without a copy
-        final TxBE foundEntry = sourceEntry;
-
-        // setup list of all accounts to search for other part of transaction
-        // for this take asset accounts which are already of type AccountBE
-        // (copy the list! it must not be mutated, since it's the live model list)
-        List<AccountBE> toSearch = new ArrayList<>(model.asset_accounts);
-        // then transform budget accounts and first order sub budgets
-        List<AccountBE> transformed_budget_accounts = new ArrayList<>();
-        for (BudgetAccountBE budget_account : model.budget_accounts) {
-            transformed_budget_accounts.add(budget_account);
-            List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
-            if (!sub_budgets.isEmpty())
-                for (BudgetAccountBE sub_budget : sub_budgets)
-                    transformed_budget_accounts.add(sub_budget);
-
-        }
-        // and add to toSearch list
-        toSearch.addAll(transformed_budget_accounts);
-        // remove source account, which by then will inevitably have been added
-        toSearch.remove(source);
-
-        for (AccountBE account : toSearch) {
-            for (TxBE entry : account.getTxList()) {
-                if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
-                    entry.setDescription(newDescription);
-                    foundEntry.setDescription(newDescription);
-                    repo.saveOrRevert("save_file", "updating entry description", () -> {
-                        entry.setDescription(description);
-                        foundEntry.setDescription(description);
-                    });
-                    return true;
-                }
-            }
-        }
-        return false;
+        return txService.updateTx(date, description, source, newDescription);
     }
 
     public void updateYearlyBudget(float newBudget, BudgetAccountBE account, boolean adjustAvailable) throws JSONException, IOException {
