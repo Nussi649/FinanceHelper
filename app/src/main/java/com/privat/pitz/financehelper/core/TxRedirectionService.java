@@ -59,119 +59,116 @@ public class TxRedirectionService {
         return true;
     }
 
+    /** Outcome of scanning one top-level account array for the redirection target. */
+    private enum Outcome { NOT_FOUND, INJECTED, PARSE_FAILED }
+
+    /** Parses one account JSON object and serialises it back after mutation. */
+    private interface AccountCodec {
+        AccountBE parse(JSONObject json);
+        JSONObject serialise(AccountBE account) throws JSONException;
+    }
+
+    private static final AccountCodec ASSET_CODEC = new AccountCodec() {
+        @Override
+        public AccountBE parse(JSONObject json) {
+            return Util.parseJSON_Account(json);
+        }
+
+        @Override
+        public JSONObject serialise(AccountBE account) {
+            return Util.serialise_Account(account);
+        }
+    };
+
+    private static final AccountCodec BUDGET_CODEC = new AccountCodec() {
+        @Override
+        public AccountBE parse(JSONObject json) {
+            return Util.parseJSON_BudgetAccount(json);
+        }
+
+        @Override
+        public JSONObject serialise(AccountBE account) {
+            return Util.serialise_BudgetAccount((BudgetAccountBE) account);
+        }
+    };
+
+    /**
+     * Scans the top-level array under {@code jsonTag} for an account named {@code accountName},
+     * appends {@code newEntry} to it and writes the updated array back into {@code data}.
+     */
+    private Outcome injectTx(JSONObject data, String jsonTag, String accountName, TxBE newEntry,
+                              AccountCodec codec, String accountKind) throws JSONException {
+        JSONArray accounts;
+        try {
+            accounts = data.getJSONArray(jsonTag);
+        } catch (JSONException ignored) {
+            return Outcome.NOT_FOUND;
+        }
+        // iterate through all accounts as json objects
+        for (int i = 0; i < accounts.length(); i++) {
+            // set variables for access out of try/catch
+            JSONObject currentAccount;
+            String currentAccountName;
+            // get current account as json object and corresponding account name
+            try {
+                currentAccount = accounts.getJSONObject(i);
+                currentAccountName = currentAccount.getString(Const.JSON_TAG_NAME);
+            } catch (JSONException e) {
+                continue;
+            }
+            // if current account name equals target account name
+            if (currentAccountName.equals(accountName)) {
+                // parse current account
+                AccountBE curAccount = codec.parse(currentAccount);
+                // check if parsing worked
+                if (curAccount != null) {
+                    // add pre-calculated entry to parsed account object
+                    curAccount.addTx(newEntry);
+                    // serialise adjusted account object and replace its old version in account list
+                    // replace accounts in save file json object
+                    try {
+                        accounts.put(i, codec.serialise(curAccount));
+                        data.put(jsonTag, accounts);
+                        return Outcome.INJECTED;
+                    } catch (JSONException e) {
+                        Log.println(Log.ERROR, "pass_on_transaction",
+                                String.format("Error serializing target %s account after adding new entry: %s", accountKind, e));
+                        throw e;
+                    }
+                }
+                // error happened parsing the current account
+                else {
+                    // Says "asset" even in the budget branch. That is a pre-existing copy-paste bug, kept
+                    // verbatim here so this extraction changes no behaviour; it is fixed separately.
+                    Log.println(Log.ERROR, "pass_on_transaction", String.format(
+                            "Error passing on transaction. Could not parse asset account object! targetAccountName: %s",
+                            accountName));
+                    return Outcome.PARSE_FAILED;
+                }
+            }
+        }
+        return Outcome.NOT_FOUND;
+    }
+
     // Complete the transaction redirection
     public boolean completeTxRedirection(String targetFileName, String senderName, String desc, float amount, String accountName, JSONObject data) throws JSONException, IOException {
         Calendar calendar = Calendar.getInstance();
         TxBE new_entry = new TxBE(amount, desc, calendar.getTime());
-        boolean foundTargetAccount = false;
-        boolean foundAssetAccounts = false;
-        boolean foundBudgetAccounts = false;
-        JSONArray assetAccounts = new JSONArray();
-        JSONArray budgetAccounts = new JSONArray();
-        JSONArray incomeList = new JSONArray();
+        JSONArray incomeList;
         try {
             incomeList = data.getJSONArray(Const.JSON_TAG_CURRENT_INCOME);
         } catch (JSONException e) {
             return false;
         }
-        try {
-            assetAccounts = data.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
-            foundAssetAccounts = true;
-        } catch (JSONException ignored) { }
-        if (foundAssetAccounts) {
-            // iterate through all asset accounts as json objects
-            for (int i = 0; i < assetAccounts.length(); i++) {
-                // set variables for access out of try/catch
-                JSONObject currentAccount;
-                String currentAccountName;
-                // get current asset account as json object and corresponding account name
-                try {
-                    currentAccount = assetAccounts.getJSONObject(i);
-                    currentAccountName = currentAccount.getString(Const.JSON_TAG_NAME);
-                } catch (JSONException e) {
-                    continue;
-                }
-                // if current account name equals target account name
-                if (currentAccountName.equals(accountName)) {
-                    // parse current account
-                    AccountBE curAccount = Util.parseJSON_Account(currentAccount);
-                    // check if parsing worked
-                    if (curAccount != null) {
-                        // add pre-calculated entry to parsed account object
-                        curAccount.addTx(new_entry);
-                        // serialise adjusted account object and replace its old version in account list
-                        // replace asset accounts in save file json object
-                        try {
-                            assetAccounts.put(i, Util.serialise_Account(curAccount));
-                            data.put(Const.JSON_TAG_ASSET_ACCOUNTS, assetAccounts);
-                            foundTargetAccount = true;
-                            break;
-                        } catch (JSONException e) {
-                            Log.println(Log.ERROR, "pass_on_transaction",
-                                    String.format("Error serializing target asset account after adding new entry: %s", e));
-                            throw e;
-                        }
-                    }
-                    // error happened parsing the current account
-                    else {
-                        Log.println(Log.ERROR, "pass_on_transaction",
-                                String.format("Error passing on transaction. Could not parse asset account object! targetAccountName: %s", accountName));
-                        return false;
-                    }
-                }
-            }
+        Outcome outcome = injectTx(data, Const.JSON_TAG_ASSET_ACCOUNTS, accountName, new_entry,
+                ASSET_CODEC, "asset");
+        if (outcome == Outcome.PARSE_FAILED) return false;
+        if (outcome == Outcome.NOT_FOUND) {
+            outcome = injectTx(data, Const.JSON_TAG_BUDGET_ACCOUNTS, accountName, new_entry,
+                    BUDGET_CODEC, "budget");
+            if (outcome == Outcome.PARSE_FAILED) return false;
         }
-        // if target has not yet been found, iterate through all budget accounts as json objects
-        if (!foundTargetAccount) {
-            try {
-                budgetAccounts = data.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
-                foundBudgetAccounts = true;
-            } catch (JSONException ignored) {
-            }
-            if (foundBudgetAccounts) {
-                for (int i = 0; i < budgetAccounts.length(); i++) {
-                    // set variables for access out of try/catch
-                    JSONObject currentAccount;
-                    String currentAccountName;
-                    // get current budget account as json object and corresponding account name
-                    try {
-                        currentAccount = budgetAccounts.getJSONObject(i);
-                        currentAccountName = currentAccount.getString(Const.JSON_TAG_NAME);
-                    } catch (JSONException e) {
-                        continue;
-                    }
-                    // if current account name equals target account name
-                    if (currentAccountName.equals(accountName)) {
-                        // parse current account
-                        BudgetAccountBE curAccount = Util.parseJSON_BudgetAccount(currentAccount);
-                        if (curAccount != null) {
-                            // add pre-calculated entry to parsed account object
-                            curAccount.addTx(new_entry);
-                            // serialise adjusted account object and replace its old version in account list
-                            // replace budget accounts in save file json object
-                            try {
-                                budgetAccounts.put(i, Util.serialise_BudgetAccount(curAccount));
-                                data.put(Const.JSON_TAG_BUDGET_ACCOUNTS, budgetAccounts);
-                                foundTargetAccount = true;
-                                break;
-                            } catch (JSONException e) {
-                                Log.println(Log.ERROR, "pass_on_transaction",
-                                        String.format("Error serializing target budget account after adding new entry: %s", e));
-                                throw e;
-                            }
-                        }
-                        // error happened parsing the current account
-                        else {
-                            Log.println(Log.ERROR, "pass_on_transaction",
-                                    String.format("Error passing on transaction. Could not parse asset account object! targetAccountName: %s", accountName));
-                            return false;
-                        }
-                    }
-                }
-            }
-        }
-        if (! foundTargetAccount)
-            return false;
+        if (outcome != Outcome.INJECTED) return false;
         // create entry for other entities income list
         TxBE incomeEntry = new TxBE(amount, String.format("%s: %s", senderName, desc), calendar.getTime());
         incomeList.put(Util.serialise_Entry(incomeEntry));
