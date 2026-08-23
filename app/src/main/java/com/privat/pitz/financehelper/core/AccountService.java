@@ -185,6 +185,21 @@ public class AccountService {
         // cannot be captured by the revert lambda directly
         final int removedAt = position;
         final BudgetAccountBE removedFrom = parentBudget;
+
+        // A deleted account that is still the selected sender or receiver is an orphan: it is no
+        // longer in any list, so addTx on it writes to nothing and a transaction would be booked
+        // on one side only. Clear the selection here rather than leaving the model pointing at a
+        // deleted account, and restore it if the save fails.
+        final boolean wasSender = model.currentSender == account;
+        final boolean wasReceiver = model.currentReceiver == account;
+        final boolean wasInspected = model.currentInspectedAccount == account;
+        if (wasSender)
+            model.currentSender = null;
+        if (wasReceiver)
+            model.currentReceiver = null;
+        if (wasInspected)
+            model.currentInspectedAccount = null;
+
         repo.saveOrRevert("save_file", "deleting account", () -> {
             if (account instanceof BudgetAccountBE) {
                 if (removedFrom == null)
@@ -193,6 +208,12 @@ public class AccountService {
                     removedFrom.getDirectSubBudgets().add(removedAt, (BudgetAccountBE) account);
             } else
                 model.asset_accounts.add(removedAt, account);
+            if (wasSender)
+                model.currentSender = account;
+            if (wasReceiver)
+                model.currentReceiver = account;
+            if (wasInspected)
+                model.currentInspectedAccount = account;
         });
         return true;
     }

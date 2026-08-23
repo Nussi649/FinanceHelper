@@ -36,13 +36,31 @@ public class TxService {
     public boolean createTx(String desc, float amount, RedirectionPrompt prompt) throws JSONException, IOException {
         AccountBE from_acc = model.currentSender;
         AccountBE to_acc = model.currentReceiver;
-        // addFunds already guards its receiver this way; this path did not, so a transaction
-        // attempted with nothing selected threw NullPointerException out of addTx instead of
-        // reporting a missing selection
-        if (from_acc == null || to_acc == null) {
+        // A transaction is a pair of entries that must balance, so it is booked only when both
+        // sides can actually be written. Three ways that fails, all refused rather than
+        // half-applied:
+        //
+        //  - nothing selected. addFunds already guarded its receiver this way; this path did not,
+        //    so it threw NullPointerException out of addTx instead of reporting the problem.
+        //  - the selection is an orphan: an AccountBE that no list in the model contains any more,
+        //    because a load replaced every account object or the account was deleted. It looks
+        //    entirely valid - right name, right transactions - but addTx on it mutates something
+        //    the serialiser never visits, so that side of the transfer is silently dropped and
+        //    only the other account ends up with an entry. This is the reported "the entry is
+        //    only made to one account" symptom, and it is why the check is by identity.
+        //  - sender and receiver are the same account, which nets to zero and is always a
+        //    misclick rather than an intent.
+        if (!model.containsAccount(from_acc) || !model.containsAccount(to_acc)) {
             Log.println(Log.ERROR, "create_tx", String.format(
-                    "Cannot create transaction: sender (%s) or receiver (%s) is not selected.",
+                    "Refusing transaction: sender (%s) or receiver (%s) is not a live account in "
+                            + "the current model. Both sides of the balance must be writable.",
                     from_acc, to_acc));
+            return false;
+        }
+        if (from_acc == to_acc) {
+            Log.println(Log.ERROR, "create_tx", String.format(
+                    "Refusing transaction: sender and receiver are the same account (%s).",
+                    from_acc));
             return false;
         }
         Calendar calendar = Calendar.getInstance();

@@ -121,6 +121,19 @@ public class SaveFileRepository {
 
         // get income List
         model.currentIncome = Util.parseJSON_IncomeList(json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME), report);
+
+        // Every account object above is newly built, so any selection still pointing at an object
+        // from before this call is now an orphan - a real-looking AccountBE that no list in the
+        // model contains. addTx on one mutates something the serialiser never visits, so a
+        // transaction gets booked on one side of the transfer only and the other side vanishes.
+        //
+        // The loops above already re-point a selection when it matches this entity's defaults.
+        // This covers the case they cannot: no defaults recorded yet, or a default naming an
+        // account that no longer exists. Re-point by name where possible, clear otherwise -
+        // an empty selection is visible in the UI and refused by createTx, an orphan is neither.
+        model.currentSender = model.reattachSelection(model.currentSender);
+        model.currentReceiver = model.reattachSelection(model.currentReceiver);
+        model.currentInspectedAccount = model.reattachSelection(model.currentInspectedAccount);
     }
 
     public void writeToInternal(String data, String filename) throws IOException {

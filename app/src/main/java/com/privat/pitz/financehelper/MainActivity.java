@@ -223,7 +223,12 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
                 newAmount.setText("");
                 onRefresh();
                 showToastLong(R.string.toast_success_new_entry);
-            } else if (getModel().currentSender == null || getModel().currentReceiver == null) {
+            } else if (getModel().currentSender != null
+                    && getModel().currentSender == getModel().currentReceiver) {
+                showToastLong(R.string.toast_error_same_sender_and_receiver);
+            } else if (!getModel().hasLiveTxSelection()) {
+                // covers both "nothing picked" and "the pick is stale": the radio buttons are
+                // rebuilt on every refresh, so a stale selection also shows as none selected
                 showToastLong(R.string.toast_error_no_sender_or_receiver);
             } else {
                 // createTx returned false for some other reason. Silence here would leave the

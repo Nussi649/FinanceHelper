@@ -117,6 +117,48 @@ public class Model {
         return result;
     }
 
+    /**
+     * True if this exact account object is still part of the model.
+     *
+     * <p>Compared by identity, not by name, and that is the whole point. Every load replaces every
+     * account object, so a reference held from before a load can name a real account while being
+     * a different object from the one the model now holds. Calling {@code addTx} on such an orphan
+     * mutates something the serialiser never visits: the transaction is silently booked on one
+     * side of the transfer only.
+     */
+    public boolean containsAccount(AccountBE account) {
+        if (account == null)
+            return false;
+        for (AccountBE candidate : getAllAccounts()) {
+            if (candidate == account)
+                return true;
+        }
+        return false;
+    }
+
+    /**
+     * True if a transaction can be booked on both sides right now: two different accounts, both
+     * still live in this model.
+     */
+    public boolean hasLiveTxSelection() {
+        return currentSender != currentReceiver
+                && containsAccount(currentSender)
+                && containsAccount(currentReceiver);
+    }
+
+    /**
+     * Re-points a selection at the equivalent account in the current model, or clears it.
+     *
+     * <p>Called after anything that rebuilds the account lists. Returns the same object when it is
+     * still live, the same-named account when the object was replaced by a load, and null when the
+     * account is gone entirely - never a stale reference.
+     */
+    public AccountBE reattachSelection(AccountBE previous) {
+        if (previous == null || containsAccount(previous))
+            return previous;
+        return getAccountByName(previous.getName());
+    }
+
     public AccountBE getAccountByName(String name) {
         AccountBE re = getAssetAccountByName(name);
         if (re == null) {

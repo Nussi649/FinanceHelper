@@ -42,6 +42,11 @@ public class EntityService {
         model.budget_accounts = new ArrayList<>();
         model.recurringTx = new ArrayList<>();
         model.currentIncome = new ArrayList<>();
+        // the accounts these pointed at are no longer in any list; leaving them set would leave
+        // the model claiming a sender and receiver that nothing can serialise
+        model.currentSender = null;
+        model.currentReceiver = null;
+        model.currentInspectedAccount = null;
         repo.setCurrentFileName(Const.getCurrentMonthFileName(model.currentEntity));
     }
 

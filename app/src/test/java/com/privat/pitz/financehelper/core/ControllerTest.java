@@ -280,6 +280,10 @@ public class ControllerTest {
 
         AccountBE girokonto = new AccountBE("Girokonto");
         AccountBE sparkonto = new AccountBE("Sparkonto");
+        // both must actually be in the model, as they are in the app: createTx refuses to book
+        // against an account no list contains, because only one side of it would be persisted
+        model.asset_accounts.add(girokonto);
+        model.asset_accounts.add(sparkonto);
         model.currentSender = girokonto;
         model.currentReceiver = sparkonto;
 
