@@ -6,15 +6,15 @@ does not repeat them.
 
 ## Where things stand
 
-- Branch `refactor/clean-architecture`, **15 commits**, **not pushed**. `master` untouched.
+- Branch `refactor/clean-architecture`, **21 commits**, **not pushed**. `master` untouched.
 - `origin/refactor/clean-architecture` still holds the old 34-commit history. The branch was
   squashed, so publishing it needs a **force-push**. The user asked to keep everything local until
   the work is finished and to do that push themselves.
 - The pre-squash history is preserved locally on **`refactor/pre-squash-archive`** (also not
   pushed). Push that one *before* force-pushing the rewritten branch.
-- **227 unit tests, all passing.** `./gradlew clean assembleDebug testDebugUnitTest --rerun-tasks`
+- **240 unit tests, all passing.** `./gradlew clean assembleDebug testDebugUnitTest --rerun-tasks`
   is green.
-- Test count over the two sessions: 101 → 141 → 227.
+- Test count over the two sessions: 101 → 141 → 240.
 
 Everything in the previous handover's plan is done. What remains is the on-device checklist at the
 bottom, one open issue that needs a decision, and the merge.
@@ -63,6 +63,13 @@ only the side the user swiped, at every nesting level, so the two accounts silen
 It is a checkbox rather than automatic because not every entry has a counterpart — an opening
 balance and an income have none, and a same-day same-description entry elsewhere may be a
 coincidence.
+
+**Three bugs reported from the field during the session**, all fixed and all recorded in
+`known-issues.md` items 8-10: a transaction booked on one account only (a selection left pointing
+at an account object a load had replaced - the root cause, plus a refusal in `createTx` so a
+half-writable transfer is never half-written), the swipe-to-edit row staying missing when the
+dialog was cancelled, and an edited transaction being rendered twice when it moved position in the
+sorted list.
 
 **Process-death crash.** Returning to the app through Recents after Android killed the process
 crashed on any screen except Main. See the commit and `architecture.md` → "Lifecycle and threading".
@@ -116,7 +123,7 @@ Unchanged from the previous handover, all still current:
 
 ## Gotchas this codebase will bite you with
 
-The first four are unchanged and still load-bearing. The last three are new.
+The first four are unchanged and still load-bearing. The last four are new.
 
 1. **`JSONObject.put(key, null)` REMOVES the key.** It does not store a JSON null. Write nullable
    strings through `Util.putOrDefault`, which exists for exactly this.
@@ -138,6 +145,13 @@ The first four are unchanged and still load-bearing. The last three are new.
    parsing to be reportable. `IntegrityCheckerTest.nanBudget_isFlagged` catches the regression.
 7. **`Model.getAllAccounts()` allocating a fresh list is load-bearing**, not incidental:
    `TxService.findTxPair` mutates the returned list. Do not "optimise" that allocation away.
+8. **`currentSender`/`currentReceiver`/`currentInspectedAccount` hold account objects, and every
+   load replaces every account object.** A selection kept across a load is an orphan: correct name,
+   correct transactions, contained in no list the model holds, and `addTx` on it writes somewhere
+   the serialiser never visits. Anything that rebuilds the account lists must run the selections
+   through `Model.reattachSelection`, and anything that removes an account must clear them.
+   `Model.containsAccount` tests this by **identity, not name** — a same-named orphan is exactly
+   the case that used to slip through.
 
 Process notes: the `Bash` tool mangles heredocs containing apostrophes — write Python helper
 scripts to a scratchpad file and run those instead. Gradle test runs need `--rerun-tasks` or they
@@ -183,6 +197,14 @@ pass. Highest risk first.
 - **Editing a transfer.** Swipe-edit one side of a transfer with the new checkbox OFF (only that
   side changes, as before) and then ON (both sides change, including the date). Tick it on an
   income entry, which has no counterpart, and confirm it edits that entry and says so.
+- **Swipe-to-edit, then cancel.** The row must reappear immediately, without leaving and reopening
+  the activity.
+- **Edit an entry's date so it sorts to a different position.** It must appear exactly once, in its
+  new place - not also in the row it used to occupy.
+- **Both sides of a transaction.** Create a transaction and confirm it lands on both accounts.
+  Then try to provoke a refusal: delete the account currently selected as sender, and confirm the
+  app declines to book rather than writing one side. Load a different save file and immediately
+  enter a transaction - this is the path that used to produce the one-sided entry.
 - **Auto-renew on a budget account.** Untick it in Settings, restart the app, confirm it is still
   unticked. This never survived a restart before.
 - Create a budget account, close the app, reopen — it must still be there with its transactions.

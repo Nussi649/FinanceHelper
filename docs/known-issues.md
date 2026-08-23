@@ -340,6 +340,65 @@ saves on every one — would have written them to disk anyway.
 which array it was scanning, because the budget loop was a copy of the asset loop. Log text only.
 It now uses the `accountKind` the codec already carries.
 
+### 8. A transaction could be booked on one account only — FIXED
+
+Reported from the field, intermittently, over a long period: a transaction entered on the main
+screen appears on only one of the two accounts, as if the other had never been selected.
+
+`model.currentSender`/`currentReceiver` hold account **objects**, and every load rebuilds every
+account object (`importAccounts` replaces `asset_accounts`/`budget_accounts` wholesale). A
+selection made before a load could go on pointing at the old object — right name, right
+transactions, right type, but contained in no list the model holds. `addTx` on such an orphan
+mutates something `exportAccounts` never visits, so that side is silently dropped while the live
+side is written normally.
+
+Three ways to acquire one, all closed:
+
+- **A load.** `importAccounts` re-pointed a selection only when it matched the entity's recorded
+  defaults. With no defaults yet, or a default naming an account that no longer exists, the
+  pre-load object survived. It now re-points by name, or clears the selection when the account is
+  gone. `currentInspectedAccount` gets the same treatment — a details screen driven by an orphan
+  silently discards every edit made on it.
+- **`resetAccountLists`** replaced all four lists but left the selections pointing into the
+  discarded ones.
+- **`deleteAccount`** removed the account and left it selected. Deleting the account you were
+  about to spend from was enough to lose the next transaction's counter-entry.
+
+`createTx` additionally refuses to book unless both sides are live and distinct — a transfer that
+can only be half-written must not be half-written. The check is by **identity, not name**: a
+same-named orphan is exactly the case that used to slip through. `Model.containsAccount` and
+`Model.hasLiveTxSelection` carry that test.
+
+An existing test had to change: `createTx_movesFundsBetweenSenderAndReceiverAndSaves` selected two
+accounts it never added to the model, and passed only because the old code booked against orphans —
+the fixture was reproducing the bug.
+
+### 9. Swipe-to-edit left the row missing when the dialog was cancelled — FIXED
+
+`ItemTouchHelper` assumes `onSwiped` means the item is gone and leaves the ViewHolder translated
+off-screen. That is right for the LEFT/delete path, where `onDeleteRequested` actually removes the
+row. RIGHT/edit is not a removal — it is "reveal a dialog" — and the only thing restoring the row
+was a `notifyItemChanged` at the end of `TxSwipeActions.onConfirm`, which never runs if the user
+cancels or dismisses. The row stayed missing until the activity was left and reopened.
+
+`TxListSection.onSwiped` now restores it unconditionally in the RIGHT branch, which is where the
+gesture is owned, so the guarantee does not depend on what any `TxActions` implementation does.
+
+### 10. An edited transaction was rendered twice when it changed position — FIXED
+
+`TxSwipeActions.onConfirm` ends with `account.sortTxByDate()` — which reorders the model list —
+then `onChanged.onRefresh()`, and then called `adapter.notifyItemChanged(position)` as its last
+statement, outside the try block. `onRefresh()` already goes `section.refresh()` → `applyFilter()`
+→ `TxListAdapter.setEntries()` → `notifyDataSetChanged()`, a complete and correct rebind. The
+trailing targeted notify then re-bound one row using the index the entry had *before* the re-sort,
+which after a reorder identifies a different entry — so the edited entry appeared both in its new
+place and in its old one.
+
+Removed. Note that this is deliberately **not** the same fix as item 9: a cancelled dialog never
+reaches `onConfirm` at all, so the swipe translation must be restored in `TxListSection`, while
+content rebinding after a confirmed edit is already covered by the refresh. Collapsing the two back
+into one `notifyItemChanged` reintroduces one bug or the other.
+
 ## Not yet fixed
 
 ### 1. The live swipe-to-edit path never updates the counterpart transaction
