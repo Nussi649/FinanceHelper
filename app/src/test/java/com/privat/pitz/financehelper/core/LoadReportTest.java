@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
+import com.privat.pitz.financehelper.data.AccountBE;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 
 /**
@@ -122,6 +123,57 @@ public class LoadReportTest {
 
         assertEquals("both parses must be represented", 2,
                 reader.getModel().takeLoadReport().countDiscards());
+    }
+
+    @Test
+    public void integrityCheck_onAnOrdinarySavedFile_isClean() throws JSONException, IOException {
+        // The integrity check now runs automatically after every load and toasts when it finds
+        // anything. If a file the app itself just wrote trips it, that toast appears on every
+        // start and is trained away within a week - so an ordinary file has to come back clean.
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = freshController(storage);
+        AccountBE giro = controller.createAssetAccount("Girokonto");
+        BudgetAccountBE lebensmittel = controller.createRootBudget("Lebensmittel", 100f, 1200f);
+        controller.createSubBudget(lebensmittel, "Wocheneinkauf", 40f, 480f);
+
+        controller.getModel().currentSender = giro;
+        controller.getModel().currentReceiver = lebensmittel;
+        controller.createTx("Markt", 30f, null);
+        controller.getModel().currentReceiver = giro;
+        controller.addFunds(2000f, "Gehalt");
+        controller.saveAccountsToInternal();
+
+        IntegrityChecker.Result result = new IntegrityChecker(controller).check(FILE);
+
+        assertTrue("a file the app just wrote must not raise findings: " + result.findings,
+                result.isClean());
+    }
+
+    @Test
+    public void integrityCheck_afterAMonthRollover_isClean() throws JSONException, IOException {
+        // Same concern, for the one path that rewrites every account at once. A rollover that
+        // produced a file failing its own integrity check would warn the user every month.
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        String previousFile = Const.getLastMonthFileName("User");
+        Controller writer = new Controller(storage);
+        writer.getModel().currentEntity = "User";
+        writer.getModel().currentFileName = previousFile;
+        AccountBE giro = writer.createAssetAccount("Girokonto");
+        BudgetAccountBE lebensmittel = writer.createRootBudget("Lebensmittel", 100f, 1200f);
+        writer.getModel().currentSender = giro;
+        writer.getModel().currentReceiver = lebensmittel;
+        writer.createTx("Markt", 30f, null);
+        writer.saveAccountsToInternal(previousFile);
+
+        Controller roller = new Controller(storage);
+        roller.getModel().currentEntity = "User";
+        roller.initiateNewPeriod();
+
+        IntegrityChecker.Result result =
+                new IntegrityChecker(roller).check(roller.getModel().currentFileName);
+
+        assertTrue("a rolled-over file must not raise findings: " + result.findings,
+                result.isClean());
     }
 
     @Test

@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Looper;
+import android.util.Log;
 import android.app.AlertDialog;
 import android.text.InputFilter;
 import android.view.Menu;
@@ -575,6 +576,34 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
         dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.confirm), (d, w) -> d.dismiss());
     }
 
+    /**
+     * Runs the structural integrity checks against the file that was just loaded.
+     *
+     * <p>IntegrityChecker already detected the exact "entry silently discarded" class that hid the
+     * budget-account bug for years - its own test fixture used that very shape as the example. The
+     * check was correct; nobody had ever run it against a real save file, because it was buried in
+     * the overflow menu. A check nobody runs is not a check.
+     *
+     * <p>Deliberately a toast rather than a dialog: this runs on every start, so it must not
+     * become something to dismiss reflexively. It says how many findings there are and points at
+     * the menu action, which does the full before/after comparison and shows the detail. The
+     * findings are logged in full either way.
+     *
+     * <p>Only the single-file structural checks run here. The total-sum conservation check - the
+     * primary one - needs a "before" file to compare against and so stays a manual action.
+     */
+    private void runIntegrityCheckOnLoad() {
+        String fileName = getModel().currentFileName;
+        if (fileName == null)
+            return;
+        IntegrityChecker.Result result = new IntegrityChecker(getController()).check(fileName);
+        if (result.isClean())
+            return;
+        for (IntegrityChecker.Finding finding : result.findings)
+            Log.println(Log.ERROR, "integrity_check_on_load", finding.message);
+        showToastLong(getString(R.string.toast_warn_integrity_findings, result.findings.size()));
+    }
+
     private String formatIntegrityResult(IntegrityChecker.Result result) {
         if (result.isClean())
             return getString(R.string.label_integrity_check_clean);
@@ -596,6 +625,8 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
             showToastLong(getString(R.string.toast_info_blank_accounts));
         // startup parses the settings file and then the save file; both land in the same report
         reportLoadProblems();
+        if (response == Controller.LOADED_ACCOUNTS || response == Controller.LOADED_NEW_MONTH)
+            runIntegrityCheckOnLoad();
         rbSender = new RbAccountManager(Const.GROUP_SENDER, controller);
         rbReceiver = new RbAccountManager(Const.GROUP_RECEIVER, controller);
     }

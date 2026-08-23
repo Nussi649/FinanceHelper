@@ -182,6 +182,10 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
      *
      * <p>A discard means data is gone, so it gets a dialog that has to be dismissed. A defaulted
      * field means the record survived, so it gets a toast.
+     *
+     * <p>Safe to call from a worker thread: MainActivity.initiateAccounts runs on one - with its
+     * own prepared Looper, so Toast works there but a dialog would not - so the dialog is posted
+     * to the UI thread rather than shown inline.
      */
     protected void reportLoadProblems() {
         if (model == null)
@@ -190,8 +194,9 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         if (report.isEmpty())
             return;
 
-        for (String message : report.messagesOf(ParseReport.Severity.DEFAULTED))
-            Log.println(Log.INFO, "load_report", message);
+        for (ParseReport.Note note : report.getNotes())
+            Log.println(note.severity == ParseReport.Severity.DISCARDED ? Log.ERROR : Log.INFO,
+                    "load_report", note.message);
 
         if (!report.hasDiscards()) {
             showToastLong(getString(R.string.toast_info_load_repaired,
@@ -200,17 +205,21 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         }
 
         StringBuilder sb = new StringBuilder();
-        for (ParseReport.Note note : report.getNotes()) {
-            Log.println(note.severity == ParseReport.Severity.DISCARDED ? Log.ERROR : Log.INFO,
-                    "load_report", note.message);
+        for (ParseReport.Note note : report.getNotes())
             sb.append("• ").append(note.message).append("\n\n");
-        }
+        final String body = sb.toString().trim();
+        final String title = getString(R.string.label_load_problems_title, report.countDiscards());
+        runOnUiThread(() -> showScrollableMessageDialog(title, body));
+    }
+
+    /** Shows a dismissable dialog carrying a long, scrollable diagnostic message. */
+    protected void showScrollableMessageDialog(String title, String message) {
         AlertDialog dialog = getBasicEditDialog();
-        dialog.setTitle(getString(R.string.label_load_problems_title, report.countDiscards()));
+        dialog.setTitle(title);
         dialog.show();
         TextView body = dialog.findViewById(R.id.edit_text);
         if (body != null)
-            body.setText(sb.toString().trim());
+            body.setText(message);
     }
 
     protected void showConfirmDialog(int msgID, AlertDialog.OnClickListener acceptListener) {
