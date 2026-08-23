@@ -241,6 +241,22 @@ public abstract class Util {
         return year + "-" + month;
     }
 
+    /**
+     * The period following the present one, "YYYY-MM".
+     *
+     * <p>This is the default next-renewal date for a newly created budget account. It has to be
+     * strictly after the present period: {@link com.privat.pitz.financehelper.data.BudgetAccountBE#tryRenew()}
+     * renews as soon as nextRenewal is *not* after the present period, so defaulting to the
+     * present one would wipe the account's transactions the moment it was created.
+     */
+    public static String getNextPeriod() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.MONTH, 1);
+        String month = String.format(Locale.US, "%02d", calendar.get(Calendar.MONTH) + 1);
+        String year = String.valueOf(calendar.get(Calendar.YEAR));
+        return year + "-" + month;
+    }
+
     public static boolean isAfter(String periodA, String periodB) throws IllegalArgumentException {
         // validate inputs
         if (!validatePeriod(periodA) || !validatePeriod(periodB))
@@ -417,17 +433,29 @@ public abstract class Util {
             new_account = new BudgetAccountBE(parsed_account);
         }
 
-        // try reading renewal information if new_account is not a project budget
-        try {
-            if (!(new_account instanceof ProjectBudgetBE)) {
-                new_account.setNextRenewal(json_in.getString(Const.JSON_TAG_RENEWAL_NEXT));
-                new_account.setRenewalPeriod(json_in.getInt(Const.JSON_TAG_RENEWAL_PERIOD));
+        // read renewal information if new_account is not a project budget. Both fields have
+        // sensible defaults (next period / monthly), so a save file missing them still loads -
+        // a missing renew_next used to discard the entire account without telling anyone.
+        if (!(new_account instanceof ProjectBudgetBE)) {
+            String nextRenewal = json_in.optString(Const.JSON_TAG_RENEWAL_NEXT, null);
+            if (nextRenewal == null) {
+                Log.println(Log.INFO, "parse_budget_account",
+                        String.format("No next renewal date for account %s, defaulting to %s",
+                                new_account.getName(), new_account.getNextRenewal()));
+            } else {
+                try {
+                    new_account.setNextRenewal(nextRenewal);
+                } catch (IllegalArgumentException e) {
+                    // Malformed rather than absent - the raw-JSON editor can produce this. Drop
+                    // this one account instead of letting the exception abort the whole load.
+                    Log.println(Log.ERROR, "parse_budget_account",
+                            String.format("Error parsing budget account %s: invalid next renewal date! %s",
+                                    new_account.getName(), e));
+                    return null;
+                }
             }
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "parse_budget_account",
-                    String.format("Error parsing budget account %s: key does not exist! %s",
-                            new_account.getName(), e));
-            return null;
+            new_account.setRenewalPeriod(json_in.optInt(Const.JSON_TAG_RENEWAL_PERIOD,
+                    new_account.getRenewalPeriod()));
         }
 
         // try reading obligatory attributes
@@ -618,7 +646,14 @@ public abstract class Util {
             } else {
                 new_account.put(Const.JSON_TAG_PROJECT_BUDGET, false);
                 new_account.put(Const.JSON_TAG_RENEWAL_PERIOD, budgetAccount_in.getRenewalPeriod());
-                new_account.put(Const.JSON_TAG_RENEWAL_NEXT, budgetAccount_in.getNextRenewal());
+                // JSONObject.put(key, null) REMOVES the key rather than storing a null. That is
+                // how newly created budget accounts used to be written without renew_next and
+                // then silently discarded by parseJSON_BudgetAccount on the next load. Every
+                // BudgetAccountBE now starts with a renewal date, but be explicit about the null
+                // case rather than depending on that.
+                String nextRenewal = budgetAccount_in.getNextRenewal();
+                if (nextRenewal != null)
+                    new_account.put(Const.JSON_TAG_RENEWAL_NEXT, nextRenewal);
             }
         } catch (JSONException e) {
             Log.println(Log.ERROR, "serialise_BudgetAccount",

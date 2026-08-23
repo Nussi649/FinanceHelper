@@ -14,7 +14,12 @@ public class BudgetAccountBE extends AccountBE{
     public float indivAvailableBudget = -1.0f;
 
     protected int renewalPeriod = 1;
-    protected String nextRenewal;
+    /**
+     * Defaults to the next period rather than staying null. A null here used to be written to
+     * the save file as a *missing* renew_next key, which parseJSON_BudgetAccount then treated as
+     * fatal - so every budget account created in the app vanished on the next load.
+     */
+    protected String nextRenewal = Util.getNextPeriod();
 
     private List<BudgetAccountBE> subBudgets;
     // toOtherEntity specifies if payments received on this account should be accounted for as income on another financial entity

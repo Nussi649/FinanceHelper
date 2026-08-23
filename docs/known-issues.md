@@ -131,6 +131,52 @@ listener — so `AlertDialog` dismissed on every click and an unparseable amount
 discarding everything typed. It also reported "amount is empty" when the *name* was the missing
 field, because it tested both in one condition. Replaced with the shared dialog.
 
+### 5. Every budget account created in the app vanished on the next load — FIXED
+
+Reported from the field as "the last added budget account does not persist". Reproducing it in a
+JVM test showed it was broader: **all** newly created budget accounts were dropped, while asset
+accounts in the same save file were untouched. Budget accounts that had survived a month rollover,
+or whose renewal date had been edited by hand, also loaded fine — which is what made it look like
+only the newest one was affected.
+
+Three links, all required:
+
+1. No `BudgetAccountBE` constructor set `nextRenewal`, and neither did
+   `AccountService.createRootBudget`/`createSubBudget`. It was null.
+2. `Util.serialise_BudgetAccount` called `put(JSON_TAG_RENEWAL_NEXT, null)` — and
+   `JSONObject.put(key, null)` **removes** the key rather than storing a null. The account was
+   written to the file complete, minus `renew_next`.
+3. `Util.parseJSON_BudgetAccount` read it with `getString`, which throws on a missing key, and the
+   catch returned `null` for the entire account. The caller drops nulls without reporting anything.
+
+So the data was written correctly and discarded on read. The next save — triggered by any
+navigation, via `AbstractActivity.startActivity` — then wrote the model back to disk without it,
+making the loss permanent.
+
+Fixed at both ends, because neither half suffices alone: `nextRenewal` now defaults to
+`Util.getNextPeriod()` (the *next* period — `tryRenew()` renews as soon as it is not after the
+present period, so defaulting to the present one would clear the account immediately), and the
+parser treats a missing `renew_next`/`renew_period` as "use the default" rather than as fatal. The
+second half is what lets files already written by the broken version load their budget accounts.
+
+`ProjectBudgetBE` clears the default in its constructors — it overrides `tryRenew` and every
+renewal setter to no-ops deliberately, and neither serialise nor parse touches its renewal fields.
+
+**Worth noting:** `IntegrityChecker` already had a check for exactly this failure class ("... wurden
+stillschweigend verworfen"), and its own test fixture used a budget entry missing `renew_next` as
+the example. Running the integrity check would have named this bug. The check was right; nobody had
+run it against a real save file.
+
+Two related defects fixed in the same commit, being the same code:
+
+- A *malformed* (rather than absent) `renew_next` made `setNextRenewal` throw
+  `IllegalArgumentException`, which is not a `JSONException` and so escaped
+  `parseJSON_BudgetAccount` uncaught, aborting the whole load. Reachable through the raw-JSON
+  editor. It now drops just that account.
+- `BudgetAccountBE.tryRenew()` on a null `nextRenewal` threw an NPE out of
+  `Util.validatePeriod` (`Pattern.matcher(null)`); `tryRenew` catches only
+  `IllegalArgumentException`. The non-null default makes it unreachable.
+
 ## Not yet fixed
 
 ### 1. `updateTx`'s account search only descends one level of sub-budget
