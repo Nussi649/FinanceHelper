@@ -228,15 +228,17 @@ the code that uses `assert`. `app/build.gradle` now sets `testOptions.unitTests.
 `RecurringTxTriggerTest` fail with the NPEs above against the old code.
 
 **Rule going forward:** never put a side effect inside `assert`, and never use `assert` as a guard.
-Use a plain `if`. Eleven bare `assert x != null;` statements remain (in `AccountPreviewList`,
-`AccountService.deleteAccount`, `EntityService`); they are no-ops too, but carry no side effects and
-guard dereferences that would throw anyway, so they are misleading rather than harmful.
+Use a plain `if`. The eleven bare `assert x != null;` statements that survived this fix (in
+`AccountPreviewList`, `AccountService.deleteAccount`, `EntityService`) were removed in the hardening
+pass, and `app/build.gradle`'s `banAssertStatements` task now fails the build if `assert` reappears
+anywhere in `app/src/main` - verified by planting one.
 
 ## Fixed in the hardening pass
 
-Found by writing the tests the handover asked for, not by anyone reporting them. All six are the
-same shape as the two data-loss bugs that motivated the pass: the app repaired or discarded
-something and said nothing.
+Items 1-7 and 11 were found by writing the tests the handover asked for rather than by anyone
+reporting them, and share the shape of the two data-loss bugs that motivated the pass: the app
+repaired or discarded something and said nothing. Items 8-10 were reported from the field while the
+pass was running.
 
 ### 1. Budget accounts silently lost their auto-renew setting on every load — FIXED
 
@@ -399,25 +401,40 @@ reaches `onConfirm` at all, so the swipe translation must be restored in `TxList
 content rebinding after a confirmed edit is already covered by the refresh. Collapsing the two back
 into one `notifyItemChanged` reintroduces one bug or the other.
 
+### 11. The live swipe-to-edit path never updated the counterpart transaction - FIXED
+
+`ui/TxSwipeActions.onEditRequested` opened `EditTxDialog` and, on confirm, just sorted the account's
+tx list and saved: it mutated the `TxBE` in place and never looked for the matching entry on the
+other side of the transfer. Unlike the `TxService.updateTx` depth bug above this was not
+depth-dependent - it desynced the two sides at *every* nesting level, including a transfer between
+two top-level accounts, because it never called `updateTx` at all. This was the live edit path
+reachable from the UI, so the two sides of an edited transfer drifted apart in normal use.
+
+**Fix:** the dialog gained an opt-in "also change the counterpart" checkbox, default off, backed by
+the new `TxService.updateTxPair`. `EditTxDialog` no longer mutates in place; it hands back an `Edit`
+value carrying both the pre-edit and post-edit values, which is what lets `updateTxPair` find the
+pair by the *original* date and description. When the box is ticked and no counterpart is found, the
+entry is edited one-sidedly and the user is told.
+
+**Why a checkbox rather than automatic propagation:** not every entry has a counterpart. An opening
+balance and an income have none, and a same-day same-description entry on another account may be a
+coincidence rather than the other half of a transfer. Guessing wrong silently rewrites an unrelated
+transaction, so the user decides. Covered by `UpdateTxPairTest` (7 tests).
+
+This also gave `Controller.updateTx`/`TxService.updateTx` callers again - they had none at all after
+`AssetAccountDetailsActivity.updateEntryDescription`/`updateEntryAmount` were deleted as dead code
+earlier on the branch.
+
 ## Not yet fixed
 
-### 1. The live swipe-to-edit path never updates the counterpart transaction
+Nothing. Every code defect recorded above is fixed, and the branch is merged to `master`.
 
-`ui/TxSwipeActions.onEditRequested` opens `EditTxDialog`, and on confirm just sorts the account's
-tx list and saves — it mutates the `TxBE` object in place and never looks for the matching entry on
-the other side of the transfer. Unlike the old `TxService.updateTx` gap (see the "FIXED" entry
-above), this is not depth-dependent: it desyncs the two sides of a transfer at *every* nesting
-level, including a transfer between two top-level accounts, because it never calls `updateTx` (or
-anything like it) at all. This is the actual live edit path reachable from the UI.
-
-Left alone deliberately — it needs a decision about whether an edit *should* propagate to the
-counterpart (and if so, whether to route it through `Controller.updateTx`/`TxService.findTxPair`,
-now that those are fixed and available), not something to fix as a drive-by.
-
-Note that `Controller.updateTx`/`TxService.updateTx` currently have **no callers at all**. Their
-only callers were `AssetAccountDetailsActivity.updateEntryDescription`/`updateEntryAmount`, deleted
-earlier on this branch as verified dead code. Wiring this edit path to them would give both a
-purpose again.
+The two lifecycle hazards examined during the hardening pass were deliberately *not* fixed, and are
+recorded in `docs/architecture.md` -> "Lifecycle and threading" rather than here: `MainActivity`
+saves on the UI thread while `workingThread()` may still be populating the same lists, and nothing
+cancels that thread or checks activity liveness before `runOnUiThread`. Both need the raw
+`new Thread(...)` pattern in `AbstractActivity.onCreate` replaced, which is a redesign the refactor
+stayed out of on purpose.
 
 ## Historical: issues as originally found (kept for reference)
 

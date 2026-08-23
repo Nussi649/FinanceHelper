@@ -56,8 +56,8 @@ dependencies {
 // WHY: assertions are disabled by default on the JVM and Android never enables them at all -
 // `assert expr;` is a complete no-op on device, expr is not even evaluated. This codebase used
 // to rely on `assert x != null;` as a guard in several places; those guards silently never ran
-// and shipped real bugs (a crash and a data-loss path - see docs/handover-hardening.md, section
-// "2.3 Null-safety and precondition discipline"). Write a real `if`/`throw`/log check instead.
+// and shipped real bugs (a crash and a data-loss path - see docs/known-issues.md, "Guards written
+// with `assert` never ran on device"). Write a real `if`/`throw`/log check instead.
 // Only flags lines that actually start with the `assert` keyword (after trimming whitespace), so
 // comments that merely mention the word "assert" are left alone.
 task banAssertStatements {
