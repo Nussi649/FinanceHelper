@@ -118,6 +118,39 @@ two near-identical copies of this logic, one in each activity):
 - `onEditRequested` — opens `ui/dialog/EditTxDialog`; on confirm, sorts the account's tx list by
   date, calls `controller.saveAccountsToInternal()`, and refreshes.
 
+**Invariant: `TxListSection.applyFilter` always builds its own list.** `TxListAdapter.setEntries`
+stores the list it is given *by reference* and `addEntry`/`removeEntry` mutate it in place, so if
+`applyFilter` handed over `mAccount.getTxList()` — which `AccountBE` returns by reference — the
+optimistic swipe removal would delete the transaction from the model before `Controller.deleteTx`
+ever looked for it, and the delete would never be persisted. That was a real bug (see
+`known-issues.md`). `applyFilter` therefore copies on both the filtered and the unfiltered path,
+and hands that same instance to both the adapter and `lastVisibleEntries` so swipe positions stay
+in step with what the adapter holds. The model is mutated only by `Controller.deleteTx`.
+
+Both details screens' `onRefresh()` call `section.refresh()` rather than re-summing the account
+directly, so the summary card always describes the rows actually on screen.
+
 `BudgetAccountDetailsActivity` layers its sub-budget tree (`BudgetAccountTableRow` rows in a
 `TableLayout`) on top of the same `TxListSection` — see `data-model.md` for the sub-budget tree
 structure itself.
+
+## Dialogs
+
+Every dialog lives in `ui/dialog/` and is an abstract class with a single `onConfirm(...)` method
+that call sites implement as an anonymous subclass, then `show()`.
+
+The seven that validate their input extend `ui/dialog/BaseInputDialog`, which owns the shared
+scaffold and exposes four hooks: `getLayoutRes()`, `getTitleRes()`, `bindViews(View)` and
+`onConfirmClicked()`.
+
+The non-obvious part it encapsulates is why the positive button is registered with a **null**
+listener and only re-wired inside `setOnShowListener`: that is what stops `AlertDialog` from
+dismissing itself on every click, so returning `false` from `onConfirmClicked()` leaves the dialog
+open with the user's input intact. `getTitleRes()` is resolved in `show()` rather than the
+constructor, so it may depend on subclass state — `CreateBudgetAccountDialog` uses that for its
+project/budget title switch.
+
+Four dialogs deliberately do **not** extend it, because they do no input validation: `LoadFileDialog`,
+`SaveFileDialog` and `TransactionRedirectionDialog` use a real auto-dismissing positive listener,
+and `EditSourceCodeDialog` is handed a prebuilt dialog by `AbstractActivity.getBasicEditDialog()`
+rather than inflating one.
