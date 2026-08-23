@@ -125,6 +125,18 @@ public class TxListSection {
                 } else if (direction == ItemTouchHelper.RIGHT) {
                     // Swipe right to edit
                     actions.onEditRequested(position, tx);
+
+                    // ItemTouchHelper assumes onSwiped() means the item is gone and leaves the
+                    // ViewHolder translated off-screen. That is correct for LEFT/delete, where
+                    // onDeleteRequested actually removes the row from the adapter. RIGHT/edit is
+                    // not a removal - it is "reveal a dialog" - so the row must always come back
+                    // once the gesture finishes, regardless of whether the dialog is confirmed,
+                    // cancelled, or dismissed. Relying on the action implementation to do this
+                    // (e.g. only on a confirmed edit) leaves the row missing on cancel, which is
+                    // exactly the bug this restores. This is the swipe gesture's own callback, so
+                    // it - not any TxActions implementation - is the right place to guarantee it,
+                    // unconditionally and every time. Do not move this into onConfirm/onCancel.
+                    recyclerAdapter.notifyItemChanged(position);
                 }
             }
 
