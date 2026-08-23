@@ -1,17 +1,14 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
@@ -27,6 +24,7 @@ import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.dialog.CreateBudgetAccountDialog;
 import com.privat.pitz.financehelper.ui.BudgetFigures;
 import com.privat.pitz.financehelper.ui.PercentageBackground;
 
@@ -198,37 +196,13 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
 
     // region Dialogs
     public void openNewBudgetDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_new_budget_account, null);
-
-        EditText budgetNameInput = view.findViewById(R.id.budget_name_input);
-        EditText yearlyBudgetInput = view.findViewById(R.id.yearly_budget_input);
-        EditText currentMonthBudgetInput = view.findViewById(R.id.current_month_budget_input);
-
-        builder.setView(view)
-                .setPositiveButton("Confirm", (dialog, id) -> {
-                    String budgetNameString = budgetNameInput.getText().toString();
-                    String yearlyBudgetString = yearlyBudgetInput.getText().toString();
-                    String currentMonthBudgetString = currentMonthBudgetInput.getText().toString();
-
-                    if (!budgetNameString.isEmpty() && !yearlyBudgetString.isEmpty()) {
-                        try {
-                            float yearlyBudget = Util.parseAmount(yearlyBudgetString);
-                            float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : Util.parseAmount(currentMonthBudgetString);
-
-                            createBudgetAccount(budgetNameString, currentMonthBudget, yearlyBudget);
-                            dialog.dismiss();
-                        } catch (NumberFormatException e) {
-                            showToastLong(R.string.toast_error_invalid_amount);
-                        }
-                    } else {
-                        showToastLong(R.string.toast_error_empty_amount);
-                    }
-                })
-                .setNegativeButton("Cancel", null);
-
-        builder.create().show();
+        CreateBudgetAccountDialog dialog = new CreateBudgetAccountDialog(this) {
+            @Override
+            public void onConfirm(String budgetName, float currentMonthBudget, float yearlyBudget) {
+                createBudgetAccount(budgetName, currentMonthBudget, yearlyBudget);
+            }
+        };
+        dialog.show();
     }
 
 
