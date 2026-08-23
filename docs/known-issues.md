@@ -232,6 +232,114 @@ Use a plain `if`. Eleven bare `assert x != null;` statements remain (in `Account
 `AccountService.deleteAccount`, `EntityService`); they are no-ops too, but carry no side effects and
 guard dereferences that would throw anyway, so they are misleading rather than harmful.
 
+## Fixed in the hardening pass
+
+Found by writing the tests the handover asked for, not by anyone reporting them. All six are the
+same shape as the two data-loss bugs that motivated the pass: the app repaired or discarded
+something and said nothing.
+
+### 1. Budget accounts silently lost their auto-renew setting on every load — FIXED
+
+`BudgetAccountBE(AccountBE source)` copied `name`, `txList` and `isActive` but not `autoRenew`.
+`Util.parseJSON_BudgetAccount` builds a plain `AccountBE` first and then wraps it with exactly that
+constructor, so the value was written to the save file correctly and thrown away on read, reverting
+to the default on every load.
+
+Reachable: `SettingsActivity.populateUI` iterates `model.getAllAccounts()`, which includes budget
+accounts and every sub-budget, and renders an auto-renew checkbox for each. Unchecking it for a
+budget account never survived a restart.
+
+No renewal behaviour changed — `AccountService.renewAccounts` only consults `autoRenew` for asset
+accounts — but the setting now persists. The constructor carries a comment saying why every field
+`AccountBE` holds must be copied there.
+
+### 2. A null string deleted its key instead of being written — FIXED
+
+`JSONObject.put(key, null)` **removes** the key rather than storing a JSON null (see gotcha 1 in
+the handover). Five sites wrote a nullable string that way, each safe only because the value
+happens never to be null in practice:
+
+- `JSON_TAG_DESCRIPTION` in `serialise_Entry` and `serialise_RecurringOrder` — the parser read it
+  with `getString`, so the whole transaction or order was dropped.
+- `JSON_TAG_SENDER`/`JSON_TAG_RECEIVER` in `serialise_RecurringOrder` — the whole order.
+- `JSON_TAG_NAME` in `serialise_Account` — the whole account.
+- `JSON_TAG_DEFAULT_ENTITY` and the per-entity name/sender/receiver in `serialise_Settings` —
+  worse than the rest, because `parseJSON_Settings` rethrows and `loadAppSettings` then falls back
+  to a blank `Settings`: one null discarded every entity default the user had.
+
+`Util.putOrDefault(target, key, value, fallback)` now carries that substitution once and documents
+why it exists. The other nullable writes were already guarded — `renew_next` by an explicit null
+check, `to_other_entity` by a ternary.
+
+### 3. A null transaction date aborted the entire save — FIXED
+
+`Util.formatDateSave` delegates to `SimpleDateFormat.format`, which throws on null. That NPE is not
+a `JSONException`, so it escaped `serialise_Entry`'s catch, propagated through `serialiseAll` and
+`exportAccounts`, and failed the whole save — one malformed entry taking every account with it.
+
+A date cannot be defaulted to anything truly correct, but for a record of money losing the amount
+is worse than approximating the date, so the current time is substituted and logged at ERROR.
+
+### 4. "Fatal" was the unstated default in every parser — FIXED
+
+Any key `Util.parseJSON_*` could not read discarded the entire enclosing record, and the caller
+dropped the resulting null without telling anyone. That is how one absent `renew_next` cost users
+whole budget accounts.
+
+Four fields are genuinely fatal now, because the record cannot be used without them: an account's
+`name` (every lookup, transfer and recurring order resolves accounts by name), a transaction's
+`amount`, and a recurring order's `sender` and `receiver`. The sender is fatal *because* the
+default would be meaningful — an empty sender is how a recurring income is represented, so
+defaulting a missing one would post phantom income on every rollover.
+
+Everything else defaults. Three changed from fatal: `budget_year` (neither the account's identity
+nor its money — discarding the account deleted every transaction it held), `tx` (an unreadable
+transaction list used to take the account's name, budget and renewal settings with it), and
+`defaultEntity` (see item 2). A malformed `renew_next` defaults too, rather than dropping the
+account as the earlier narrowing left it.
+
+### 5. Discards were silent — FIXED
+
+`core/ParseReport` collects every defaulted field and every discarded record with its reason.
+`SaveFileRepository` accumulates it on the `Model` (accumulates, not replaces: startup parses the
+settings file and then a save file, and replacing would let the first report vanish — the exact
+failure mode the class exists to prevent). `AbstractActivity.reportLoadProblems` drains it after
+every load — startup, load-from-file and entity switch — showing a dialog when something was
+discarded and a toast when fields were only defaulted.
+
+`IntegrityChecker` folds the same notes into its findings, so it now names which field was missing
+from which entry rather than only reporting that some entry was dropped. Its raw-vs-parsed count
+check stays as a backstop; the two are complementary.
+
+**Subtlety worth keeping:** `parseJSON_BudgetAccount` reads `budget_cur` with `getDouble`, not
+`optDouble`. `optDouble` swallows a NaN and substitutes the fallback, which would keep NaN out of
+the model and therefore out of `IntegrityChecker`'s numeric-sanity check. A corrupt value has to
+survive parsing to be reportable. `IntegrityCheckerTest.nanBudget_isFlagged` catches that
+regression.
+
+### 6. Swipe-delete ignored whether the delete actually happened — FIXED
+
+`ui/TxSwipeActions.onDeleteRequested` removes the row from the adapter immediately, then calls
+`Controller.deleteTx` when the Undo Snackbar expires — and discarded the result. `deleteTx` returns
+false without saving when it cannot find the transaction, so in that case the delete existed only
+on screen: the row was gone, nothing was written, and the next load brought it back unexplained.
+
+That is precisely the signature of "Swipe-delete mutated the model before `deleteTx` could persist
+it" above. The aliasing was fixed there; the path that made it invisible was not. It now restores
+the row and toasts.
+
+Two related hardenings in the same commit, both currently unreachable but the same shape:
+`TxService.createTx` dereferenced `model.currentSender`/`currentReceiver` without a null check
+(`addFunds` already guarded its receiver exactly that way), and on its `return false` path it left
+the two optimistically-added entries in the model, where the next navigation — `startActivity`
+saves on every one — would have written them to disk anyway.
+
+### 7. Budget branch of `completeTxRedirection` logged "asset" on a parse failure — FIXED
+
+`TxRedirectionService.injectTx` reported `"Could not parse asset account object!"` regardless of
+which array it was scanning, because the budget loop was a copy of the asset loop. Log text only.
+It now uses the `accountKind` the codec already carries.
+
 ## Not yet fixed
 
 ### 1. The live swipe-to-edit path never updates the counterpart transaction
@@ -247,13 +355,10 @@ Left alone deliberately — it needs a decision about whether an edit *should* p
 counterpart (and if so, whether to route it through `Controller.updateTx`/`TxService.findTxPair`,
 now that those are fixed and available), not something to fix as a drive-by.
 
-### 2. Budget branch of `completeTxRedirection` logs "asset" on a parse failure
-
-`TxRedirectionService.injectTx` reports `"Could not parse asset account object!"` regardless of
-which array it was scanning, because the budget loop was a copy of the asset loop. Log text only —
-no behavioural effect — and preserved verbatim through the loop-collapsing commit so that commit
-changed nothing. Now that the message exists once rather than twice, the fix is a one-line change
-whenever it is wanted.
+Note that `Controller.updateTx`/`TxService.updateTx` currently have **no callers at all**. Their
+only callers were `AssetAccountDetailsActivity.updateEntryDescription`/`updateEntryAmount`, deleted
+earlier on this branch as verified dead code. Wiring this edit path to them would give both a
+purpose again.
 
 ## Historical: issues as originally found (kept for reference)
 
