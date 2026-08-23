@@ -23,6 +23,14 @@ android {
             // Logic/BudgetAccountBE and Backend/Util) throw by default under JVM unit tests;
             // this makes them return default values instead so those code paths are testable.
             returnDefaultValues = true
+
+            // Gradle enables Java assertions in test JVMs by default. Android never does, so
+            // `assert expr;` is a no-op on a device - the expression is not even evaluated.
+            // Leaving assertions on here made the tests disagree with the device on exactly the
+            // code that uses assert as a guard, which hid real bugs. Match the device.
+            all {
+                enableAssertions = false
+            }
         }
     }
 }

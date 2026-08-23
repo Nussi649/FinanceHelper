@@ -100,13 +100,14 @@ public class BudgetAccountTableRow extends TableRow {
     public void clearChildren() {
         // iterate over a snapshot, since removeBudgetViewFromBackend() must not mutate `children` while it's being iterated
         for (BudgetAccountTableRow child : new ArrayList<>(children)) {
-            // safely remove children from budgetViews in parentActivity
-            try {
-                assert budgetListener.removeBudgetViewFromBackend(child);
-            } catch (AssertionError e) {
+            // safely remove children from budgetViews in parentActivity.
+            // NB: this call used to sit inside `assert ...;`. Java assertions are disabled unless
+            // the JVM is started with -ea, and Android never enables them, so the expression was
+            // never evaluated and the row was never actually removed from the activity.
+            if (!budgetListener.removeBudgetViewFromBackend(child)) {
                 Log.println(Log.INFO, "budget_overview",
-                        String.format("A parent budget requested removal of a self proclaimed child " +
-                                "budget, which was not registered with the activity! %s", e));
+                        "A parent budget requested removal of a self proclaimed child "
+                                + "budget, which was not registered with the activity!");
             }
         }
         children.clear();

@@ -177,6 +177,43 @@ Two related defects fixed in the same commit, being the same code:
   `Util.validatePeriod` (`Pattern.matcher(null)`); `tryRenew` catches only
   `IllegalArgumentException`. The non-null default makes it unreachable.
 
+### 6. Guards written with `assert` never ran on device — FIXED
+
+Java assertions are disabled unless the JVM is started with `-ea`, and Android never enables them.
+`assert expr;` therefore does not merely skip the check — **`expr` is not evaluated at all**. Three
+places used `assert` as load-bearing control flow, so the guarded branches were unreachable in
+production.
+
+`TxService.triggerRecurringTx`, which runs on every month rollover, guarded three cases with
+`try { assert x; } catch (AssertionError e) { ...handle... }`. None of those handlers could run, so
+each case fell through into a `NullPointerException` instead:
+
+- a recurring order whose receiver account had since been renamed or deleted;
+- a recurring order whose sender account had since been renamed or deleted;
+- an order with an empty sender — which is how a recurring **income** is represented, so recurring
+  income crashed the rollover every single time rather than being booked.
+
+`TxService.addRecurringTx` used the same pattern to null-check the selected sender/receiver and
+`return false`; it NPE'd on the following line instead.
+
+`BudgetAccountTableRow.clearChildren` was the worst shape — the side effect itself was the assert
+expression: `assert budgetListener.removeBudgetViewFromBackend(child);`. The row was therefore never
+removed from the activity's `budgetViews` list. Note that entry 2 above records fixing a
+`ConcurrentModificationException` in this same loop, and its comment explains that
+`removeBudgetViewFromBackend` must not mutate `children` during iteration — it never mutated
+anything, because it was never called.
+
+**Why no test caught it:** Gradle enables assertions in test JVMs by default, so the suite ran with
+assertions ON while the device runs with them OFF. The tests disagreed with production on exactly
+the code that uses `assert`. `app/build.gradle` now sets `testOptions.unitTests.all
+{ enableAssertions = false }` so JVM tests match the device. Flipping that single line makes
+`RecurringTxTriggerTest` fail with the NPEs above against the old code.
+
+**Rule going forward:** never put a side effect inside `assert`, and never use `assert` as a guard.
+Use a plain `if`. Eleven bare `assert x != null;` statements remain (in `AccountPreviewList`,
+`AccountService.deleteAccount`, `EntityService`); they are no-ops too, but carry no side effects and
+guard dereferences that would throw anyway, so they are misleading rather than harmful.
+
 ## Not yet fixed
 
 ### 1. `updateTx`'s account search only descends one level of sub-budget
