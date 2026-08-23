@@ -566,11 +566,44 @@ public abstract class Util {
     // endregion
 
     // region serialise BE to JSON objects
+
+    /**
+     * Writes {@code value} under {@code key}, substituting {@code fallback} when it is null.
+     *
+     * <p>{@link JSONObject#put(String, Object)} <em>removes</em> the key when handed a null rather
+     * than storing a JSON null. Every nullable value written to a save file therefore has to go
+     * through here: otherwise it vanishes from the file, the parser sees a missing key, and -
+     * depending on that field's policy - the enclosing record can be discarded outright. That is
+     * exactly how every budget account created in the app used to disappear on the next load.
+     */
+    public static void putOrDefault(JSONObject target, String key, String value, String fallback)
+            throws JSONException {
+        target.put(key, value != null ? value : fallback);
+    }
+
+    /**
+     * Formats a transaction date for the save file, substituting the current time for a null.
+     *
+     * <p>{@link #formatDateSave} throws on a null date, which would abort the entire save, and
+     * writing no key at all would cost the whole entry on the next load. Neither is acceptable
+     * for a record of money, so the amount and description are kept and the substitution is
+     * logged rather than made silently.
+     */
+    private static String formatDateSaveOrNow(Date date, String what) {
+        if (date != null)
+            return formatDateSave(date);
+        Log.println(Log.ERROR, "serialise_date", String.format(
+                "%s has no date; substituting the current time so the entry is not lost.", what));
+        return formatDateSave(new Date());
+    }
+
     public static JSONObject serialise_Settings(Model.Settings settings) throws JSONException {
         JSONObject settingsJSON = new JSONObject();
 
         try {
-            settingsJSON.put(Const.JSON_TAG_DEFAULT_ENTITY, settings.defaultEntityName);
+            // a dropped defaultEntity key makes parseJSON_Settings throw, and loadAppSettings then
+            // falls back to a blank Settings - one null here would discard every entity default
+            putOrDefault(settingsJSON, Const.JSON_TAG_DEFAULT_ENTITY, settings.defaultEntityName, "User");
             if (settings.syncFolderUri != null)
                 settingsJSON.put(Const.JSON_TAG_SYNC_FOLDER_URI, settings.syncFolderUri);
 
@@ -580,9 +613,9 @@ public abstract class Util {
             // Add each entity's defaults to the array
             for (Map.Entry<String, Model.EntityDefaults> entry : settings.entityDefaultsMap.entrySet()) {
                 JSONObject entityJSON = new JSONObject();
-                entityJSON.put(Const.JSON_TAG_NAME, entry.getKey());
-                entityJSON.put(Const.JSON_TAG_SENDER, entry.getValue().defaultSender);
-                entityJSON.put(Const.JSON_TAG_RECEIVER, entry.getValue().defaultReceiver);
+                putOrDefault(entityJSON, Const.JSON_TAG_NAME, entry.getKey(), "");
+                putOrDefault(entityJSON, Const.JSON_TAG_SENDER, entry.getValue().defaultSender, "");
+                putOrDefault(entityJSON, Const.JSON_TAG_RECEIVER, entry.getValue().defaultReceiver, "");
 
                 entitiesArray.put(entityJSON);
             }
@@ -601,9 +634,10 @@ public abstract class Util {
     public static JSONObject serialise_Entry(TxBE entry_in) {
         try {
             JSONObject new_entry = new JSONObject();
-            new_entry.put(Const.JSON_TAG_DESCRIPTION, entry_in.getDescription());
+            putOrDefault(new_entry, Const.JSON_TAG_DESCRIPTION, entry_in.getDescription(), "");
             new_entry.put(Const.JSON_TAG_AMOUNT, Util.formatFloatSave(entry_in.getAmount()));
-            new_entry.put(Const.JSON_TAG_TIME, Util.formatDateSave(entry_in.getDate()));
+            new_entry.put(Const.JSON_TAG_TIME,
+                    formatDateSaveOrNow(entry_in.getDate(), "Transaction entry"));
             return new_entry;
         } catch (JSONException e) {
             Log.println(Log.ERROR, "serialise_entry",
@@ -615,7 +649,7 @@ public abstract class Util {
     public static JSONObject serialise_Account(AccountBE account_in) {
         try {
             JSONObject serialised_account = new JSONObject();
-            serialised_account.put(Const.JSON_TAG_NAME, account_in.getName());
+            putOrDefault(serialised_account, Const.JSON_TAG_NAME, account_in.getName(), "");
             serialised_account.put(Const.JSON_TAG_ISACTIVE, account_in.getIsActive());
             serialised_account.put(Const.JSON_TAG_AUTO_RENEW, account_in.getAutoRenew());
             JSONArray entries = new JSONArray();
@@ -696,10 +730,13 @@ public abstract class Util {
         try {
             JSONObject new_order = new JSONObject();
             new_order.put(Const.JSON_TAG_AMOUNT, Util.formatFloatSave(recurringOrder_in.getAmount()));
-            new_order.put(Const.JSON_TAG_DESCRIPTION, recurringOrder_in.getDescription());
-            new_order.put(Const.JSON_TAG_TIME, Util.formatDateSave(recurringOrder_in.getDate()));
-            new_order.put(Const.JSON_TAG_SENDER, recurringOrder_in.getSenderStr());
-            new_order.put(Const.JSON_TAG_RECEIVER, recurringOrder_in.getReceiverStr());
+            putOrDefault(new_order, Const.JSON_TAG_DESCRIPTION, recurringOrder_in.getDescription(), "");
+            new_order.put(Const.JSON_TAG_TIME,
+                    formatDateSaveOrNow(recurringOrder_in.getDate(), "Recurring order"));
+            // an empty sender is meaningful here - it is how a recurring income is represented -
+            // but a *missing* sender key is not, and would cost the whole order on the next load
+            putOrDefault(new_order, Const.JSON_TAG_SENDER, recurringOrder_in.getSenderStr(), "");
+            putOrDefault(new_order, Const.JSON_TAG_RECEIVER, recurringOrder_in.getReceiverStr(), "");
             return new_order;
         } catch (JSONException e) {
             Log.println(Log.ERROR, "serialise_RecurrOrder",

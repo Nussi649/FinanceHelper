@@ -32,10 +32,17 @@ public class BudgetAccountBE extends AccountBE{
         subBudgets = new ArrayList<>();
     }
 
+    /**
+     * Adopts every field {@link AccountBE} carries. Missing one here is a silent round-trip
+     * leak: {@link com.privat.pitz.financehelper.core.Util#parseJSON_BudgetAccount} builds a
+     * plain AccountBE first and then wraps it with this constructor, so whatever is not copied
+     * is discarded on every load while the save file still holds the correct value.
+     */
     public BudgetAccountBE(AccountBE source) {
         super(source.getName());
         txList = source.txList;
         isActive = source.isActive;
+        autoRenew = source.autoRenew;
         subBudgets = new ArrayList<>();
     }
 
