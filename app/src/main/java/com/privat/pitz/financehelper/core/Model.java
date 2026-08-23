@@ -69,6 +69,27 @@ public class Model {
     public AccountBE currentReceiver;
     public AccountBE currentInspectedAccount;
 
+    /**
+     * What the save-file and settings parsers had to default or discard since a caller last
+     * drained this.
+     *
+     * <p>It accumulates rather than being replaced, because app startup parses the settings file
+     * and then a save file, and the UI surfaces both together afterwards - replacing would let
+     * the first one vanish, which is the exact failure mode this whole mechanism exists to stop.
+     */
+    private ParseReport loadReport = new ParseReport();
+
+    public void addLoadReport(ParseReport report) {
+        loadReport.addAll(report);
+    }
+
+    /** Returns everything collected since the last call, and clears the buffer. */
+    public ParseReport takeLoadReport() {
+        ParseReport drained = loadReport;
+        loadReport = new ParseReport();
+        return drained;
+    }
+
     public EntityDefaults getCurrentDefaults() {
         return settings.getEntityDefaults(currentEntity);
     }

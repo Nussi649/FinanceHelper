@@ -339,106 +339,213 @@ public abstract class Util {
     }
 
     // region parse JSON to BE objects
+
+    /*
+     * Policy for a missing or unusable key, decided per field rather than left to whatever the
+     * getter happened to throw.
+     *
+     * The default used to be "fatal": any key the parser could not read discarded the entire
+     * enclosing record, and the caller dropped the resulting null without telling anyone. That is
+     * how a single absent renew_next cost users whole budget accounts. Losing a record of money
+     * is the worst outcome available here, so a field is only fatal when the record is genuinely
+     * unusable without it:
+     *
+     *   fatal   an account with no name          - every lookup, transfer and recurring order
+     *                                              matches accounts by name
+     *           a transaction with no amount     - nothing left to record
+     *           a recurring order with no sender - an empty sender means "income", so guessing
+     *                                              one would post phantom income on every rollover
+     *           a recurring order with no receiver - nowhere to post it
+     *
+     * Everything else defaults. Either way the decision is written to the ParseReport, so a load
+     * can surface it: this file never discards anything silently again.
+     */
+
     public static Model.Settings parseJSON_Settings(JSONObject json_in) throws JSONException {
+        return parseJSON_Settings(json_in, new ParseReport());
+    }
+
+    public static Model.Settings parseJSON_Settings(JSONObject json_in, ParseReport report)
+            throws JSONException {
         Model.Settings settings = new Model.Settings();
-        try {
-            settings.defaultEntityName = json_in.getString(Const.JSON_TAG_DEFAULT_ENTITY);
-            // optional field, absent in settings files written before the folder-sync feature existed
-            settings.syncFolderUri = json_in.has(Const.JSON_TAG_SYNC_FOLDER_URI) ?
-                    json_in.getString(Const.JSON_TAG_SYNC_FOLDER_URI) : null;
 
-            // Extract the defaults for each entity
-            JSONArray entitiesArray = json_in.getJSONArray(Const.JSON_TAG_DEFAULT_ACCOUNTS);
-            for (int i = 0; i < entitiesArray.length(); i++) {
-                JSONObject entityJSON = entitiesArray.getJSONObject(i);
+        // A missing default entity used to throw, and loadAppSettings then fell back to a blank
+        // Settings - so one absent key discarded every entity default the user had. "User" is the
+        // same fallback loadAppSettings applies anyway.
+        settings.defaultEntityName = json_in.optString(Const.JSON_TAG_DEFAULT_ENTITY, null);
+        if (settings.defaultEntityName == null) {
+            settings.defaultEntityName = "User";
+            report.defaulted("Einstellungen", Const.JSON_TAG_DEFAULT_ENTITY, "User");
+        }
 
-                // Create a new EntityDefaults object and populate it
-                Model.EntityDefaults entityDefaults = new Model.EntityDefaults(entityJSON.getString(Const.JSON_TAG_SENDER),
-                        entityJSON.getString(Const.JSON_TAG_RECEIVER));
+        // optional field, absent in settings files written before the folder-sync feature existed
+        settings.syncFolderUri = json_in.has(Const.JSON_TAG_SYNC_FOLDER_URI) ?
+                json_in.optString(Const.JSON_TAG_SYNC_FOLDER_URI, null) : null;
 
-                // Add the EntityDefaults object to the map
-                String entityName = entityJSON.getString(Const.JSON_TAG_NAME);
-                settings.entityDefaultsMap.put(entityName, entityDefaults);
+        JSONArray entitiesArray = json_in.optJSONArray(Const.JSON_TAG_DEFAULT_ACCOUNTS);
+        if (entitiesArray == null) {
+            report.defaulted("Einstellungen", Const.JSON_TAG_DEFAULT_ACCOUNTS, "keine Vorgaben");
+            return settings;
+        }
+
+        for (int i = 0; i < entitiesArray.length(); i++) {
+            JSONObject entityJSON = entitiesArray.optJSONObject(i);
+            if (entityJSON == null) {
+                report.discarded(String.format("Ein Eintrag (#%d) in den Standardkonten", i + 1),
+                        "kein gültiges Objekt");
+                continue;
             }
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "parse_settings",
-                    String.format("Error parsing Settings: %s", e));
-            throw e;
+            // the entity name is this entry's identity - without it the defaults belong to nobody
+            String entityName = entityJSON.optString(Const.JSON_TAG_NAME, null);
+            if (entityName == null) {
+                report.discarded(String.format("Ein Eintrag (#%d) in den Standardkonten", i + 1),
+                        String.format("Pflichtfeld \"%s\" fehlt", Const.JSON_TAG_NAME));
+                continue;
+            }
+
+            String sender = entityJSON.optString(Const.JSON_TAG_SENDER, null);
+            if (sender == null) {
+                sender = "";
+                report.defaulted(String.format("Standardkonten für \"%s\"", entityName),
+                        Const.JSON_TAG_SENDER, "");
+            }
+            String receiver = entityJSON.optString(Const.JSON_TAG_RECEIVER, null);
+            if (receiver == null) {
+                receiver = "";
+                report.defaulted(String.format("Standardkonten für \"%s\"", entityName),
+                        Const.JSON_TAG_RECEIVER, "");
+            }
+            settings.entityDefaultsMap.put(entityName, new Model.EntityDefaults(sender, receiver));
         }
         return settings;
     }
 
     public static TxBE parseJSON_Entry(JSONObject json_in) {
-        try {
-            float amount = (float) json_in.getDouble(Const.JSON_TAG_AMOUNT);
-            String description = json_in.getString(Const.JSON_TAG_DESCRIPTION);
-            Date time = parseDateSave(json_in.getString(Const.JSON_TAG_TIME));
-            return new TxBE(amount, description, time);
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "parse_entry",
-                    String.format("Error parsing entry! %s", e));
-        } catch (ParseException e) {
-            Log.println(Log.ERROR, "parse_entry",
-                    String.format("Error parsing entry Date time of entry! %s", e));
+        return parseJSON_Entry(json_in, new ParseReport(), "Ein Eintrag");
+    }
+
+    public static TxBE parseJSON_Entry(JSONObject json_in, ParseReport report, String what) {
+        // fatal: a transaction with no amount records nothing
+        if (!json_in.has(Const.JSON_TAG_AMOUNT)) {
+            report.discarded(what, String.format("Pflichtfeld \"%s\" fehlt", Const.JSON_TAG_AMOUNT));
+            return null;
         }
-        return null;
+        float amount;
+        try {
+            amount = (float) json_in.getDouble(Const.JSON_TAG_AMOUNT);
+        } catch (JSONException e) {
+            Log.println(Log.ERROR, "parse_entry", String.format("Error parsing entry! %s", e));
+            report.discarded(what, String.format("Betrag (\"%s\") ist keine Zahl",
+                    Const.JSON_TAG_AMOUNT));
+            return null;
+        }
+
+        String description = json_in.optString(Const.JSON_TAG_DESCRIPTION, null);
+        if (description == null) {
+            description = "";
+            report.defaulted(what, Const.JSON_TAG_DESCRIPTION, "");
+        }
+
+        Date time = parseDateOrNow(json_in, report, what);
+        return new TxBE(amount, description, time);
+    }
+
+    /**
+     * A date that cannot be read is replaced by the current time rather than costing the entry.
+     * The amount is the part that matters financially; an approximate date is recoverable, a
+     * deleted transaction is not.
+     */
+    private static Date parseDateOrNow(JSONObject json_in, ParseReport report, String what) {
+        String raw = json_in.optString(Const.JSON_TAG_TIME, null);
+        if (raw != null) {
+            try {
+                return parseDateSave(raw);
+            } catch (ParseException e) {
+                Log.println(Log.ERROR, "parse_entry",
+                        String.format("Error parsing entry Date time of entry! %s", e));
+            }
+        }
+        Date now = new Date();
+        report.defaulted(what, Const.JSON_TAG_TIME, formatDateSave(now));
+        return now;
     }
 
     public static AccountBE parseJSON_Account(JSONObject json_in) {
-        AccountBE new_account;
-        // try reading obligatory attributes
-        try {
-            String account_name = json_in.getString(Const.JSON_TAG_NAME);
-            boolean is_active = json_in.getBoolean(Const.JSON_TAG_ISACTIVE);
-            boolean auto_renew = json_in.getBoolean(Const.JSON_TAG_AUTO_RENEW);
-            new_account = new AccountBE(account_name);
-            new_account.setActive(is_active);
-            new_account.setAutoRenew(auto_renew);
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "parse_account",
-                    String.format("Error parsing account: key does not exist! %s", e));
+        return parseJSON_Account(json_in, new ParseReport());
+    }
+
+    public static AccountBE parseJSON_Account(JSONObject json_in, ParseReport report) {
+        // fatal: the name is the account's identity - Model.getAccountByName and every recurring
+        // order resolve accounts by it, and two nameless accounts would be indistinguishable
+        String account_name = json_in.optString(Const.JSON_TAG_NAME, null);
+        if (account_name == null || account_name.isEmpty()) {
+            Log.println(Log.ERROR, "parse_account", "Error parsing account: no name!");
+            report.discarded("Ein Konto", String.format("Pflichtfeld \"%s\" fehlt",
+                    Const.JSON_TAG_NAME));
             return null;
         }
+        String what = String.format("Konto \"%s\"", account_name);
 
-        // read entries
-        try {
-            JSONArray entries = json_in.getJSONArray(Const.JSON_TAG_TRANSACTIONS);
-            for (int i = 0; i < entries.length(); i++) {
-                JSONObject curEntry = entries.getJSONObject(i);
-                TxBE new_entry = parseJSON_Entry(curEntry);
-                if (new_entry != null)
-                    new_account.addTx(new_entry);
+        AccountBE new_account = new AccountBE(account_name);
+        new_account.setActive(optBooleanReported(json_in, Const.JSON_TAG_ISACTIVE, true, report, what));
+        new_account.setAutoRenew(optBooleanReported(json_in, Const.JSON_TAG_AUTO_RENEW, true, report, what));
+
+        // An unreadable transaction list used to discard the whole account, which threw away its
+        // identity and budget along with the transactions. Keeping the account and reporting the
+        // loss keeps strictly more.
+        JSONArray entries = json_in.optJSONArray(Const.JSON_TAG_TRANSACTIONS);
+        if (entries == null) {
+            report.defaulted(what, Const.JSON_TAG_TRANSACTIONS, "keine Buchungen");
+            return new_account;
+        }
+        for (int i = 0; i < entries.length(); i++) {
+            JSONObject curEntry = entries.optJSONObject(i);
+            if (curEntry == null) {
+                report.discarded(String.format("Buchung #%d in %s", i + 1, what),
+                        "kein gültiges Objekt");
+                continue;
             }
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "parse_account",
-                    String.format("Error parsing account %s: key does not exist! %s",
-                            new_account.getName(), e));
-            return null;
+            TxBE new_entry = parseJSON_Entry(curEntry, report,
+                    String.format("Buchung #%d in %s", i + 1, what));
+            if (new_entry != null)
+                new_account.addTx(new_entry);
         }
         return new_account;
     }
 
+    private static boolean optBooleanReported(JSONObject json_in, String key, boolean fallback,
+                                              ParseReport report, String what) {
+        if (!json_in.has(key)) {
+            report.defaulted(what, key, String.valueOf(fallback));
+            return fallback;
+        }
+        return json_in.optBoolean(key, fallback);
+    }
+
     public static BudgetAccountBE parseJSON_BudgetAccount(JSONObject json_in) {
-        AccountBE parsed_account = parseJSON_Account(json_in);
+        return parseJSON_BudgetAccount(json_in, new ParseReport());
+    }
+
+    public static BudgetAccountBE parseJSON_BudgetAccount(JSONObject json_in, ParseReport report) {
+        AccountBE parsed_account = parseJSON_Account(json_in, report);
         if (parsed_account == null)
                 return null;
+        String what = String.format("Budgetkonto \"%s\"", parsed_account.getName());
 
-        BudgetAccountBE new_account;
-        // check for project account status
-        try {
-            boolean isProject = json_in.getBoolean(Const.JSON_TAG_PROJECT_BUDGET);
-            new_account = isProject ? new ProjectBudgetBE(parsed_account) : new BudgetAccountBE(parsed_account);
-        } catch (JSONException e) {
-            // no entry for project budget
-            new_account = new BudgetAccountBE(parsed_account);
-        }
+        // an absent project flag means "ordinary budget account", which is the common case in
+        // files written before project budgets existed
+        boolean isProject = json_in.optBoolean(Const.JSON_TAG_PROJECT_BUDGET, false);
+        BudgetAccountBE new_account = isProject
+                ? new ProjectBudgetBE(parsed_account)
+                : new BudgetAccountBE(parsed_account);
 
-        // read renewal information if new_account is not a project budget. Both fields have
-        // sensible defaults (next period / monthly), so a save file missing them still loads -
-        // a missing renew_next used to discard the entire account without telling anyone.
+        // Renewal information, for non-project budgets only. Both fields default: a missing
+        // renew_next used to discard the entire account, which is the bug this whole policy
+        // exists to prevent.
         if (!(new_account instanceof ProjectBudgetBE)) {
             String nextRenewal = json_in.optString(Const.JSON_TAG_RENEWAL_NEXT, null);
             if (nextRenewal == null) {
+                report.defaulted(what, Const.JSON_TAG_RENEWAL_NEXT, new_account.getNextRenewal());
                 Log.println(Log.INFO, "parse_budget_account",
                         String.format("No next renewal date for account %s, defaulting to %s",
                                 new_account.getName(), new_account.getNextRenewal()));
@@ -446,120 +553,151 @@ public abstract class Util {
                 try {
                     new_account.setNextRenewal(nextRenewal);
                 } catch (IllegalArgumentException e) {
-                    // Malformed rather than absent - the raw-JSON editor can produce this. Drop
-                    // this one account instead of letting the exception abort the whole load.
+                    // Malformed rather than absent - the raw-JSON editor can produce this. Keep
+                    // the account and its transactions; only the renewal date is unusable, and it
+                    // has a sensible default like every other field here.
                     Log.println(Log.ERROR, "parse_budget_account",
                             String.format("Error parsing budget account %s: invalid next renewal date! %s",
                                     new_account.getName(), e));
-                    return null;
+                    report.defaulted(what, Const.JSON_TAG_RENEWAL_NEXT,
+                            new_account.getNextRenewal());
                 }
             }
+            if (!json_in.has(Const.JSON_TAG_RENEWAL_PERIOD))
+                report.defaulted(what, Const.JSON_TAG_RENEWAL_PERIOD,
+                        String.valueOf(new_account.getRenewalPeriod()));
             new_account.setRenewalPeriod(json_in.optInt(Const.JSON_TAG_RENEWAL_PERIOD,
                     new_account.getRenewalPeriod()));
         }
 
-        // try reading obligatory attributes
-        try {
-            float yearly_budget = (float)json_in.getDouble(Const.JSON_TAG_YEARLY_BUDGET);
-            new_account.setIndivYearlyBudget(yearly_budget);
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "parse_budget_account",
-                    String.format("Error parsing budget account %s: key does not exist! %s",
-                            new_account.getName(), e));
-            return null;
-        } catch (NumberFormatException e) {
-            Log.println(Log.ERROR, "parse_budget_account",
-                    String.format("Error parsing budget account %s: yearly budget could not be parsed! %s",
-                            new_account.getName(), e));
-            return null;
+        // The yearly budget used to be fatal. It is not the account's identity and it is not its
+        // money: without it the account still holds every transaction it ever recorded, and a
+        // budget of 0 is visible and correctable in the app. Discarding the account instead
+        // deleted those transactions.
+        if (json_in.has(Const.JSON_TAG_YEARLY_BUDGET)) {
+            try {
+                new_account.setIndivYearlyBudget((float) json_in.getDouble(Const.JSON_TAG_YEARLY_BUDGET));
+            } catch (JSONException | NumberFormatException e) {
+                Log.println(Log.ERROR, "parse_budget_account",
+                        String.format("Error parsing budget account %s: yearly budget could not be parsed! %s",
+                                new_account.getName(), e));
+                report.defaulted(what, Const.JSON_TAG_YEARLY_BUDGET, "0");
+                new_account.setIndivYearlyBudget(0f);
+            }
+        } else {
+            report.defaulted(what, Const.JSON_TAG_YEARLY_BUDGET, "0");
+            new_account.setIndivYearlyBudget(0f);
         }
 
-        // try reading current budget
-        float current_budget = -1f;
-        try {
-            current_budget = (float)json_in.getDouble(Const.JSON_TAG_CURRENT_BUDGET);
-        } catch (JSONException e) {
+        // Absent current budget means "start the period with the full allotment" - an ordinary
+        // state for a freshly renewed account, so this one is not worth reporting.
+        //
+        // getDouble rather than optDouble on purpose: optDouble swallows a NaN and hands back the
+        // fallback, which would keep NaN out of the model and so out of IntegrityChecker's
+        // numeric-sanity check. A corrupt value has to survive parsing to be reportable.
+        float current_budget = new_account.getMeanAllottedIndivBudget();
+        if (json_in.has(Const.JSON_TAG_CURRENT_BUDGET)) {
+            try {
+                current_budget = (float) json_in.getDouble(Const.JSON_TAG_CURRENT_BUDGET);
+            } catch (JSONException | NumberFormatException e) {
+                report.defaulted(what, Const.JSON_TAG_CURRENT_BUDGET,
+                        formatFloatSave(current_budget));
+            }
+        } else {
             Log.println(Log.INFO, "parse_budget_account",
                     String.format("No current budget for account: %s", new_account.getName()));
-            current_budget = new_account.getMeanAllottedIndivBudget();
-        } finally {
-            new_account.setIndivAvailableBudget(current_budget);
         }
+        new_account.setIndivAvailableBudget(current_budget);
 
-        // try reading target entity
-        try {
-            String other_entity = json_in.getString(Const.JSON_TAG_TO_OTHER);
-            new_account.setToOtherEntity(other_entity);
-        } catch (JSONException e) {
-            Log.println(Log.INFO, "parse_budget_account",
-                    String.format("No target entity for account: %s", new_account.getName()));
-        }
+        // absent target entity means "this budget is not relayed anywhere", the normal case
+        new_account.setToOtherEntity(json_in.optString(Const.JSON_TAG_TO_OTHER, ""));
 
-        // read sub budgets
-        try {
-            JSONArray sub_budgets_json = json_in.getJSONArray(Const.JSON_TAG_SUB_BUDGETS);
+        JSONArray sub_budgets_json = json_in.optJSONArray(Const.JSON_TAG_SUB_BUDGETS);
+        if (sub_budgets_json != null) {
             List<BudgetAccountBE> sub_budgets = new ArrayList<>();
             for (int i = 0; i < sub_budgets_json.length(); i++) {
-                JSONObject current_sub_budget_json = sub_budgets_json.getJSONObject(i);
-                BudgetAccountBE current_sub_budget = parseJSON_BudgetAccount(current_sub_budget_json);
+                JSONObject current_sub_budget_json = sub_budgets_json.optJSONObject(i);
+                if (current_sub_budget_json == null) {
+                    report.discarded(String.format("Unterbudget #%d von %s", i + 1, what),
+                            "kein gültiges Objekt");
+                    continue;
+                }
+                BudgetAccountBE current_sub_budget =
+                        parseJSON_BudgetAccount(current_sub_budget_json, report);
                 if (current_sub_budget != null)
                     sub_budgets.add(current_sub_budget);
             }
             new_account.setSubBudgets(sub_budgets);
-        } catch (JSONException e) {
-            Log.println(Log.INFO, "parse_budget_account",
-                    String.format("No sub budgets for account: %s", new_account.getName()));
         }
         return new_account;
     }
 
     public static RecurringTxBE parseJSON_RecurringOrder(JSONObject json_in) {
-        String description;
-        try {
-            description = json_in.getString(Const.JSON_TAG_DESCRIPTION);
-        } catch (JSONException e) {
-            Log.println(Log.ERROR, "parse_recur_order",
-                    String.format("Error parsing description of recurring order: key does not exist! %s", e));
+        return parseJSON_RecurringOrder(json_in, new ParseReport());
+    }
+
+    public static RecurringTxBE parseJSON_RecurringOrder(JSONObject json_in, ParseReport report) {
+        String description = json_in.optString(Const.JSON_TAG_DESCRIPTION, null);
+        String what = description == null
+                ? "Ein Dauerauftrag"
+                : String.format("Dauerauftrag \"%s\"", description);
+        if (description == null) {
+            description = "";
+            report.defaulted(what, Const.JSON_TAG_DESCRIPTION, "");
+        }
+
+        // fatal: nothing left to book
+        if (!json_in.has(Const.JSON_TAG_AMOUNT)) {
+            report.discarded(what, String.format("Pflichtfeld \"%s\" fehlt", Const.JSON_TAG_AMOUNT));
             return null;
         }
+        float amount;
         try {
-            float amount = (float)json_in.getDouble(Const.JSON_TAG_AMOUNT);
-            Date time = parseDateSave(json_in.getString(Const.JSON_TAG_TIME));
-            String from_account = json_in.getString(Const.JSON_TAG_SENDER);
-            String to_account = json_in.getString(Const.JSON_TAG_RECEIVER);
-            return new RecurringTxBE(amount,
-                    description,
-                    time,
-                    from_account,
-                    to_account);
-
-        } catch (JSONException e) {
+            amount = (float) json_in.getDouble(Const.JSON_TAG_AMOUNT);
+        } catch (JSONException | NumberFormatException e) {
             Log.println(Log.ERROR, "parse_recur_order",
-                    String.format("Error parsing recurring order %s: key does not exist! %s",
+                    String.format("Error parsing recurring order %s: amount could not be parsed! %s",
                             description, e));
-        } catch (NumberFormatException e) {
-            Log.println(Log.ERROR, "parse_recur_order",
-                    String.format("Error parsing recurring order %s: yearly budget could not be parsed! %s",
-                            description, e));
-        } catch (ParseException e) {
-            Log.println(Log.ERROR, "parse_recur_order",
-                    String.format("Error parsing entry Date time of recurring order %s! %s",
-                            description, e));
+            report.discarded(what, String.format("Betrag (\"%s\") ist keine Zahl",
+                    Const.JSON_TAG_AMOUNT));
+            return null;
         }
-        return null;
+
+        // fatal, and deliberately so: an *empty* sender is how a recurring income is represented,
+        // so defaulting a *missing* one to "" would silently turn a broken order into phantom
+        // income booked on every month rollover
+        String from_account = json_in.optString(Const.JSON_TAG_SENDER, null);
+        if (from_account == null) {
+            report.discarded(what, String.format("Pflichtfeld \"%s\" fehlt", Const.JSON_TAG_SENDER));
+            return null;
+        }
+        // fatal: nowhere to post it
+        String to_account = json_in.optString(Const.JSON_TAG_RECEIVER, null);
+        if (to_account == null) {
+            report.discarded(what, String.format("Pflichtfeld \"%s\" fehlt", Const.JSON_TAG_RECEIVER));
+            return null;
+        }
+
+        Date time = parseDateOrNow(json_in, report, what);
+        return new RecurringTxBE(amount, description, time, from_account, to_account);
     }
 
     public static List<TxBE> parseJSON_IncomeList(JSONArray json_in) {
+        return parseJSON_IncomeList(json_in, new ParseReport());
+    }
+
+    public static List<TxBE> parseJSON_IncomeList(JSONArray json_in, ParseReport report) {
         List<TxBE> new_income_list = new ArrayList<>();
         for (int i = 0; i < json_in.length(); i++) {
-            try {
-                TxBE current_income_entry = parseJSON_Entry(json_in.getJSONObject(i));
-                if (current_income_entry != null)
-                    new_income_list.add(current_income_entry);
-            } catch (JSONException e) {
-                Log.println(Log.ERROR, "parse_income_list",
-                        String.format("Error retrieving Income Entry from JSONArray: %s", e));
+            String what = String.format("Einkommens-Eintrag #%d", i + 1);
+            JSONObject entry = json_in.optJSONObject(i);
+            if (entry == null) {
+                report.discarded(what, "kein gültiges Objekt");
+                continue;
             }
+            TxBE current_income_entry = parseJSON_Entry(entry, report, what);
+            if (current_income_entry != null)
+                new_income_list.add(current_income_entry);
         }
         return new_income_list;
     }

@@ -151,6 +151,8 @@
     <string name="toast_error_IOError">Es ist ein Fehler beim Schreiben der Speicherdatei aufgetreten. Es wurden keine Änderungen vorgenommen.</string>
         <!-- Info -->
     <string name="toast_info_blank_accounts">Es wurden leere Konten geladen.</string>
+    <string name="toast_info_load_repaired">Speicherdatei geladen: %1$d Feld(er) fehlten oder waren ungültig und wurden durch Standardwerte ersetzt. Details im Log.</string>
+    <string name="label_load_problems_title">Achtung: %1$d Eintrag/Einträge beim Laden verworfen</string>
 
     <!-- Snackbar -->
     <string name="snackbar_tx_deleted">Transaktion gelöscht</string>

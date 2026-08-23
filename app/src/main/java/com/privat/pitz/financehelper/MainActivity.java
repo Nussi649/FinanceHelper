@@ -342,6 +342,7 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
                 try {
                     controller.saveAppSettings();
                     controller.readAccountsFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
+                    reportLoadProblems();
                     onRefresh();
                 } catch (JSONException | IOException e) {
                     showErrorToast(e);
@@ -587,6 +588,8 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
         }
         if (response == Controller.CREATED_BLANK)
             showToastLong(getString(R.string.toast_info_blank_accounts));
+        // startup parses the settings file and then the save file; both land in the same report
+        reportLoadProblems();
         rbSender = new RbAccountManager(Const.GROUP_SENDER, controller);
         rbReceiver = new RbAccountManager(Const.GROUP_RECEIVER, controller);
     }

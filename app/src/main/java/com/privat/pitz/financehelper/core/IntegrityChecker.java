@@ -144,21 +144,28 @@ public class IntegrityChecker {
             List<AccountBE> assetAccounts = new ArrayList<>();
             List<BudgetAccountBE> budgetAccounts = new ArrayList<>();
 
+            // The parser reports each field it defaults and each record it discards. Folding
+            // those in says *which* entry was lost and why, where the count comparison below can
+            // only say that one was - the two are complementary, so both run.
+            ParseReport report = new ParseReport();
+
             JSONArray assetJson = json.getJSONArray(Const.JSON_TAG_ASSET_ACCOUNTS);
             for (int i = 0; i < assetJson.length(); i++) {
-                AccountBE acc = Util.parseJSON_Account(assetJson.getJSONObject(i));
+                AccountBE acc = Util.parseJSON_Account(assetJson.getJSONObject(i), report);
                 if (acc != null)
                     assetAccounts.add(acc);
             }
             JSONArray budgetJson = json.getJSONArray(Const.JSON_TAG_BUDGET_ACCOUNTS);
             for (int i = 0; i < budgetJson.length(); i++) {
-                BudgetAccountBE acc = Util.parseJSON_BudgetAccount(budgetJson.getJSONObject(i));
+                BudgetAccountBE acc = Util.parseJSON_BudgetAccount(budgetJson.getJSONObject(i), report);
                 if (acc != null)
                     budgetAccounts.add(acc);
             }
-            List<TxBE> income = Util.parseJSON_IncomeList(json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME));
+            List<TxBE> income = Util.parseJSON_IncomeList(json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME), report);
 
             ParsedFile parsed = new ParsedFile(fileName, assetAccounts, budgetAccounts, income);
+            for (ParseReport.Note note : report.getNotes())
+                result.findings.add(new Finding(note.message));
             checkForSilentlyDroppedEntries(json, parsed, result);
             return parsed;
         } catch (JSONException e) {

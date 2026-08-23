@@ -27,6 +27,7 @@ import java.util.List;
 import com.privat.pitz.financehelper.core.Const;
 import com.privat.pitz.financehelper.core.Controller;
 import com.privat.pitz.financehelper.core.Model;
+import com.privat.pitz.financehelper.core.ParseReport;
 import com.privat.pitz.financehelper.ui.RefreshListener;
 import com.privat.pitz.financehelper.core.Util;
 
@@ -102,6 +103,7 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
                                     String.format("Error while trying to switch entity. Invalid target entity. Aborting process! Exception: %s", e));
                         return;
                     }
+                    reportLoadProblems();
                     if (titleSpinner.getSelectedItemPosition() != position) {
                         titleSpinner.setSelection(position);  // This will close the dropdown
                     }
@@ -168,6 +170,47 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         builder.setView(dialogView);
         builder.setPositiveButton(R.string.ok, null);
         return builder.create();
+    }
+
+    /**
+     * Surfaces whatever the last parse had to default or discard, and clears it.
+     *
+     * <p>Call after any load. The rule this enforces: the app may repair a save file, but it may
+     * not do so behind the user's back. A budget account once vanished on load because the parser
+     * returned null and the caller dropped it in silence - the next save then wrote the model back
+     * without it and the loss became permanent. Nobody was ever told.
+     *
+     * <p>A discard means data is gone, so it gets a dialog that has to be dismissed. A defaulted
+     * field means the record survived, so it gets a toast.
+     */
+    protected void reportLoadProblems() {
+        if (model == null)
+            return;
+        ParseReport report = model.takeLoadReport();
+        if (report.isEmpty())
+            return;
+
+        for (String message : report.messagesOf(ParseReport.Severity.DEFAULTED))
+            Log.println(Log.INFO, "load_report", message);
+
+        if (!report.hasDiscards()) {
+            showToastLong(getString(R.string.toast_info_load_repaired,
+                    report.getNotes().size()));
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (ParseReport.Note note : report.getNotes()) {
+            Log.println(note.severity == ParseReport.Severity.DISCARDED ? Log.ERROR : Log.INFO,
+                    "load_report", note.message);
+            sb.append("• ").append(note.message).append("\n\n");
+        }
+        AlertDialog dialog = getBasicEditDialog();
+        dialog.setTitle(getString(R.string.label_load_problems_title, report.countDiscards()));
+        dialog.show();
+        TextView body = dialog.findViewById(R.id.edit_text);
+        if (body != null)
+            body.setText(sb.toString().trim());
     }
 
     protected void showConfirmDialog(int msgID, AlertDialog.OnClickListener acceptListener) {

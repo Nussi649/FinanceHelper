@@ -111,21 +111,24 @@ public class IntegrityCheckerTest {
 
     @Test
     public void malformedBudgetAccountEntry_isReportedAsSilentlyDropped() throws JSONException {
-        // a non-project budget account missing the required "budget_year" field fails to parse
-        // (Util.parseJSON_BudgetAccount returns null for it) and would otherwise vanish with no
-        // error anywhere - this is exactly the corruption class this check exists to catch.
-        // NB: this fixture used to omit "renew_next" instead. That is no longer a parse failure:
-        // it is the shape every budget account created in the app was written in, and treating it
-        // as fatal is what made them all disappear on the next load.
+        // a budget account with no "name" fails to parse (Util.parseJSON_BudgetAccount returns
+        // null for it) and would otherwise vanish with no error anywhere - this is exactly the
+        // corruption class this check exists to catch.
+        //
+        // NB: this fixture has now been narrowed twice, and both times for the same reason. It
+        // first omitted "renew_next", which is the shape every budget account created in the app
+        // was written in - treating that as fatal is what made them all disappear. It then
+        // omitted "budget_year", which is neither the account's identity nor its money. The name
+        // is what genuinely cannot be defaulted: every lookup in the app resolves accounts by it.
         JSONObject malformed = new JSONObject();
-        malformed.put(Const.JSON_TAG_NAME, "Broken");
+        // JSON_TAG_NAME deliberately omitted
         malformed.put(Const.JSON_TAG_ISACTIVE, true);
         malformed.put(Const.JSON_TAG_AUTO_RENEW, true);
         malformed.put(Const.JSON_TAG_TRANSACTIONS, new JSONArray());
         malformed.put(Const.JSON_TAG_PROJECT_BUDGET, false);
         malformed.put(Const.JSON_TAG_RENEWAL_PERIOD, 1);
         malformed.put(Const.JSON_TAG_RENEWAL_NEXT, "2026-09");
-        // JSON_TAG_YEARLY_BUDGET deliberately omitted
+        malformed.put(Const.JSON_TAG_YEARLY_BUDGET, "1200.00");
         malformed.put(Const.JSON_TAG_TO_OTHER, "");
 
         JSONObject json = new JSONObject();

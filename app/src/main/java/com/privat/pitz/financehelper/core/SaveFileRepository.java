@@ -52,6 +52,20 @@ public class SaveFileRepository {
     }
 
     public void importAccounts(String data) throws JSONException {
+        ParseReport report = new ParseReport();
+        importAccounts(data, report);
+        model.addLoadReport(report);
+    }
+
+    /**
+     * Parses a save file into the model, recording every field it had to default and every record
+     * it had to discard into {@code report}.
+     *
+     * <p>The report is the point: this parser used to drop whole accounts on a single missing key
+     * and the caller discarded the resulting null in silence, so a user could lose an account and
+     * never be told. Callers surface the report - see AbstractActivity.reportLoadProblems.
+     */
+    public void importAccounts(String data, ParseReport report) throws JSONException {
         JSONObject json = new JSONObject(data);
         JSONArray accounts;
 
@@ -62,7 +76,7 @@ public class SaveFileRepository {
             // get JSONObject of current account
             JSONObject current_account_json = asset_accounts_json.getJSONObject(i);
             // parse new account using parse function in Util
-            AccountBE new_account = Util.parseJSON_Account(current_account_json);
+            AccountBE new_account = Util.parseJSON_Account(current_account_json, report);
             if (new_account != null) {
                 model.asset_accounts.add(new_account);
                 Model.EntityDefaults defaults = model.getCurrentDefaults();
@@ -84,7 +98,7 @@ public class SaveFileRepository {
             // get JSONObject of current budget account
             JSONObject current_budget_account_json = budget_accounts_json.getJSONObject(i);
             // parse new budget account using parse function in Util
-            BudgetAccountBE new_budget_account = Util.parseJSON_BudgetAccount(current_budget_account_json);
+            BudgetAccountBE new_budget_account = Util.parseJSON_BudgetAccount(current_budget_account_json, report);
             if (new_budget_account != null) {
                 model.budget_accounts.add(new_budget_account);
                 Model.EntityDefaults defaults = model.getCurrentDefaults();
@@ -100,13 +114,13 @@ public class SaveFileRepository {
         model.recurringTx = new ArrayList<>();
         accounts = json.getJSONArray(Const.JSON_TAG_RECURRING_TX);
         for (int i = 0; i < accounts.length(); i++) {
-            RecurringTxBE new_order = Util.parseJSON_RecurringOrder(accounts.getJSONObject(i));
+            RecurringTxBE new_order = Util.parseJSON_RecurringOrder(accounts.getJSONObject(i), report);
             if (new_order != null)
                 model.recurringTx.add(new_order);
         }
 
         // get income List
-        model.currentIncome = Util.parseJSON_IncomeList(json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME));
+        model.currentIncome = Util.parseJSON_IncomeList(json.getJSONArray(Const.JSON_TAG_CURRENT_INCOME), report);
     }
 
     public void writeToInternal(String data, String filename) throws IOException {
@@ -267,7 +281,9 @@ public class SaveFileRepository {
     public boolean loadAppSettings() {
         try {
             String payload = readFromInternal(Const.APPLICATION_SETTINGS_FILENAME);
-            model.settings = Util.parseJSON_Settings(new JSONObject(payload));
+            ParseReport report = new ParseReport();
+            model.settings = Util.parseJSON_Settings(new JSONObject(payload), report);
+            model.addLoadReport(report);
             model.currentEntity = model.settings.defaultEntityName;
             return true;
         } catch (JSONException | IOException e) {

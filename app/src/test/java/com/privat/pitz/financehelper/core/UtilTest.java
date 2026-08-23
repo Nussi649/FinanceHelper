@@ -452,18 +452,93 @@ public class UtilTest {
     }
 
     @Test
-    public void budgetAccountParse_malformedNextRenewal_dropsOnlyThatAccountWithoutThrowing() {
+    public void budgetAccountParse_malformedNextRenewal_defaultsInsteadOfDiscardingTheAccount() {
         // setNextRenewal throws IllegalArgumentException, not JSONException, on a bad format. It
         // used to escape parseJSON_BudgetAccount uncaught and abort the entire load - reachable
-        // through the raw-JSON editor in the app.
-        JSONObject json = Util.serialise_BudgetAccount(new BudgetAccountBE("Kaputt", 100f, 1200f));
+        // through the raw-JSON editor in the app - and was then narrowed to dropping just this
+        // account. It now defaults like every other non-identity field: an unusable renewal date
+        // is not a reason to delete the account's transactions, and the substitution is reported.
+        BudgetAccountBE original = new BudgetAccountBE("Kaputt", 100f, 1200f);
+        original.addTx(new TxBE(-15f, "Einkauf", dateFor(2026, 8, 10, 14, 30)));
+        JSONObject json = Util.serialise_BudgetAccount(original);
         try {
             json.put(Const.JSON_TAG_RENEWAL_NEXT, "not-a-period");
         } catch (JSONException e) {
             fail("fixture setup failed: " + e);
         }
 
-        assertNull(Util.parseJSON_BudgetAccount(json));
+        ParseReport report = new ParseReport();
+        BudgetAccountBE parsed = Util.parseJSON_BudgetAccount(json, report);
+
+        assertNotNull(parsed);
+        assertEquals("Kaputt", parsed.getName());
+        assertEquals(-15f, parsed.getSum(), 0.001f);
+        assertEquals(Util.getNextPeriod(), parsed.getNextRenewal());
+        assertFalse("an unusable renewal date must not read as a discard", report.hasDiscards());
+        assertFalse("the substitution must be reported, not silent", report.isEmpty());
+    }
+
+    @Test
+    public void accountParse_missingName_isTheOneFatalFieldAndIsReported() {
+        // The name is an account's identity: every lookup, transfer and recurring order resolves
+        // accounts by it, so an unnamed account cannot be used or even told apart from another.
+        // It is one of only four fatal fields left in the whole save-file parser.
+        JSONObject json = Util.serialise_Account(new AccountBE("Girokonto"));
+        json.remove(Const.JSON_TAG_NAME);
+
+        ParseReport report = new ParseReport();
+        assertNull(Util.parseJSON_Account(json, report));
+        assertTrue(report.hasDiscards());
+    }
+
+    @Test
+    public void accountParse_missingTransactions_keepsTheAccountInsteadOfDiscardingIt() {
+        // Discarding the account threw away its identity and settings along with the transaction
+        // list; keeping it loses strictly less, and the report says what happened.
+        JSONObject json = Util.serialise_Account(new AccountBE("Girokonto"));
+        json.remove(Const.JSON_TAG_TRANSACTIONS);
+
+        ParseReport report = new ParseReport();
+        AccountBE parsed = Util.parseJSON_Account(json, report);
+
+        assertNotNull(parsed);
+        assertEquals("Girokonto", parsed.getName());
+        assertTrue(parsed.getTxList().isEmpty());
+        assertFalse(report.hasDiscards());
+        assertFalse(report.isEmpty());
+    }
+
+    @Test
+    public void budgetAccountParse_missingYearlyBudget_keepsTheAccountAndItsTransactions() {
+        // budget_year used to be fatal. It is neither the account's identity nor its money: the
+        // transactions are the record that cannot be reconstructed, and a budget of 0 is visible
+        // and correctable in the app.
+        BudgetAccountBE original = new BudgetAccountBE("Lebensmittel", 100f, 1200f);
+        original.addTx(new TxBE(-30f, "Markt", dateFor(2026, 8, 10, 14, 30)));
+        JSONObject json = Util.serialise_BudgetAccount(original);
+        json.remove(Const.JSON_TAG_YEARLY_BUDGET);
+
+        ParseReport report = new ParseReport();
+        BudgetAccountBE parsed = Util.parseJSON_BudgetAccount(json, report);
+
+        assertNotNull(parsed);
+        assertEquals("Lebensmittel", parsed.getName());
+        assertEquals(-30f, parsed.getSum(), 0.001f);
+        assertEquals(0f, parsed.indivYearlyBudget, 0.001f);
+        assertFalse(report.hasDiscards());
+    }
+
+    @Test
+    public void recurringOrderParse_missingSender_isFatalRatherThanBecomingPhantomIncome() {
+        // An *empty* sender is how a recurring income is represented, so defaulting a *missing*
+        // one to "" would turn a broken order into income booked on every month rollover.
+        JSONObject json = Util.serialise_RecurringOrder(new RecurringTxBE(
+                50f, "Order", dateFor(2026, 8, 1, 6, 15), "Girokonto", "Wohnen"));
+        json.remove(Const.JSON_TAG_SENDER);
+
+        ParseReport report = new ParseReport();
+        assertNull(Util.parseJSON_RecurringOrder(json, report));
+        assertTrue(report.hasDiscards());
     }
 
     @Test
