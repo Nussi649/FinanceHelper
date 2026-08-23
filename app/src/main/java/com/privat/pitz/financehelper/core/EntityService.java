@@ -157,7 +157,11 @@ public class EntityService {
             if (name.matches(entityPattern)) {
                 try {
                     Date fileDate = sdf.parse(name.substring(0, 7));
-                    assert fileDate != null;
+                    if (fileDate == null) {
+                        // SimpleDateFormat.parse is declared to be able to return null even
+                        // without throwing; skip this file rather than NPE mid-rollover.
+                        continue;
+                    }
                     if (latestDate == null || fileDate.after(latestDate)) {
                         latestDate = fileDate;
                         latestFile = name;

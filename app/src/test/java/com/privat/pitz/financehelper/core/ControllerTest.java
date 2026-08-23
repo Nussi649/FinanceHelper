@@ -298,6 +298,25 @@ public class ControllerTest {
 
     // endregion
 
+    // region deleteAccount(AccountBE) null-safety
+
+    @Test
+    public void deleteAccount_nullAccount_returnsFalseInsteadOfThrowing() throws JSONException, IOException {
+        // Regression guard. deleteAccount(AccountBE) used to open with a bare `assert account !=
+        // null;`, which is a no-op on Android (the expression is never evaluated), so a null
+        // account fell straight through to `account instanceof BudgetAccountBE` and threw NPE.
+        // The single-argument String overload already returns false for an unknown name, so
+        // returning false here for a null account is consistent, not a new contract.
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+
+        boolean result = controller.deleteAccount((AccountBE) null);
+
+        assertFalse(result);
+    }
+
+    // endregion
+
     private void putEmpty(InMemorySavefileStorage storage, String name) {
         storage.files.put(name, new byte[0]);
     }

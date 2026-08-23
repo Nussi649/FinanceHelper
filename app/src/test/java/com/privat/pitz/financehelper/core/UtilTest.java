@@ -265,6 +265,17 @@ public class UtilTest {
     }
 
     @Test
+    public void validatePeriod_null_returnsFalseInsteadOfThrowing() {
+        // Regression guard. validatePeriod(null) used to throw NullPointerException from
+        // Pattern.matcher(null) instead of returning false like every other invalid input, so
+        // every caller that used it as a guard (TxBE.inPeriod, AccountBE.getSum,
+        // BudgetAccountBE.setNextRenewal, SaveFileRepository.getAvailableEntitiesForPeriod)
+        // inherited an NPE for a nullable period instead of the false/IllegalArgumentException
+        // they were actually written to handle.
+        assertFalse(Util.validatePeriod(null));
+    }
+
+    @Test
     public void isAfter_comparesYearAndMonth() throws Exception {
         assertTrue(Util.isAfter("2024-02", "2024-01"));
         assertTrue(Util.isAfter("2025-01", "2024-12"));

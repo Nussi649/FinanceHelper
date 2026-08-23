@@ -151,7 +151,8 @@ public class AccountService {
     }
 
     public boolean deleteAccount(AccountBE account) throws JSONException, IOException {
-        assert account != null;
+        if (account == null)
+            return false;
         // variable to store position at which account was in its list.
         // needed in case of revert to initial state.
         // position != -1 then also signals whether the account has been found and removed

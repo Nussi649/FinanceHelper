@@ -224,6 +224,8 @@ public abstract class Util {
     }
 
     public static boolean validatePeriod(String period) {
+        if (period == null)
+            return false;
         Pattern pattern = Pattern.compile("^\\d{4}-\\d{2}$");
         if (!pattern.matcher(period).matches())
             return false;

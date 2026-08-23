@@ -23,7 +23,12 @@ public abstract class AccountPreviewList {
                                                final MainActivity parentActivity,
                                                final LinearLayout container,
                                                final RbAccountManager receiverManager) {
-        assert accounts != null;
+        // Public entry point taking a caller-supplied list: a null here is a caller bug, not
+        // something to silently no-op on device (assert never evaluated this on Android anyway).
+        if (accounts == null) {
+            Log.println(Log.ERROR, "account_preview", "populateBudgetAccountsPreview called with null accounts list");
+            return;
+        }
 
         // first clean up target container
         container.removeAllViews();
@@ -44,8 +49,10 @@ public abstract class AccountPreviewList {
             // add list item to parent layout
             container.addView(newItem);
             // add radio button to receiver group
+            // (getRBReceiver() cannot be null here: it returns a field set from findViewById() on
+            // a layout this class itself inflates in initViews(), which would already have NPE'd
+            // there with a clearer stack trace if the layout were broken)
             RadioButton rbReceive = newItem.getRBReceiver();
-            assert rbReceive != null;
             receiverManager.addRadioButton(rbReceive, currentAccount);
 
             // check if list item has children. If so, add them
@@ -61,7 +68,6 @@ public abstract class AccountPreviewList {
                 container.addView(child);
                 // add radio button to receiver group
                 RadioButton rbReceiveChild = child.getRBReceiver();
-                assert rbReceiveChild != null;
                 receiverManager.addRadioButton(rbReceiveChild, currentChildAccount);
             }
         }
@@ -82,7 +88,12 @@ public abstract class AccountPreviewList {
                                                final LinearLayout container,
                                                final RbAccountManager receiverManager,
                                                final RbAccountManager senderManager) {
-        assert accounts != null;
+        // Public entry point taking a caller-supplied list: a null here is a caller bug, not
+        // something to silently no-op on device (assert never evaluated this on Android anyway).
+        if (accounts == null) {
+            Log.println(Log.ERROR, "account_preview", "populateAssetAccountsPreview called with null accounts list");
+            return;
+        }
 
         // first clean up target container
         container.removeAllViews();
@@ -94,8 +105,15 @@ public abstract class AccountPreviewList {
         // iterate through all accounts given as argument
         for (int index = 0; index < accounts.size(); index++) {
             AccountBE currentAccount = accounts.get(index);
-            // this method should only be fed with Asset Accounts
-            assert !(currentAccount instanceof BudgetAccountBE);
+            // This method must only be fed Asset Accounts: a BudgetAccountBE here would be mixed
+            // into the transfer sender/receiver lists as if it were an asset account, which is a
+            // genuine caller bug. Skip and log it rather than silently mis-rendering it (the old
+            // `assert` documented this invariant but never actually enforced it on device).
+            if (currentAccount instanceof BudgetAccountBE) {
+                Log.println(Log.ERROR, "account_preview",
+                        "populateAssetAccountsPreview was given a BudgetAccountBE (" + currentAccount.getName() + "); skipping it");
+                continue;
+            }
             // skip if account is marked as inactive
             if (!currentAccount.getIsActive())
                 continue;
@@ -105,13 +123,12 @@ public abstract class AccountPreviewList {
             // add list item to parent layout
             container.addView(newItem);
             // add radio button to receiver group
+            // (see populateBudgetAccountsPreview above: these getters cannot return null here)
             RadioButton rbReceive = newItem.getRBReceiver();
-            assert rbReceive != null;
             receiverManager.addRadioButton(rbReceive, currentAccount);
 
             // add radio button to sender group
             RadioButton rbSend = newItem.getRBSender();
-            assert rbSend != null;
             senderManager.addRadioButton(rbSend, currentAccount);
 
             // check if list item has children. If so, add them
@@ -127,11 +144,9 @@ public abstract class AccountPreviewList {
                 container.addView(child);
                 // add radio button to receiver group
                 RadioButton rbReceiveChild = child.getRBReceiver();
-                assert rbReceiveChild != null;
                 receiverManager.addRadioButton(rbReceiveChild, currentChildAccount);
                 // add radio button to sender group
                 RadioButton rbSendChild = child.getRBSender();
-                assert rbSendChild != null;
                 senderManager.addRadioButton(rbSendChild, currentChildAccount);
             }
         }

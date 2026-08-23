@@ -52,6 +52,40 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
 
+// Fails the build if `assert` is used as a Java-language statement anywhere in app/src/main.
+// WHY: assertions are disabled by default on the JVM and Android never enables them at all -
+// `assert expr;` is a complete no-op on device, expr is not even evaluated. This codebase used
+// to rely on `assert x != null;` as a guard in several places; those guards silently never ran
+// and shipped real bugs (a crash and a data-loss path - see docs/handover-hardening.md, section
+// "2.3 Null-safety and precondition discipline"). Write a real `if`/`throw`/log check instead.
+// Only flags lines that actually start with the `assert` keyword (after trimming whitespace), so
+// comments that merely mention the word "assert" are left alone.
+task banAssertStatements {
+    doLast {
+        def offenders = []
+        fileTree(dir: 'src/main', include: '**/*.java').each { File file ->
+            int lineNumber = 0
+            file.eachLine { line ->
+                lineNumber++
+                String trimmed = line.trim()
+                if (trimmed.startsWith('assert ') || trimmed.startsWith('assert(') || trimmed == 'assert;') {
+                    offenders << "${file.path}:${lineNumber}: ${trimmed}"
+                }
+            }
+        }
+        if (!offenders.isEmpty()) {
+            throw new GradleException(
+                    "Found ${offenders.size()} bare `assert` statement(s) in app/src/main - assert " +
+                    "is a no-op on Android and must not be used as a guard. Replace with a real " +
+                    "if/throw/log check. Offending lines:\n" + offenders.join('\n'))
+        }
+    }
+}
+afterEvaluate {
+    tasks.findByName('preBuild')?.dependsOn(banAssertStatements)
+    tasks.findByName('check')?.dependsOn(banAssertStatements)
+}
+
 configurations.all {
     resolutionStrategy.eachDependency { DependencyResolveDetails details ->
         if (details.requested.group == 'org.jetbrains.kotlin' && details.requested.name == 'kotlin-stdlib-jdk8') {
