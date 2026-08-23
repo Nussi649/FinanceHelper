@@ -224,10 +224,8 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
                 } else {
                     showToastLong(R.string.toast_error_account_not_found);
                 }
-            } catch (JSONException e) {
-                showToastLong(R.string.toast_error_JSONError);
-            } catch (IOException e) {
-                showToastLong(R.string.toast_error_IOError);
+            } catch (JSONException | IOException e) {
+                showErrorToast(e);
             }
         };
         showConfirmDialog(R.string.question_delete_account, listener);

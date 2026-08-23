@@ -192,10 +192,8 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         Intent intent = new Intent(this, target);
         try {
             controller.saveAccountsToInternal();
-        }  catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
         startActivity(intent);
     }

@@ -255,10 +255,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
                 updateUISums();
             }
         } catch (JSONException | IOException e) {
-            if (e instanceof JSONException)
-                showToastLong(R.string.toast_error_JSONError);
-            else
-                showToastLong(R.string.toast_error_IOError);
+            showErrorToast(e);
         }
     }
     // endregion

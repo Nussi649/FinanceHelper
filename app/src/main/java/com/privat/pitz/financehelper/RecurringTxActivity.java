@@ -80,10 +80,8 @@ public class RecurringTxActivity extends AbstractActivity {
             } else {
                 showToastLong(R.string.toast_error_recurring_tx_not_found);
             }
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
     }
 

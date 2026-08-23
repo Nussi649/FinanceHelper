@@ -172,10 +172,8 @@ public class AssetsActivity extends AbstractActivity {
                 showToastLong(R.string.toast_success_new_account);
                 addAccountToUI(newAccount);
             }
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
     }
 
