@@ -23,6 +23,7 @@ import com.privat.pitz.financehelper.data.AccountBE;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.data.ProjectBudgetBE;
 import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.BudgetFigures;
 import com.privat.pitz.financehelper.ui.PercentageBackground;
 import com.privat.pitz.financehelper.ui.TxListSection;
 import com.privat.pitz.financehelper.ui.TxSwipeActions;
@@ -154,8 +155,7 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
         String currentSumString = String.format("%sx / %sx",
                 Util.formatLargeFloatDisplay(newValue),
                 currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                current_percentage * 100);
+        String currentPercentageString = Util.formatPercentage(current_percentage);
         String yearly_budget_string = Util.formatLargeFloatShort(mAccount.indivYearlyBudget) + "x";
         // get currency character
         String currency = getString(R.string.label_currency);
@@ -400,19 +400,8 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
         float current_budget = mAccount.getTotalAvailableBudget();
         float allotted_budget = mAccount.getMeanAllottedTotalBudget();
 
-        float current_percentage = Util.calculateAdvancedPercentage(current_budget, totalSum, allotted_budget);
-
-        // set values of total sum text views
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(current_budget),5);
-        String currentSumString = String.format("%s / %s",
-                Util.formatLargeFloatShort(totalSum),
-                currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                current_percentage * 100);
-        String yearly_budget_string = Util.formatLargeFloatShort(mAccount.getTotalYearlyBudget());
-        totalValue.setText(currentSumString);
-        totalPercentage.setText(currentPercentageString);
-        totalYearly.setText(yearly_budget_string);
+        float current_percentage = BudgetFigures.render(totalValue, totalPercentage, totalYearly,
+                totalSum, current_budget, allotted_budget, mAccount.getTotalYearlyBudget());
 
         totalPercentage.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, this));
     }

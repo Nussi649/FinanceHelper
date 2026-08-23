@@ -106,6 +106,16 @@ public abstract class Util {
     }
 
     /**
+     * Renders a 0..1 fraction as a whole-number percentage, e.g. 0.372f -> "37%".
+     * No decimals, so this is locale-insensitive in practice; Locale.getDefault() is passed
+     * explicitly because that is what the bare String.format(String, Object...) overload this
+     * replaced was already using.
+     */
+    public static String formatPercentage(float fraction) {
+        return String.format(Locale.getDefault(), "%.0f%%", fraction * 100);
+    }
+
+    /**
      * Formats a Date object into a string for display.
      *
      * @param input The Date object to format.

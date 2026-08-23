@@ -276,18 +276,8 @@ public class BudgetAccountTableRow extends TableRow {
         float yearly_budget = isExtended ? refAcc.indivYearlyBudget : refAcc.getTotalYearlyBudget();
         float allotted_budget = isExtended ? refAcc.getMeanAllottedIndivBudget() : refAcc.getMeanAllottedTotalBudget();
 
-        float current_percentage = Util.calculateAdvancedPercentage(current_budget, current_sum, allotted_budget);
-
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(current_budget),5);
-        String currentSumString = String.format("%s / %s",
-                Util.formatLargeFloatShort(current_sum),
-                currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                (current_percentage) * 100);
-        String yearly_budget_string = Util.formatLargeFloatShort(yearly_budget);
-        valueLabel.setText(currentSumString);
-        currentPercentageLabel.setText(currentPercentageString);
-        yearlyBudgetLabel.setText(yearly_budget_string);
+        float current_percentage = BudgetFigures.render(valueLabel, currentPercentageLabel, yearlyBudgetLabel,
+                current_sum, current_budget, allotted_budget, yearly_budget);
         if (refAcc instanceof ProjectBudgetBE) {
             currentPercentageLabel.setBackground(PercentageBackground.createBackground(ContextCompat.getColor(getContext(), R.color.colorNeutral)));
         } else {

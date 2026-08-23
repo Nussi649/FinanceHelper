@@ -27,6 +27,7 @@ import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.BudgetFigures;
 import com.privat.pitz.financehelper.ui.PercentageBackground;
 
 public class BudgetsActivity extends AbstractActivity implements BudgetAccountListHandler {
@@ -265,18 +266,8 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     // set values of total sum text views
     @SuppressLint("DefaultLocale")
     private void updateUISums() {
-        float current_percentage = Util.calculateAdvancedPercentage(totalAvailableBudget, totalSpent, totalAllottedBudget);
-
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(totalAvailableBudget),5);
-        String currentSumString = String.format("%s / %s",
-                Util.formatLargeFloatShort(totalSpent),
-                currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                (current_percentage) * 100);
-        String yearly_budget_string = Util.formatLargeFloatShort(totalYearlyBudget);
-        totalValue.setText(currentSumString);
-        totalPercentage.setText(currentPercentageString);
-        totalYearly.setText(yearly_budget_string);
+        float current_percentage = BudgetFigures.render(totalValue, totalPercentage, totalYearly,
+                totalSpent, totalAvailableBudget, totalAllottedBudget, totalYearlyBudget);
 
         // color percentage label
         totalPercentage.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, this));
