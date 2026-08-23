@@ -585,7 +585,8 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
     public void initiateAccounts() {
         int response = getController().setupAccounts(false);
         if (response == Controller.LOADED_NEW_MONTH) {
-            showToastLong("New Sheet for Month " + Const.getDisplayableCurrentMonthName() + " created.");
+            showToastLong(getString(R.string.toast_info_new_month_created,
+                    Const.getDisplayableCurrentMonthName()));
         }
         if (response == Controller.CREATED_BLANK)
             showToastLong(getString(R.string.toast_info_blank_accounts));

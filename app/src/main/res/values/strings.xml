@@ -5,6 +5,9 @@
     <!-- Buttons -->
     <string name="confirm">Bestätigen</string>
     <string name="cancel">Abbrechen</string>
+    <string name="ok">OK</string>
+    <string name="label_undo">Rückgängig</string>
+    <string name="toast_info_new_month_created">Neues Blatt für %1$s angelegt.</string>
 
     <!-- Titles & Loading Screen -->
     <string name="default_account_title">Account Title</string>

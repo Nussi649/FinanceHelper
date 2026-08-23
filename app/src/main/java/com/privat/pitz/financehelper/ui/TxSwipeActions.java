@@ -86,7 +86,7 @@ public class TxSwipeActions implements TxListSection.TxActions {
 
         // Show a Snackbar with an "Undo" action
         Snackbar snackbar = Snackbar.make(snackbarAnchor, R.string.snackbar_tx_deleted, Snackbar.LENGTH_LONG);
-        snackbar.setAction("Undo", view -> {
+        snackbar.setAction(R.string.label_undo, view -> {
             // User clicked the "Undo" action, so put the transaction back into the list
             adapter.addEntry(position, tx);
         });

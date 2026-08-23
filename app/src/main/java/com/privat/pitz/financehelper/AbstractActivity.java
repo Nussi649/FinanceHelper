@@ -166,7 +166,7 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_basic_edit_text, null);
         builder.setView(dialogView);
-        builder.setPositiveButton("OK", null);
+        builder.setPositiveButton(R.string.ok, null);
         return builder.create();
     }
 
