@@ -1,224 +1,149 @@
-# Handover: from "refactor complete" to "hardened and merged"
+# Handover: the hardening pass is done; what is left is on-device verification and a merge
 
-Written at the end of the refactor session, for the session that picks this up. Read
-`docs/architecture.md` and `docs/known-issues.md` alongside this — they are current as of the last
-commit and this document does not repeat them.
+Rewritten at the end of the hardening session. Read `docs/architecture.md` and
+`docs/known-issues.md` alongside this — both are current as of the last commit and this document
+does not repeat them.
 
 ## Where things stand
 
-- Branch `refactor/clean-architecture`, **32 commits**, pushed to `origin`. `master` is untouched.
-- `107 files changed, 4792 insertions(+), 3374 deletions(-)` against `master`.
-- **141 unit tests, all passing.** `./gradlew clean assembleDebug testDebugUnitTest` is green.
-- Verified on device by the user: transaction delete/undo, the details screens, the dialogs.
-- **Not yet verified on device: month rollover.** It was changed in the final commit and is the
-  least-covered path in the app. See the checklist at the bottom.
+- Branch `refactor/clean-architecture`, **15 commits**, **not pushed**. `master` untouched.
+- `origin/refactor/clean-architecture` still holds the old 34-commit history. The branch was
+  squashed, so publishing it needs a **force-push**. The user asked to keep everything local until
+  the work is finished and to do that push themselves.
+- The pre-squash history is preserved locally on **`refactor/pre-squash-archive`** (also not
+  pushed). Push that one *before* force-pushing the rewritten branch.
+- **227 unit tests, all passing.** `./gradlew clean assembleDebug testDebugUnitTest --rerun-tasks`
+  is green.
+- Test count over the two sessions: 101 → 141 → 227.
 
-The structural refactor is done. What remains is a hardening pass, then the leftover known issues,
-then merge.
-
-**No decisions are outstanding.** The commit grouping in step 1 and the deep sub-budget fix in
-step 3.1 were both approved by the user; everything below is execution.
-
----
-
-## Step 1 — Squash, but not into a single commit
-
-The user asked for one commit "or more if you object to one". **I object to one.** Recommended
-grouping is **four**:
-
-| # | Commit | Contents (current SHAs) |
-|---|---|---|
-| 1 | `refactor: ...` — the whole structural pass, behaviour-preserving | 1–19, 21, 25–28 |
-| 2 | `fix: budget accounts created in the app vanished on the next load` | 29 + 30 (its doc commit) |
-| 3 | `fix: guards written with assert never ran on device` | 31 + 32 (its doc commit) |
-| 4 | `fix: four smaller defects found during the refactor` | 20, 22, 23, 24 |
-
-Why not one:
-
-- **Commits 2 and 3 fix silent data loss and a crash.** If either causes a regression months from
-  now, `git bisect` should land on a focused commit, not on a 107-file refactor. They also want to
-  stay findable via `git log --grep`.
-- **It preserves the property that makes commit 1 trustworthy.** The whole refactor was run under
-  the rule "every commit is behaviour-preserving; behaviour changes get their own labelled commit".
-  Folding the fixes in destroys the one claim that makes the refactor commit safe to reason about.
-- **Squashing 1–19/21/25–28 together is genuinely fine.** Those intermediate steps were sequencing
-  scaffolding — extract, then move, then delete — and are not independently meaningful once the
-  end state compiles and passes.
-
-Commit 4 could be split into its four originals if you prefer; they are all small, and each has a
-message worth keeping. Do not merge commit 4 into commit 1.
-
-**Before rewriting history**, keep an escape hatch — the current messages contain forensic detail
-(exact failure chains, mutation-test results) that is expensive to reconstruct:
-
-```bash
-git branch refactor/pre-squash-archive refactor/clean-architecture
-```
-
-Push that archive branch too, and carry the important reasoning into the squashed message bodies
-rather than discarding it.
+Everything in the previous handover's plan is done. What remains is the on-device checklist at the
+bottom, one open issue that needs a decision, and the merge.
 
 ---
 
-## Step 2 — The hardening pass
+## What the hardening pass changed
 
-This is the main work. Its shape is dictated by what the last two bugs had in common: **the app
-fails silently, and the failure mode is losing financial records.** Both bugs were years old. Both
-were found by reasoning from a symptom, not by the test suite.
+Details for each are in `docs/known-issues.md` under "Fixed in the hardening pass" and in the
+commit messages. Summary of the shape:
 
-Priority order below is deliberate. 2.1 is where the value is.
+**Save-file round-trip integrity.** Field-level round-trip tests now exist for every persisted type
+(`SaveFileRoundTripTest`, 43 tests). They found three real defects on the first run: budget
+accounts silently lost their auto-renew setting on every load, five `put(key, null)` sites deleted
+their key rather than writing a value, and a null transaction date aborted the entire save.
 
-### 2.1 Save-file round-trip integrity — highest priority
+**Parse policy.** "Fatal" is no longer the unstated default. Four fields genuinely justify
+discarding a record; everything else defaults. `core/ParseReport` collects every defaulted field
+and every discarded record with its reason, `SaveFileRepository` accumulates it on the `Model`, and
+`AbstractActivity.reportLoadProblems` surfaces it after every load — a dialog for discards, a toast
+for repairs. **The app can no longer lose a record without telling the user.**
 
-The budget-account bug was: serialise wrote a null → `JSONObject.put(key, null)` **removed the key**
-→ the parser treated the missing key as fatal → the whole account was dropped, and the caller
-discarded the null without telling anyone.
+**Month rollover.** `MonthRolloverTest`, 16 tests, end to end against `InMemorySavefileStorage`:
+balances carry, budgets renew at every sub-budget level, project budgets are excluded, recurring
+orders fire exactly once, the income list resets, the previous period's file stays byte-for-byte
+intact, and a second rollover over an existing current period is refused.
 
-Nothing structural prevents that from recurring for another field. Do all four:
+**Assert discipline.** The eleven remaining bare asserts are gone, replaced per site with real
+checks or deleted where the following line would throw a clearer error anyway. `app/build.gradle`
+now fails the build if `assert` reappears in `app/src/main` — verified by planting one.
 
-1. **Field-level round-trip tests for every persisted type** — `AccountBE`, `BudgetAccountBE`
-   (including nested sub-budgets and `ProjectBudgetBE`), `TxBE`, `RecurringTxBE`, and app settings.
-   For each field: set a distinctive value, serialise, parse, assert it came back. This is exactly
-   the test that would have caught the renewal bug on day one.
-2. **Audit every `put(key, value)` in `Util.serialise_*` where value can be null.** Candidates
-   already identified: `JSON_TAG_DEFAULT_ENTITY`, `JSON_TAG_SENDER`/`JSON_TAG_RECEIVER` in both the
-   settings and recurring-order writers, `JSON_TAG_DESCRIPTION`, `JSON_TAG_TIME`. Each is currently
-   safe only because the value happens never to be null in practice — that is not a guarantee.
-3. **Decide a policy per field in `Util.parseJSON_*`: is a missing key fatal, or does it default?**
-   Right now "fatal" is the unstated default and it discards an entire account. Most fields have a
-   sensible default. Very few genuinely justify dropping the record.
-4. **Make discards loud.** Today `parseJSON_BudgetAccount` returns `null` and the caller skips it in
-   silence. Have parsing collect and report what it dropped and why — surfaced through
-   `IntegrityChecker` or a toast on load. A user must never lose an account without being told.
+**Silent failures.** Swipe-delete no longer ignores whether the delete actually persisted;
+`createTx` guards its null sender/receiver and no longer leaves optimistic entries in the model
+when it gives up.
 
-### 2.2 Month rollover — the most destructive path, the least covered
+**Integrity check.** Now runs automatically after every load rather than sitting in the overflow
+menu behind two file pickers. Two tests guard against it crying wolf: a file the app just wrote,
+and a file produced by a rollover, must both come back clean.
 
-`EntityService.initiateNewPeriod` closes every account, carries balances into a new period, renews
-budgets and triggers recurring transactions. If it goes wrong it goes wrong across the whole file.
-`TxService.triggerRecurringTx` now has 4 tests; `initiateNewPeriod` as a whole has none.
+**Deep sub-budget search.** `updateTx` recurses the whole sub-budget tree via
+`model.getAllAccounts()`, with the ~28 shared lines extracted into `findTxPair`.
 
-Cover end-to-end against `InMemorySavefileStorage`: balances carry forward correctly; budgets renew
-(and `renewalPeriod > 1` and the December→January boundary both work); project budgets are excluded
-from renewal; recurring transactions fire exactly once; the income list resets; and the previous
-period's file is left intact.
+**Editing a transfer.** The swipe-to-edit dialog gained an opt-in "also change the counterpart"
+checkbox (default off), backed by `TxService.updateTxPair`. Before this, editing a transfer changed
+only the side the user swiped, at every nesting level, so the two accounts silently drifted apart.
+It is a checkbox rather than automatic because not every entry has a counterpart — an opening
+balance and an income have none, and a same-day same-description entry elsewhere may be a
+coincidence.
 
-### 2.3 Null-safety and precondition discipline
-
-- **Eleven bare `assert x != null;` remain** in `AccountPreviewList`, `AccountService.deleteAccount`
-  and `EntityService`. They are no-ops on device. None currently carries a side effect, so they
-  change nothing — but they read as guards and are not. Replace with real checks or delete them.
-- **Ban `assert` going forward.** A grep in CI, or a lint rule, is cheap insurance. The rule:
-  never put a side effect inside `assert`, never use `assert` as a guard.
-- `Util.validatePeriod(null)` throws `NullPointerException` from `Pattern.matcher(null)` rather
-  than returning `false`. Anything calling it with a nullable value inherits that.
-- `AccountService.deleteAccount` and `EntityService` date parsing both dereference values that the
-  removed asserts pretended to guard.
-
-### 2.4 Make silent failures visible
-
-Across `core`, failures log to `Log.ERROR` and return `false`/`null` with no user-visible signal.
-`saveOrRevert` is the good pattern — it reverts, logs, and rethrows so the activity can toast. The
-parse and load paths have no equivalent. Go through the `return false` / `return null` sites and
-decide which need to reach the user.
-
-### 2.5 Wire up the integrity check
-
-`IntegrityChecker` already detects the exact "silently discarded" class that hid the budget bug —
-its own test fixture used a budget entry missing `renew_next` as the example. It was correct; it had
-just never been run against a real file. Consider running it automatically after load, or on a
-schedule, rather than leaving it as a manual menu action.
-
-### 2.6 Lifecycle and concurrency
-
-Lower priority, but unexamined: the `AbstractActivity` `workingThread`/`endWorkingThread` pattern,
-and the `Controller.instance` field-initializer ordering that `onAppStartup()` patches up
-afterwards. Both were deliberately left alone by the refactor (see "Out of scope" in the plan).
+**Process-death crash.** Returning to the app through Recents after Android killed the process
+crashed on any screen except Main. See the commit and `architecture.md` → "Lifecycle and threading".
 
 ---
 
-## Step 3 — Known issues not covered by hardening
+## Still open
 
-Both are recorded in `docs/known-issues.md` under "Not yet fixed".
+### 1. Decision needed — nothing else
 
-### 3.1 `updateTx` only descends one level of sub-budget — APPROVED, go ahead
+There are no other outstanding decisions. `docs/known-issues.md` → "Not yet fixed" is now empty of
+code defects; the remaining lifecycle hazards are recorded in `architecture.md` rather than fixed,
+deliberately (see below).
 
-**The user approved this fix.** No further decision needed; it just needs doing, with a test, in its
-own commit labelled as a behaviour change.
+### 2. Lifecycle hazards examined but not fixed
 
-Both overloads — `TxService.updateTx` at `:176` (amount) and `:228` (description) — build their
-search list by hand: every asset account, then every budget account plus its
-`getDirectSubBudgets()`. That is **one level only**, so editing a transaction whose counterpart sits
-in a 2nd-level-or-deeper sub-budget fails to find it, and the two sides of the transfer silently
-drift apart.
+`docs/architecture.md` → "Lifecycle and threading" records the full analysis. Two are worth knowing
+about:
 
-Replace that ~15-line block with `model.getAllAccounts()`, which recurses all levels via
-`getAllSubBudgets()`.
+- **`MainActivity.onStop()` saves the model on the UI thread while `workingThread()` may still be
+  populating those same lists on a background thread.** Nothing joins them. The window is small
+  (a local file load) but unbounded. Fixing it properly means replacing the raw
+  `new Thread(...)` / `runOnUiThread` pattern in `AbstractActivity.onCreate`, which is a redesign
+  the refactor deliberately stayed out of.
+- **No cancellation or liveness check** on that thread; `runOnUiThread` still fires against a
+  destroyed activity. Mostly a transient leak.
 
-Two details that make this safe and easy to get wrong:
-
-- The existing code carries a `(copy the list! it must not be mutated, since it's the live model
-  list)` warning, because it goes on to call `toSearch.remove(source)`. `Model.getAllAccounts()`
-  already returns a freshly allocated `ArrayList` on every call, so the removal stays safe — but do
-  not "optimise" that allocation away later.
-- With the search list no longer hand-built, the two overloads differ only in the single mutation
-  they apply. Extract `findTxPair(Date, String, AccountBE)` for the ~28 genuinely identical lines
-  and let each overload keep its own mutation and revert. **Do not** parameterise over four lambdas
-  to force them into one method — that was considered and rejected during the refactor.
-
-Tests to write: a transaction pair whose counterpart lives in a **2nd-level** sub-budget updates
-both sides (this is the fix), and one whose counterpart is a **1st-level** sub-budget still updates
-both sides (this is the regression guard). Both are plain JVM tests against
-`InMemorySavefileStorage`.
-
-### 3.2 The budget branch of `completeTxRedirection` logs "asset" on a parse failure
-
-Cosmetic, one line, in `TxRedirectionService.injectTx`. Now that the message exists once instead of
-twice, just fix it.
+Neither is a reason to hold the merge. Both are a reason not to add more work to
+`workingThread()` without thinking.
 
 ---
 
 ## Decisions already made — please do not re-litigate
 
-These look like unfinished plan items. They were considered and deliberately declined, with reasons
-recorded in the relevant commit messages:
+Unchanged from the previous handover, all still current:
 
-- **German strings in `core/IntegrityChecker` stay put.** That class is Android-free and JVM-tested.
-  Reaching `strings.xml` means handing it a `Context` (undoing the layering work) or building a
-  message-provider indirection for a diagnostics-only feature. There is one `values/` folder and no
-  second locale.
-- **`Const.DESC_OPENING` stays a constant.** It is not UI text — `AccountBE` writes it into save
-  files as a transaction description. Localising it would make the same account serialise
-  differently on different devices.
-- **`MainActivity.onRefresh` keeps its second `setupActionBar()` call.** It is wasteful, but it is
-  also what repopulates the entity spinner from `model.availableEntities`. Removing it risks a stale
-  spinner for a cosmetic gain.
+- **German strings in `core/IntegrityChecker` stay put** — and `core/ParseReport` follows the same
+  precedent for the same reasons. Both are Android-free and JVM-tested; reaching `strings.xml`
+  means handing them a `Context` or building a message-provider indirection. There is one `values/`
+  folder and no second locale.
+- **`Const.DESC_OPENING` stays a constant.** It is written into save files as a transaction
+  description, not shown as UI text.
+- **`MainActivity.onRefresh` keeps its second `setupActionBar()` call.** It is what repopulates the
+  entity spinner.
 - **Activities stay in `com.privat.pitz.financehelper`, not `.ui`.** Moving them renames the
-  launcher activity (breaking pinned home-screen shortcuts) and churns nine manifest entries for no
-  benefit against the actual goals.
+  launcher activity and breaks pinned shortcuts.
+- **`updateTx`'s two overloads stay separate.** Merging them behind four lambdas was considered and
+  rejected; `findTxPair` carries the shared part instead.
 
 ---
 
 ## Gotchas this codebase will bite you with
 
-Learned the hard way this session. All four are load-bearing:
+The first four are unchanged and still load-bearing. The last three are new.
 
-1. **`JSONObject.put(key, null)` REMOVES the key.** It does not store a JSON null. This is the root
-   of the budget-account bug. Assume any nullable value written this way silently vanishes.
-2. **`assert` is a no-op on Android** — the expression is not even evaluated. `build.gradle` now
-   sets `testOptions.unitTests.all { enableAssertions = false }` so the JVM tests match the device.
-   **Do not remove that line.** With assertions enabled, the suite disagrees with production on
-   exactly the code that uses `assert`, which is what hid the crash.
+1. **`JSONObject.put(key, null)` REMOVES the key.** It does not store a JSON null. Write nullable
+   strings through `Util.putOrDefault`, which exists for exactly this.
+2. **`assert` is a no-op on Android** — the expression is not even evaluated.
+   `testOptions.unitTests.all { enableAssertions = false }` in `app/build.gradle` makes the JVM
+   tests match the device. **Do not remove that line.** The `banAssertStatements` gradle task now
+   fails the build if `assert` reappears in main sources.
 3. **`AccountBE.getTxList()` returns the live list by reference**, and `TxListAdapter.setEntries`
-   stores what it is given without copying. `TxListSection.applyFilter` must therefore always build
-   its own list — that invariant is documented in `architecture.md` and is not enforced by the type
-   system. Breaking it silently stops swipe-deletes from persisting.
-4. **Gradle test-JVM defaults differ from Android in more places than assertions.**
-   `returnDefaultValues = true` is already set to stub `android.util.Log`. Treat any "works in
-   tests, fails on device" report as a fidelity gap first.
+   stores what it is given without copying. `TxListSection.applyFilter` must always build its own
+   list.
+4. **Gradle test-JVM defaults differ from Android in more places than assertions.** Treat any
+   "works in tests, fails on device" report as a fidelity gap first.
+5. **Spending on a budget account is stored as a POSITIVE amount**, with the matching negative on
+   the asset account that paid. Getting this backwards is silently plausible and made three
+   rollover tests fail on their first run.
+6. **`parseJSON_BudgetAccount` reads `budget_cur` with `getDouble`, not `optDouble`.** `optDouble`
+   swallows a NaN and substitutes the fallback, which would keep corrupt values out of the model
+   and therefore out of `IntegrityChecker`'s numeric-sanity check. A corrupt value has to survive
+   parsing to be reportable. `IntegrityCheckerTest.nanBudget_isFlagged` catches the regression.
+7. **`Model.getAllAccounts()` allocating a fresh list is load-bearing**, not incidental:
+   `TxService.findTxPair` mutates the returned list. Do not "optimise" that allocation away.
 
-Process notes: the `Bash` tool in this environment mangles heredocs containing apostrophes — write
-Python helper scripts to a scratchpad file and run those instead. Gradle test runs need
-`--rerun-tasks` or they report `UP-TO-DATE` without running.
+Process notes: the `Bash` tool mangles heredocs containing apostrophes — write Python helper
+scripts to a scratchpad file and run those instead. Gradle test runs need `--rerun-tasks` or they
+report `UP-TO-DATE` without running. When several agents share this working tree, have each one
+`git add` its own files explicitly and never `git add -A` — a concurrent `git commit` will
+otherwise sweep up another agent's staged work.
 
 ---
 
@@ -234,22 +159,49 @@ After every commit:
 drawables that `compileDebugJavaWithJavac` does not, and custom views referenced by fully-qualified
 name in layout XML fail at inflation time, not compile time.
 
-**Prove new tests have teeth by mutation.** Both critical fixes this session were validated that
-way: removing the default renewal date failed 4 tests; making the parser strict again failed 2;
-flipping `enableAssertions` back on made the recurring-transaction tests pass against broken code.
-Green tests are not evidence until you have seen them go red.
+**Prove new tests have teeth by mutation.** Every fix in this pass was validated that way, and the
+evidence is recorded in each commit message. Green tests are not evidence until you have seen them
+go red.
 
 ### On-device checklist before merging
 
-Highest risk first:
+Nothing here is covered by the unit tests, and several items exercise code that changed in this
+pass. Highest risk first.
 
 - **Month rollover.** Point the app at a save file from a prior month, ideally with a recurring
-  income (empty sender) and a recurring order referencing a since-deleted account — both crashed
-  before the final commit. Confirm balances carry, budgets renew, recurring transactions fire once.
-- **Create a budget account, close the app, reopen.** It must still be there, with its transactions.
+  income (empty sender) and a recurring order referencing a since-deleted account. Confirm balances
+  carry, budgets renew, recurring transactions fire once, and the previous month's file is
+  untouched. Now covered by 16 JVM tests, but never yet run on a device.
+- **Process death.** Open a details screen, force-stop the app from the system settings, then
+  reopen it from Recents. It must land on the main screen with data loaded, not crash. This is the
+  fix in the last commit and cannot be unit-tested.
+- **Load reporting.** Hand-edit a save file through the raw-JSON editor to remove an account's
+  `name`, then load it. A dialog must name what was dropped and why. Remove a `renew_next` instead
+  and it should be a toast, with the account intact.
+- **Integrity check on load.** Confirm a healthy file produces no toast on startup — if it does,
+  the check will be trained away and is worse than useless.
+- **Editing a transfer.** Swipe-edit one side of a transfer with the new checkbox OFF (only that
+  side changes, as before) and then ON (both sides change, including the date). Tick it on an
+  income entry, which has no counterpart, and confirm it edits that entry and says so.
+- **Auto-renew on a budget account.** Untick it in Settings, restart the app, confirm it is still
+  unticked. This never survived a restart before.
+- Create a budget account, close the app, reopen — it must still be there with its transactions.
 - Sub-budget create / transfer / set yearly budget / edit renewal.
 - Swipe-delete with no filter active, let the Snackbar expire, force-stop from that screen, reopen —
   the transaction must stay deleted.
 - Pick a *child* account as sender and receiver; the transaction must land on the child.
 - Zip backup export + import; SAF folder push + pull.
-- Integrity check against a real save file.
+
+### Merging
+
+Once the checklist passes:
+
+```bash
+git push origin refactor/pre-squash-archive
+git push --force-with-lease origin refactor/clean-architecture
+```
+
+Push the archive branch first, so the original history is safe on the remote before the rewritten
+branch overwrites the old one. Then merge into `master` however you prefer — the branch is a clean
+sequence of one refactor commit followed by labelled behaviour changes, so a merge commit preserves
+more than a squash would.
