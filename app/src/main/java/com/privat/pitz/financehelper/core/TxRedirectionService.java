@@ -138,10 +138,9 @@ public class TxRedirectionService {
                 }
                 // error happened parsing the current account
                 else {
-                    // Says "asset" even in the budget branch. That is a pre-existing copy-paste bug, kept
-                    // verbatim here so this extraction changes no behaviour; it is fixed separately.
                     Log.println(Log.ERROR, "pass_on_transaction", String.format(
-                            "Error passing on transaction. Could not parse asset account object! targetAccountName: %s",
+                            "Error passing on transaction. Could not parse %s account object! targetAccountName: %s",
+                            accountKind,
                             accountName));
                     return Outcome.PARSE_FAILED;
                 }

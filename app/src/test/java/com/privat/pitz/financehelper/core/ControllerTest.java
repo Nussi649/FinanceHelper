@@ -317,6 +317,39 @@ public class ControllerTest {
 
     // endregion
 
+    // region createTx precondition
+
+    @Test
+    public void createTx_withNoSenderOrReceiverSelected_returnsFalseInsteadOfThrowing()
+            throws JSONException, IOException {
+        // model.currentSender/currentReceiver are null until the user picks radio buttons.
+        // createTx dereferenced both immediately, so attempting a transaction with nothing
+        // selected threw NullPointerException out of addTx rather than reporting the problem -
+        // addFunds already guarded its receiver exactly this way.
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+        controller.getModel().currentFileName = "2026-08-User.jso";
+
+        assertFalse(controller.createTx("Einkauf", 10f, null));
+        assertEquals("nothing may be written when the transaction was refused",
+                0, storage.writeCount);
+    }
+
+    @Test
+    public void createTx_withOnlyASenderSelected_returnsFalse()
+            throws JSONException, IOException {
+        InMemorySavefileStorage storage = new InMemorySavefileStorage();
+        Controller controller = new Controller(storage);
+        controller.getModel().currentFileName = "2026-08-User.jso";
+        controller.getModel().currentSender = new AccountBE("Girokonto");
+
+        assertFalse(controller.createTx("Einkauf", 10f, null));
+        assertTrue("the sender must not be charged for a transaction that never happened",
+                controller.getModel().currentSender.getTxList().isEmpty());
+    }
+
+    // endregion
+
     private void putEmpty(InMemorySavefileStorage storage, String name) {
         storage.files.put(name, new byte[0]);
     }

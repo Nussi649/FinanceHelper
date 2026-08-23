@@ -222,6 +222,12 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
                 newAmount.setText("");
                 onRefresh();
                 showToastLong(R.string.toast_success_new_entry);
+            } else if (getModel().currentSender == null || getModel().currentReceiver == null) {
+                showToastLong(R.string.toast_error_no_sender_or_receiver);
+            } else {
+                // createTx returned false for some other reason. Silence here would leave the
+                // input fields populated and the user unsure whether anything happened.
+                showToastLong(R.string.toast_error_tx_not_created);
             }
         });
 

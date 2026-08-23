@@ -95,8 +95,17 @@ public class TxSwipeActions implements TxListSection.TxActions {
             public void onDismissed(Snackbar snackbar, int event) {
                 if (event != Snackbar.Callback.DISMISS_EVENT_ACTION) {
                     try {
-                        controller.deleteTx(account, tx);
-                        onChanged.onRefresh();
+                        // The row is already gone from the adapter at this point. If deleteTx
+                        // cannot find the transaction it returns false and never saves, so the
+                        // delete exists only on screen - which is exactly how swipe-deletes used
+                        // to be lost. Put the row back and say so rather than looking successful.
+                        if (controller.deleteTx(account, tx)) {
+                            onChanged.onRefresh();
+                        } else {
+                            adapter.addEntry(position, tx);
+                            Toast.makeText(context, R.string.toast_error_tx_not_deleted,
+                                    Toast.LENGTH_LONG).show();
+                        }
                     } catch (JSONException | IOException e) {
                         showErrorToast(e);
                     }

@@ -36,6 +36,15 @@ public class TxService {
     public boolean createTx(String desc, float amount, RedirectionPrompt prompt) throws JSONException, IOException {
         AccountBE from_acc = model.currentSender;
         AccountBE to_acc = model.currentReceiver;
+        // addFunds already guards its receiver this way; this path did not, so a transaction
+        // attempted with nothing selected threw NullPointerException out of addTx instead of
+        // reporting a missing selection
+        if (from_acc == null || to_acc == null) {
+            Log.println(Log.ERROR, "create_tx", String.format(
+                    "Cannot create transaction: sender (%s) or receiver (%s) is not selected.",
+                    from_acc, to_acc));
+            return false;
+        }
         Calendar calendar = Calendar.getInstance();
         TxBE entry_from = new TxBE(amount*(-1.0f), desc, calendar.getTime());
         TxBE entry_to = new TxBE(amount, desc, calendar.getTime());
@@ -57,6 +66,15 @@ public class TxService {
             });
             return true;
         }
+        // Both entries were added optimistically above. Without undoing them here they would sit
+        // in the model unsaved, and the next navigation - AbstractActivity.startActivity saves on
+        // every one - would write them to disk anyway, booking a transaction whose redirection
+        // had failed. startTxRedirection cannot return false today, so this is currently
+        // unreachable; it is the shape of the bug rather than the bug itself.
+        from_acc.removeTx(entry_from);
+        to_acc.removeTx(entry_to);
+        Log.println(Log.ERROR, "create_tx",
+                "Transaction redirection did not complete; the transaction was not booked.");
         return false;
     }
 
@@ -210,9 +228,9 @@ public class TxService {
         // search every account - asset accounts and budget accounts at every sub-budget depth -
         // for the other half of the transfer. model.getAllAccounts() recurses the whole
         // sub-budget tree via getAllSubBudgets(), unlike a hand-built one-level list.
-        // (it must not be mutated beyond this point, since it's the live model list - but
-        // getAllAccounts() allocates a fresh ArrayList on every call, so the remove() below is
-        // safe. Do not "optimise" that allocation away.)
+        // The remove() below mutates this list, which is only safe because getAllAccounts()
+        // allocates a fresh ArrayList on every call rather than handing back a live model list.
+        // Do not "optimise" that allocation away.
         List<AccountBE> toSearch = model.getAllAccounts();
         // remove source account, which by then will inevitably have been added
         toSearch.remove(source);
