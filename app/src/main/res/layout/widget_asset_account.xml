@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<View.AccountWidget xmlns:android="http://schemas.android.com/apk/res/android"
+<com.privat.pitz.financehelper.ui.AccountWidget xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root_layout"
     android:layout_height="wrap_content"
     android:layout_width="match_parent"
@@ -82,4 +82,4 @@
                 android:text="@string/label_currency"/>
         </RelativeLayout>
     </LinearLayout>
-</View.AccountWidget>
+</com.privat.pitz.financehelper.ui.AccountWidget>

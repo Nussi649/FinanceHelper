@@ -7,7 +7,7 @@ import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
-import Logic.AccountBE;
+import com.privat.pitz.financehelper.data.AccountBE;
 
 public class SettingsActivity extends AbstractActivity {
 

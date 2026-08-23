@@ -23,10 +23,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.BudgetAccountListHandler;
-import Backend.Util;
-import Logic.BudgetAccountBE;
-import View.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.BudgetAccountBE;
+import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.BudgetFigures;
+import com.privat.pitz.financehelper.ui.PercentageBackground;
 
 public class BudgetsActivity extends AbstractActivity implements BudgetAccountListHandler {
     List<BudgetAccountTableRow> budgetViews = new ArrayList<>();
@@ -253,10 +255,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
                 updateUISums();
             }
         } catch (JSONException | IOException e) {
-            if (e instanceof JSONException)
-                showToastLong(R.string.toast_error_JSONError);
-            else
-                showToastLong(R.string.toast_error_IOError);
+            showErrorToast(e);
         }
     }
     // endregion
@@ -264,20 +263,10 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     // set values of total sum text views
     @SuppressLint("DefaultLocale")
     private void updateUISums() {
-        float current_percentage = Util.calculateAdvancedPercentage(totalAvailableBudget, totalSpent, totalAllottedBudget);
-
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(totalAvailableBudget),5);
-        String currentSumString = String.format("%s / %s",
-                Util.formatLargeFloatShort(totalSpent),
-                currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                (current_percentage) * 100);
-        String yearly_budget_string = Util.formatLargeFloatShort(totalYearlyBudget);
-        totalValue.setText(currentSumString);
-        totalPercentage.setText(currentPercentageString);
-        totalYearly.setText(yearly_budget_string);
+        float current_percentage = BudgetFigures.render(totalValue, totalPercentage, totalYearly,
+                totalSpent, totalAvailableBudget, totalAllottedBudget, totalYearlyBudget);
 
         // color percentage label
-        totalPercentage.setBackground(Util.evaluatePercentageBG(current_percentage, this));
+        totalPercentage.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, this));
     }
 }

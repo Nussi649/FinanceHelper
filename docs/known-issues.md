@@ -55,6 +55,14 @@ written when this was still open). Fixed by overriding `initListGestures()` in
 button (`RecurringTxAdapter` → `parentActivity.deleteOrder(entry)`), so the base swipe handler
 (built for `TxBE`/`TxListAdapter`) was never meant to be attached here in the first place.
 
+**Superseded**: `RecurringTxActivity` no longer extends `AssetAccountDetailsActivity` at all — it
+now extends `AbstractActivity` directly and owns a `ui/TxListSection` instead of inheriting a list.
+The shadowed `listAdapter` field (and the `initListGestures()`/`hasEntries()`/`filterEntries()`
+overrides that existed only to work around the inheritance) are gone from the file entirely. The
+no-op override above was a correct fix at the time, but it was still a workaround for a shadowed
+field that could, in principle, be reintroduced by a careless future edit; now that the field no
+longer exists, this whole NPE class is structurally impossible rather than merely avoided.
+
 ### 5. Unguarded/locale-unsafe numeric parsing — FIXED
 
 All six sites listed below were fixed by wrapping each parse in a `try/catch (NumberFormatException)`
@@ -72,9 +80,78 @@ asset and budget accounts, but budget-account entries are plausibly typed with c
 (e.g. "12,50") far more often in practice than asset-account balance adjustments, which would explain
 why the crash was reported as budget-account-specific even though the underlying code path wasn't.
 
+## Fixed in the Phase 6/7 cleanup
+
+### 1. Asset-preview child rows registered the *parent's* radio buttons — FIXED
+
+`ui/AccountPreviewList.populateAssetAccountsPreview` read the child row's radio buttons off
+`newItem` (the parent list item) instead of `child`, so every child iteration re-registered the
+parent's two buttons under a different child account, overwriting the mapping each time. No
+child's own buttons were ever registered, and selecting a child as sender/receiver did not
+resolve to that child.
+
+The line above it already read `child.getReferenceAccount()` correctly, and the budget variant of
+the same loop uses `child.getRBReceiver()` — which is what marked this as a copy-paste slip. Fixed
+by reading both buttons off `child`.
+
+### 2. Tx sum disagreed with the visible list while a search filter was active — FIXED
+
+`TxListSection.applyFilter` summed the visible (filtered) rows; `onRefresh()` on both details
+screens re-summed the whole account via `renderTxSum(mAccount.getSum())`. Editing or deleting a
+transaction while filtering therefore repainted the sum as the account total while the list still
+showed the filtered subset.
+
+Both `onRefresh` methods now call `section.refresh()`, so the number always describes the rows on
+screen. With no filter active that is the full account sum, exactly as before.
+
+### 3. Swipe-delete mutated the model before `deleteTx` could persist it — FIXED
+
+With no filter active, `applyFilter` handed the adapter the live model list:
+`entriesSupplier.get()` returns `mAccount.getTxList()`, which `AccountBE` returns **by reference**
+(`AccountBE.java:24-26`), and `TxListAdapter.setEntries` stores what it is given without copying.
+
+So the optimistic `adapter.removeEntry(tx)` on swipe-left removed the transaction from the account
+itself. When the Undo Snackbar expired, `TxService.deleteTx` found `getTxIndex(tx) == -1`, returned
+`false`, and never called `saveOrRevert` — the delete was **never written to disk**. It usually
+survived anyway, because `AbstractActivity.startActivity` saves on every navigation, so leaving the
+screen persisted the already-mutated model; killing the app from the details screen lost it.
+
+With a filter active the same path built a fresh list, so deletes persisted correctly. The bug only
+bit in the unfiltered case, which is why it was never obvious.
+
+Fixed by having `applyFilter` always build its own list and hand that same instance to both the
+adapter and `lastVisibleEntries`, so swipe positions stay in step with what the adapter holds. The
+model is now changed only by `Controller.deleteTx` — the one path that saves.
+
+### 4. "New budget account" dialog was a hand-rolled duplicate — FIXED
+
+`BudgetsActivity.openNewBudgetDialog` reimplemented `CreateBudgetAccountDialog` by hand. It showed
+hardcoded English "Confirm"/"Cancel" buttons, set no title at all, and used a real positive-button
+listener — so `AlertDialog` dismissed on every click and an unparseable amount closed the dialog,
+discarding everything typed. It also reported "amount is empty" when the *name* was the missing
+field, because it tested both in one condition. Replaced with the shared dialog.
+
 ## Not yet fixed
 
-(none currently — see "Already fixed this session" above for full history)
+### 1. `updateTx`'s account search only descends one level of sub-budget
+
+`TxService.updateTx` (both overloads) builds its search list by hand: every budget account plus its
+`getDirectSubBudgets()` — **one level only**. `Model.getAllAccounts()` recurses all levels.
+
+Consequence: editing a transaction that lives in a 2nd-level-or-deeper sub-budget fails to find and
+update its counterpart, so the two sides of the transfer silently drift apart.
+
+Left alone deliberately. Merging the two overloads onto `Model.getAllAccounts()` would fix this,
+but it is a behaviour change that needs a decision about whether deep sub-budget transactions
+*should* be matched, plus a test — not something to slip into a dedup commit.
+
+### 2. Budget branch of `completeTxRedirection` logs "asset" on a parse failure
+
+`TxRedirectionService.injectTx` reports `"Could not parse asset account object!"` regardless of
+which array it was scanning, because the budget loop was a copy of the asset loop. Log text only —
+no behavioural effect — and preserved verbatim through the loop-collapsing commit so that commit
+changed nothing. Now that the message exists once rather than twice, the fix is a one-line change
+whenever it is wanted.
 
 ## Historical: issues as originally found (kept for reference)
 
