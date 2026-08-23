@@ -89,12 +89,9 @@ public class TxService {
         Calendar calendar = Calendar.getInstance();
         AccountBE sender = model.currentSender;
         AccountBE receiver = model.currentReceiver;
-        try {
-            assert sender != null;
-            assert receiver != null;
-        } catch (AssertionError e) {
+        if (sender == null || receiver == null) {
             Log.println(Log.ERROR, "get_tx_partners",
-                    String.format("Error trying to retrieve sender or receiver account from model: %s", e));
+                    "Error trying to retrieve sender or receiver account from model: no selection");
             return false;
         }
         RecurringTxBE newOrder = new RecurringTxBE(amount, desc, calendar.getTime(), sender.getName(), receiver.getName());
@@ -128,47 +125,49 @@ public class TxService {
 
         Calendar fom = Const.getFirstOfMonth();
         List<AccountTxCombo> addedTx = new ArrayList<>();
+        List<TxBE> addedIncome = new ArrayList<>();
         for (RecurringTxBE r : model.recurringTx) {
             AccountBE receiver = model.getAccountByName(r.getReceiverStr());
-            TxBE receiverTx = new TxBE(r.getAmount(), r.getDescription(), fom.getTime());
-            try {
-                assert receiver != null;
-            } catch (AssertionError e) {
+            if (receiver == null) {
                 Log.println(Log.INFO, "execute_recur_tx",
-                        String.format("Error triggering recurring Transactions: Could not find Sender (%s) or Receiver (%s) account",
-                                r.getSenderStr(),
+                        String.format("Skipping recurring transaction: could not find Receiver (%s) account",
                                 r.getReceiverStr()));
                 continue;
             }
-            try {
-                assert !r.getSenderStr().equals("");
-            } catch (AssertionError e) {
-                // assuming RecurringTx is a recurring income -> add to currentIncome instead, ignore for addedTx
+            TxBE receiverTx = new TxBE(r.getAmount(), r.getDescription(), fom.getTime());
+
+            String senderName = r.getSenderStr();
+            if (senderName == null || senderName.isEmpty()) {
+                // no sender means this is a recurring income: credit the receiver and record it
+                // in the income list, with no counter-booking anywhere
                 TxBE incomeTx = new TxBE(r.getAmount(), r.getDescription(), fom.getTime());
                 model.currentIncome.add(incomeTx);
+                addedIncome.add(incomeTx);
                 receiver.addTx(receiverTx);
                 addedTx.add(new AccountTxCombo(receiver, receiverTx));
                 continue;
             }
-            AccountBE sender = model.getAccountByName(r.getSenderStr());
-            try {
-                assert sender != null;
-                TxBE senderTx = new TxBE(r.getAmount()*(-1.0f), r.getDescription(), fom.getTime());
-                sender.addTx(senderTx);
-                receiver.addTx(receiverTx);
-                addedTx.add(new AccountTxCombo(sender, senderTx));
-                addedTx.add(new AccountTxCombo(receiver, receiverTx));
-            } catch (AssertionError e) {
+
+            AccountBE sender = model.getAccountByName(senderName);
+            if (sender == null) {
                 Log.println(Log.INFO, "execute_recur_tx",
-                        String.format("Error triggering recurring Transactions: Could not find Sender (%s) or Receiver (%s) account",
-                                r.getSenderStr(),
-                                r.getReceiverStr()));
+                        String.format("Skipping recurring transaction: could not find Sender (%s) account",
+                                senderName));
+                continue;
             }
+            TxBE senderTx = new TxBE(r.getAmount() * (-1.0f), r.getDescription(), fom.getTime());
+            sender.addTx(senderTx);
+            receiver.addTx(receiverTx);
+            addedTx.add(new AccountTxCombo(sender, senderTx));
+            addedTx.add(new AccountTxCombo(receiver, receiverTx));
         }
         repo.saveOrRevert("save_file", "triggering recurring transactions", () -> {
             for (AccountTxCombo entry : addedTx) {
                 entry.account.getTxList().remove(entry.tx);
             }
+            // the income entries were never rolled back before, because the branch that creates
+            // them could not run at all
+            model.currentIncome.removeAll(addedIncome);
         });
     }
     // endregion
