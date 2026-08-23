@@ -44,9 +44,23 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         super.onCreate(savedInstanceState);
         passedOnCreate = true;
 
-        if (controller != null) {
-            model = controller.getModel();
+        if (controller == null) {
+            // Android killed the process and has now restored this activity directly - returning
+            // through Recents restores the task's top activity, which is whichever screen the user
+            // was last on, not the launcher. Controller.instance is static, so it died with the
+            // process, and only MainActivity.onCreate calls onAppStartup() to rebuild it.
+            //
+            // Every workingThread() override below dereferences getModel() immediately, so
+            // continuing here crashes the process. Even bootstrapping the controller would not
+            // help: the rebuilt model is empty, and a details screen restored against it has no
+            // account to show. Hand back to MainActivity, which knows how to load state properly.
+            Log.println(Log.INFO, "lifecycle", String.format(
+                    "%s was restored without a Controller (process death); restarting from MainActivity.",
+                    getClass().getSimpleName()));
+            restartFromMainActivity();
+            return;
         }
+        model = controller.getModel();
         AbstractActivity self = this;
         new Thread(new Runnable() {
             @Override
@@ -248,6 +262,22 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
             showErrorToast(e);
         }
         startActivity(intent);
+    }
+
+    /**
+     * Sends the user back to MainActivity and closes this screen, clearing everything above it.
+     *
+     * <p>Used when this activity has been restored into a process that no longer holds any app
+     * state. MainActivity is the only screen that bootstraps the Controller and loads a save file,
+     * so it is the only sensible place to land.
+     */
+    private void restartFromMainActivity() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        // deliberately not AbstractActivity.startActivity(Class): that one saves the model first,
+        // and there is no model here to save
+        super.startActivity(intent);
+        finish();
     }
 
     protected void onAppStartup() {
