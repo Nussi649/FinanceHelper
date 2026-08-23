@@ -19,9 +19,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.Util;
-import Logic.AccountBE;
-import View.AccountWidget;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.AccountBE;
+import com.privat.pitz.financehelper.ui.AccountWidget;
 
 public class AssetsActivity extends AbstractActivity {
     List<AccountWidget> loadedWidgets = new ArrayList<>();
@@ -43,19 +43,6 @@ public class AssetsActivity extends AbstractActivity {
         super.onStart();
         // only act, if activity has already been visited before
         if (!passedOnCreate) {
-            // check if loaded widgets still equal model.asset_accounts
-//            boolean canRefresh = checkLists();
-//            runOnUiThread(canRefresh ? new Runnable() {
-//                @Override
-//                public void run() {
-//                    onRefresh();
-//                }
-//            } : new Runnable() {
-//                @Override
-//                public void run() {
-//                    reloadContent();
-//                }
-//            });
             // for now no easy way identified to check, if reload is necessary or refresh suffices
             // reload could be required not only if not all accounts are loaded but also if transactions within account differ
             runOnUiThread(new Runnable() {
@@ -185,10 +172,8 @@ public class AssetsActivity extends AbstractActivity {
                 showToastLong(R.string.toast_success_new_account);
                 addAccountToUI(newAccount);
             }
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
     }
 
@@ -206,17 +191,4 @@ public class AssetsActivity extends AbstractActivity {
         setCustomTitle();
     }
 
-    // region util
-    private boolean checkLists() {
-        if (loadedWidgets.size() != model.asset_accounts.size()) {
-            return false;
-        }
-        for (int i = 0; i < loadedWidgets.size(); i++) {
-            if (!loadedWidgets.get(i).getAccount().equals(model.asset_accounts.get(i))) {
-                return false;
-            }
-        }
-        return true;
-    }
-    // endregion
 }

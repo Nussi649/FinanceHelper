@@ -5,6 +5,9 @@
     <!-- Buttons -->
     <string name="confirm">Bestätigen</string>
     <string name="cancel">Abbrechen</string>
+    <string name="ok">OK</string>
+    <string name="label_undo">Rückgängig</string>
+    <string name="toast_info_new_month_created">Neues Blatt für %1$s angelegt.</string>
 
     <!-- Titles & Loading Screen -->
     <string name="default_account_title">Account Title</string>
@@ -46,7 +49,6 @@
     <string name="label_account_renewal">Periodizität</string>
     <string name="label_renewal_period">Periode</string>
     <string name="label_next_renewal">Nächste Ausführung</string>
-    <string name="label_hidden">verstecken</string>
     <string name="label_delete_account">Konto löschen</string>
     <string name="label_budgets">Budgets</string>
     <string name="label_budget_account">Budgetkonto</string>
@@ -65,7 +67,6 @@
     <string name="label_yearly_budget">Jahresbudget</string>
     <string name="label_yearly_budget_set">Jahresbudget eintragen</string>
     <string name="label_yearly_budget_edit">Jahresbudget bearbeiten</string>
-    <string name="label_yearly_budget_adjust">Jahresbudgets anpassen</string>
         <!-- Transaction related -->
     <string name="label_recurring_orders">Daueraufträge</string>
     <string name="label_transaction_edit">Transaktion bearbeiten</string>
@@ -124,7 +125,6 @@
     <string name="toast_error_recurring_tx_not_found">Der Dauerauftrag konnte nicht gefunden werden.</string>
     <string name="toast_error_transaction_redirection">Die Transaktion konnte nicht weiter geleitet werden.</string>
     <string name="toast_error_update_entries_no_partner">Es konnte keine zugehörige Transaktion gefunden werden. Es wurden keine Änderungen vorgenommen.</string>
-    <string name="toast_error_invalid_filename">Die angegebene Datei existiert nicht.</string>
     <string name="toast_error_no_valid_files">Es gibt keine gültigen Dateien.</string>
     <string name="toast_error_backup_failed">Die Sicherung konnte nicht erstellt werden.</string>
     <string name="toast_error_restore_failed">Die Wiederherstellung ist fehlgeschlagen. Ist die gewählte Datei eine gültige Sicherung?</string>
@@ -133,7 +133,6 @@
     <string name="toast_error_sync_failed">Der Sync-Ordner konnte nicht gelesen oder beschrieben werden.</string>
     <string name="toast_error_sync_folder_invalid">Der Zugriff auf den Sync-Ordner ist nicht mehr gültig. Bitte wähle ihn erneut aus.</string>
     <string name="toast_error_select_both_accounts">Bitte beide Konten auswählen.</string>
-    <string name="toast_error_invalid_import">Syntaxfehler in den Daten.</string>
     <string name="toast_error_empty_description">Das Beschreibungsfeld ist leer.</string>
     <string name="toast_error_account_name_taken">Es existiert bereits ein Konto mit diesem Namen.</string>
     <string name="toast_error_empty_amount">Es ist kein Betrag angegeben.</string>
@@ -152,6 +151,15 @@
     <string name="toast_error_IOError">Es ist ein Fehler beim Schreiben der Speicherdatei aufgetreten. Es wurden keine Änderungen vorgenommen.</string>
         <!-- Info -->
     <string name="toast_info_blank_accounts">Es wurden leere Konten geladen.</string>
+    <string name="toast_warn_integrity_findings">Integritätsprüfung: %1$d Auffälligkeit(en) in der geladenen Datei. Details über das Menü "Integritätsprüfung".</string>
+    <string name="label_update_counterpart">Gegenbuchung mit ändern</string>
+    <string name="toast_info_no_counterpart_found">Keine Gegenbuchung gefunden - nur diese Buchung wurde geändert.</string>
+    <string name="toast_error_tx_not_deleted">Die Buchung konnte nicht gelöscht werden und wurde wiederhergestellt.</string>
+    <string name="toast_error_same_sender_and_receiver">Sender- und Empfängerkonto dürfen nicht dasselbe Konto sein.</string>
+    <string name="toast_error_no_sender_or_receiver">Bitte Sender- und Empfängerkonto auswählen.</string>
+    <string name="toast_error_tx_not_created">Die Buchung konnte nicht angelegt werden.</string>
+    <string name="toast_info_load_repaired">Speicherdatei geladen: %1$d Feld(er) fehlten oder waren ungültig und wurden durch Standardwerte ersetzt. Details im Log.</string>
+    <string name="label_load_problems_title">Achtung: %1$d Eintrag/Einträge beim Laden verworfen</string>
 
     <!-- Snackbar -->
     <string name="snackbar_tx_deleted">Transaktion gelöscht</string>
@@ -161,7 +169,6 @@
     <string name="question_delete_account">Wollen Sie wirklich das Konto löschen?</string>
 
     <!-- Signs -->
-    <string name="sign_delete">-</string>
     <string name="sign_expand">+</string>
     <string name="sign_contract">-</string>
 

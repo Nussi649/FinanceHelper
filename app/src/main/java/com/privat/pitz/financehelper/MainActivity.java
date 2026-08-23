@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Looper;
+import android.util.Log;
 import android.app.AlertDialog;
 import android.text.InputFilter;
 import android.view.Menu;
@@ -23,7 +24,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -31,19 +31,21 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-import Backend.Const;
-import Backend.Controller;
-import Backend.IntegrityChecker;
-import Backend.RbAccountManager;
-import Backend.Util;
-import View.Dialogs.AddIncomeDialog;
-import View.Dialogs.EditSourceCodeDialog;
-import View.Dialogs.CurrentIncomeDialog;
-import View.Dialogs.LoadFileDialog;
-import View.Dialogs.SaveFileDialog;
-import View.Dialogs.TransactionRedirectionDialog;
+import com.privat.pitz.financehelper.core.Const;
+import com.privat.pitz.financehelper.core.Controller;
+import com.privat.pitz.financehelper.core.IntegrityChecker;
+import com.privat.pitz.financehelper.core.RedirectionPrompt;
+import com.privat.pitz.financehelper.ui.AccountPreviewList;
+import com.privat.pitz.financehelper.ui.RbAccountManager;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.ui.dialog.AddIncomeDialog;
+import com.privat.pitz.financehelper.ui.dialog.EditSourceCodeDialog;
+import com.privat.pitz.financehelper.ui.dialog.CurrentIncomeDialog;
+import com.privat.pitz.financehelper.ui.dialog.LoadFileDialog;
+import com.privat.pitz.financehelper.ui.dialog.SaveFileDialog;
+import com.privat.pitz.financehelper.ui.dialog.TransactionRedirectionDialog;
 
-public class MainActivity extends AbstractActivity {
+public class MainActivity extends AbstractActivity implements RedirectionPrompt {
 
 
     public EditText newDescription;
@@ -150,12 +152,12 @@ public class MainActivity extends AbstractActivity {
         LinearLayout container_assets = findViewById(R.id.overview_asset_accounts);
         LinearLayout container_budgets = findViewById(R.id.overview_budget_accounts);
 
-        Util.populateAssetAccountsPreview(model.asset_accounts,
+        AccountPreviewList.populateAssetAccountsPreview(model.asset_accounts,
                 this,
                 container_assets,
                 rbReceiver,
                 rbSender);
-        Util.populateBudgetAccountsPreview(model.budget_accounts,
+        AccountPreviewList.populateBudgetAccountsPreview(model.budget_accounts,
                 this,
                 container_budgets,
                 rbReceiver);
@@ -189,7 +191,6 @@ public class MainActivity extends AbstractActivity {
 
         open_budgets_detailed.setOnClickListener(view -> startActivity(BudgetsActivity.class));
 
-        MainActivity parent = this;
         addTx.setOnClickListener(v -> {
             String des = newDescription.getText().toString();
             String am = newAmount.getText().toString();
@@ -212,7 +213,7 @@ public class MainActivity extends AbstractActivity {
             // try creating a transaction and wait for result
             boolean result = false;
             try {
-                result = controller.createTx(parent, des, amount);
+                result = controller.createTx(des, amount, this);
             } catch (JSONException | IOException e) {
                 showErrorToast(e);
             }
@@ -222,6 +223,17 @@ public class MainActivity extends AbstractActivity {
                 newAmount.setText("");
                 onRefresh();
                 showToastLong(R.string.toast_success_new_entry);
+            } else if (getModel().currentSender != null
+                    && getModel().currentSender == getModel().currentReceiver) {
+                showToastLong(R.string.toast_error_same_sender_and_receiver);
+            } else if (!getModel().hasLiveTxSelection()) {
+                // covers both "nothing picked" and "the pick is stale": the radio buttons are
+                // rebuilt on every refresh, so a stale selection also shows as none selected
+                showToastLong(R.string.toast_error_no_sender_or_receiver);
+            } else {
+                // createTx returned false for some other reason. Silence here would leave the
+                // input fields populated and the user unsure whether anything happened.
+                showToastLong(R.string.toast_error_tx_not_created);
             }
         });
 
@@ -239,7 +251,7 @@ public class MainActivity extends AbstractActivity {
 
             try {
                 float amount = Util.parseAmount(amountString);
-                boolean result = controller.addRecurringTx(parent, description, amount);
+                boolean result = controller.addRecurringTx(description, amount);
                 if (result) {
                     showToast(R.string.toast_success_new_recurring_tx);
                     newDescription.setText("");
@@ -277,6 +289,7 @@ public class MainActivity extends AbstractActivity {
         dialog.show();
     }
 
+    @Override
     public void getTransactionRedirectionInput(String targetFileName, JSONObject fileContent, String desc, float amount, JSONArray allAccounts) {
         // calculate list of account names as strings
         List<String> accountNames = new ArrayList<>();
@@ -335,13 +348,13 @@ public class MainActivity extends AbstractActivity {
     }
 
     private void showLoadFileDialog() {
-        List<File> availableFiles = Util.getValidFiles(getFilesDir());
-        LoadFileDialog dialog = new LoadFileDialog(this, availableFiles) {
+        LoadFileDialog dialog = new LoadFileDialog(this, controller.getValidSavefileNames()) {
             @Override
             public void onConfirm(String filename) {
                 try {
                     controller.saveAppSettings();
                     controller.readAccountsFromInternal(filename + Const.ACCOUNTS_FILE_TYPE);
+                    reportLoadProblems();
                     onRefresh();
                 } catch (JSONException | IOException e) {
                     showErrorToast(e);
@@ -537,9 +550,8 @@ public class MainActivity extends AbstractActivity {
     }
 
     private void showIntegrityCheckDialog() {
-        List<File> availableFiles = Util.getValidFiles(getFilesDir());
-        List<String> names = Util.getFileNames(availableFiles);
-        if (names == null || names.isEmpty()) {
+        List<String> names = controller.getValidSavefileNames();
+        if (names.isEmpty()) {
             showToastLong(R.string.toast_error_no_valid_files);
             return;
         }
@@ -569,6 +581,34 @@ public class MainActivity extends AbstractActivity {
         dialog.setButton(AlertDialog.BUTTON_POSITIVE, getString(R.string.confirm), (d, w) -> d.dismiss());
     }
 
+    /**
+     * Runs the structural integrity checks against the file that was just loaded.
+     *
+     * <p>IntegrityChecker already detected the exact "entry silently discarded" class that hid the
+     * budget-account bug for years - its own test fixture used that very shape as the example. The
+     * check was correct; nobody had ever run it against a real save file, because it was buried in
+     * the overflow menu. A check nobody runs is not a check.
+     *
+     * <p>Deliberately a toast rather than a dialog: this runs on every start, so it must not
+     * become something to dismiss reflexively. It says how many findings there are and points at
+     * the menu action, which does the full before/after comparison and shows the detail. The
+     * findings are logged in full either way.
+     *
+     * <p>Only the single-file structural checks run here. The total-sum conservation check - the
+     * primary one - needs a "before" file to compare against and so stays a manual action.
+     */
+    private void runIntegrityCheckOnLoad() {
+        String fileName = getModel().currentFileName;
+        if (fileName == null)
+            return;
+        IntegrityChecker.Result result = new IntegrityChecker(getController()).check(fileName);
+        if (result.isClean())
+            return;
+        for (IntegrityChecker.Finding finding : result.findings)
+            Log.println(Log.ERROR, "integrity_check_on_load", finding.message);
+        showToastLong(getString(R.string.toast_warn_integrity_findings, result.findings.size()));
+    }
+
     private String formatIntegrityResult(IntegrityChecker.Result result) {
         if (result.isClean())
             return getString(R.string.label_integrity_check_clean);
@@ -583,10 +623,15 @@ public class MainActivity extends AbstractActivity {
     public void initiateAccounts() {
         int response = getController().setupAccounts(false);
         if (response == Controller.LOADED_NEW_MONTH) {
-            showToastLong("New Sheet for Month " + Const.getDisplayableCurrentMonthName() + " created.");
+            showToastLong(getString(R.string.toast_info_new_month_created,
+                    Const.getDisplayableCurrentMonthName()));
         }
         if (response == Controller.CREATED_BLANK)
             showToastLong(getString(R.string.toast_info_blank_accounts));
+        // startup parses the settings file and then the save file; both land in the same report
+        reportLoadProblems();
+        if (response == Controller.LOADED_ACCOUNTS || response == Controller.LOADED_NEW_MONTH)
+            runIntegrityCheckOnLoad();
         rbSender = new RbAccountManager(Const.GROUP_SENDER, controller);
         rbReceiver = new RbAccountManager(Const.GROUP_RECEIVER, controller);
     }

@@ -2,20 +2,20 @@ package com.privat.pitz.financehelper;
 
 import android.view.Menu;
 import android.view.MenuItem;
-
-import androidx.recyclerview.widget.LinearLayoutManager;
+import android.view.View;
+import android.widget.TextView;
 
 import org.json.JSONException;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
-import Backend.RecurringTxAdapter;
-import Logic.RecurringTxBE;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.RecurringTxBE;
+import com.privat.pitz.financehelper.ui.TxListSection;
+import com.privat.pitz.financehelper.ui.adapter.RecurringTxAdapter;
 
-public class RecurringTxActivity extends AssetAccountDetailsActivity {
-    RecurringTxAdapter listAdapter;
+public class RecurringTxActivity extends AbstractActivity {
+    private TxListSection section;
 
     // region AbstractActivity & Activity Overrides
     @Override
@@ -24,68 +24,51 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
     }
 
     @Override
+    protected void endWorkingThread() {
+        setContentView(R.layout.activity_asset_account_details);
+
+        View root = findViewById(R.id.root_layout);
+
+        // The inherited populateUI() used to force this label to the "Σ" short form (rather than
+        // the layout's default "Total Σ") whenever this layout backs an activity screen. Preserve
+        // that so the recurring-orders screen keeps looking the way it always has.
+        TextView labelSigma = findViewById(R.id.container_tx_sum).findViewById(R.id.label_sigma);
+        labelSigma.setText(R.string.label_sum_tx);
+
+        TextView indivValue = findViewById(R.id.container_tx_sum).findViewById(R.id.total_current_value);
+
+        RecurringTxAdapter adapter = new RecurringTxAdapter(this);
+
+        // No swipeActions: recurring orders have a per-row delete button (RecurringTxAdapter ->
+        // parentActivity.deleteOrder(entry)) instead of the swipe-to-edit/delete gesture that
+        // TxListSection would otherwise attach. Passing null here means no ItemTouchHelper is
+        // attached at all, which is the correct behavior for this screen.
+        section = new TxListSection(
+                root,
+                adapter,
+                () -> getModel().recurringTx,
+                RecurringTxAdapter.MATCH_SENDER_RECEIVER_OR_DESCRIPTION,
+                sum -> {
+                    String newString = Util.formatLargeFloatDisplay(sum) + "x";
+                    indivValue.setText(newString.replace("x", getString(R.string.label_currency)));
+                },
+                null);
+
+        // The inherited "no entries" check used to look at model.currentIncome (the income list),
+        // which has nothing to do with recurring orders - a live bug. This keys the toast off the
+        // correct list (model.recurringTx, via the section that was just populated from it).
+        if (section.isEmpty()) {
+            showToastLong(R.string.toast_error_no_entries);
+        }
+
+        setTitle();
+    }
+
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) { return true; }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) { return true; }
-    // endregion
-
-    // region AssetAccountDetailsActivity Overrides
-    @Override
-    protected void filterEntries(CharSequence filter) {
-        float sum = 0.0f;
-        List<RecurringTxBE> entries;
-
-        // Filter the entries based on the filter string
-        if (filter == null) {
-            entries = getModel().recurringTx;
-        } else {
-            entries = new ArrayList<>();
-            for (RecurringTxBE entr : getModel().recurringTx) {
-                if (entr.getDescription().contains(filter) ||
-                        entr.getSenderStr().contains(filter) ||
-                        entr.getReceiverStr().contains(filter)) {
-                    entries.add(entr);
-                }
-            }
-        }
-
-        // Calculate the sum of the amounts
-        for (RecurringTxBE entr : entries) {
-            sum += entr.getAmount();
-        }
-
-        // Update the sum display
-        setTxSum(sum);
-
-        // Update the RecyclerView adapter's data set and refresh the display
-        listAdapter.setEntries(entries);
-    }
-
-    @Override
-    protected void setContentLayout() {
-        setContentView(R.layout.activity_asset_account_details);
-    }
-
-    @Override
-    protected void initListAdapter() {
-        listAdapter = new RecurringTxAdapter(this);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(listAdapter);
-    }
-
-    @Override
-    protected boolean hasEntries() {
-        return model.currentIncome.size() > 0;
-    }
-
-    @Override
-    protected void initListGestures() {
-        // no-op: the inherited swipe-to-edit/delete gesture is built for TxBE/TxListAdapter.
-        // Recurring orders (RecurringTxBE/RecurringTxAdapter) use a per-row delete button instead
-        // (see RecurringTxAdapter), so attaching the base ItemTouchHelper here would read the
-        // wrong (always-null) listAdapter field and crash on swipe.
-    }
     // endregion
 
     public void deleteOrder(RecurringTxBE recurringTx) {
@@ -97,10 +80,8 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
             } else {
                 showToastLong(R.string.toast_error_recurring_tx_not_found);
             }
-        } catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
     }
 
@@ -111,6 +92,6 @@ public class RecurringTxActivity extends AssetAccountDetailsActivity {
 
     @Override
     public void onRefresh() {
-        filterEntries(null);
+        section.refresh();
     }
 }

@@ -24,11 +24,12 @@ import java.io.IOException;
 import java.text.ParseException;
 import java.util.List;
 
-import Backend.Const;
-import Backend.Controller;
-import Backend.Model;
-import Backend.RefreshListener;
-import Backend.Util;
+import com.privat.pitz.financehelper.core.Const;
+import com.privat.pitz.financehelper.core.Controller;
+import com.privat.pitz.financehelper.core.Model;
+import com.privat.pitz.financehelper.core.ParseReport;
+import com.privat.pitz.financehelper.ui.RefreshListener;
+import com.privat.pitz.financehelper.core.Util;
 
 public abstract class AbstractActivity extends AppCompatActivity implements RefreshListener {
     Controller controller = Controller.instance;
@@ -43,9 +44,23 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         super.onCreate(savedInstanceState);
         passedOnCreate = true;
 
-        if (controller != null) {
-            model = controller.getModel();
+        if (controller == null) {
+            // Android killed the process and has now restored this activity directly - returning
+            // through Recents restores the task's top activity, which is whichever screen the user
+            // was last on, not the launcher. Controller.instance is static, so it died with the
+            // process, and only MainActivity.onCreate calls onAppStartup() to rebuild it.
+            //
+            // Every workingThread() override below dereferences getModel() immediately, so
+            // continuing here crashes the process. Even bootstrapping the controller would not
+            // help: the rebuilt model is empty, and a details screen restored against it has no
+            // account to show. Hand back to MainActivity, which knows how to load state properly.
+            Log.println(Log.INFO, "lifecycle", String.format(
+                    "%s was restored without a Controller (process death); restarting from MainActivity.",
+                    getClass().getSimpleName()));
+            restartFromMainActivity();
+            return;
         }
+        model = controller.getModel();
         AbstractActivity self = this;
         new Thread(new Runnable() {
             @Override
@@ -102,6 +117,7 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
                                     String.format("Error while trying to switch entity. Invalid target entity. Aborting process! Exception: %s", e));
                         return;
                     }
+                    reportLoadProblems();
                     if (titleSpinner.getSelectedItemPosition() != position) {
                         titleSpinner.setSelection(position);  // This will close the dropdown
                     }
@@ -166,8 +182,58 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         LayoutInflater inflater = getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.dialog_basic_edit_text, null);
         builder.setView(dialogView);
-        builder.setPositiveButton("OK", null);
+        builder.setPositiveButton(R.string.ok, null);
         return builder.create();
+    }
+
+    /**
+     * Surfaces whatever the last parse had to default or discard, and clears it.
+     *
+     * <p>Call after any load. The rule this enforces: the app may repair a save file, but it may
+     * not do so behind the user's back. A budget account once vanished on load because the parser
+     * returned null and the caller dropped it in silence - the next save then wrote the model back
+     * without it and the loss became permanent. Nobody was ever told.
+     *
+     * <p>A discard means data is gone, so it gets a dialog that has to be dismissed. A defaulted
+     * field means the record survived, so it gets a toast.
+     *
+     * <p>Safe to call from a worker thread: MainActivity.initiateAccounts runs on one - with its
+     * own prepared Looper, so Toast works there but a dialog would not - so the dialog is posted
+     * to the UI thread rather than shown inline.
+     */
+    protected void reportLoadProblems() {
+        if (model == null)
+            return;
+        ParseReport report = model.takeLoadReport();
+        if (report.isEmpty())
+            return;
+
+        for (ParseReport.Note note : report.getNotes())
+            Log.println(note.severity == ParseReport.Severity.DISCARDED ? Log.ERROR : Log.INFO,
+                    "load_report", note.message);
+
+        if (!report.hasDiscards()) {
+            showToastLong(getString(R.string.toast_info_load_repaired,
+                    report.getNotes().size()));
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        for (ParseReport.Note note : report.getNotes())
+            sb.append("• ").append(note.message).append("\n\n");
+        final String body = sb.toString().trim();
+        final String title = getString(R.string.label_load_problems_title, report.countDiscards());
+        runOnUiThread(() -> showScrollableMessageDialog(title, body));
+    }
+
+    /** Shows a dismissable dialog carrying a long, scrollable diagnostic message. */
+    protected void showScrollableMessageDialog(String title, String message) {
+        AlertDialog dialog = getBasicEditDialog();
+        dialog.setTitle(title);
+        dialog.show();
+        TextView body = dialog.findViewById(R.id.edit_text);
+        if (body != null)
+            body.setText(message);
     }
 
     protected void showConfirmDialog(int msgID, AlertDialog.OnClickListener acceptListener) {
@@ -192,12 +258,26 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         Intent intent = new Intent(this, target);
         try {
             controller.saveAccountsToInternal();
-        }  catch (JSONException e) {
-            showToastLong(R.string.toast_error_JSONError);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_IOError);
+        } catch (JSONException | IOException e) {
+            showErrorToast(e);
         }
         startActivity(intent);
+    }
+
+    /**
+     * Sends the user back to MainActivity and closes this screen, clearing everything above it.
+     *
+     * <p>Used when this activity has been restored into a process that no longer holds any app
+     * state. MainActivity is the only screen that bootstraps the Controller and loads a save file,
+     * so it is the only sensible place to land.
+     */
+    private void restartFromMainActivity() {
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        // deliberately not AbstractActivity.startActivity(Class): that one saves the model first,
+        // and there is no model here to save
+        super.startActivity(intent);
+        finish();
     }
 
     protected void onAppStartup() {

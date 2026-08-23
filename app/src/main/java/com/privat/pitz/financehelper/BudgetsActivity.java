@@ -1,17 +1,14 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.TableLayout;
 import android.widget.TextView;
 
@@ -23,10 +20,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import Backend.BudgetAccountListHandler;
-import Backend.Util;
-import Logic.BudgetAccountBE;
-import View.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.BudgetAccountBE;
+import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.dialog.CreateBudgetAccountDialog;
+import com.privat.pitz.financehelper.ui.BudgetFigures;
+import com.privat.pitz.financehelper.ui.PercentageBackground;
 
 public class BudgetsActivity extends AbstractActivity implements BudgetAccountListHandler {
     List<BudgetAccountTableRow> budgetViews = new ArrayList<>();
@@ -196,37 +196,13 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
 
     // region Dialogs
     public void openNewBudgetDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        LayoutInflater inflater = getLayoutInflater();
-        View view = inflater.inflate(R.layout.dialog_new_budget_account, null);
-
-        EditText budgetNameInput = view.findViewById(R.id.budget_name_input);
-        EditText yearlyBudgetInput = view.findViewById(R.id.yearly_budget_input);
-        EditText currentMonthBudgetInput = view.findViewById(R.id.current_month_budget_input);
-
-        builder.setView(view)
-                .setPositiveButton("Confirm", (dialog, id) -> {
-                    String budgetNameString = budgetNameInput.getText().toString();
-                    String yearlyBudgetString = yearlyBudgetInput.getText().toString();
-                    String currentMonthBudgetString = currentMonthBudgetInput.getText().toString();
-
-                    if (!budgetNameString.isEmpty() && !yearlyBudgetString.isEmpty()) {
-                        try {
-                            float yearlyBudget = Util.parseAmount(yearlyBudgetString);
-                            float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : Util.parseAmount(currentMonthBudgetString);
-
-                            createBudgetAccount(budgetNameString, currentMonthBudget, yearlyBudget);
-                            dialog.dismiss();
-                        } catch (NumberFormatException e) {
-                            showToastLong(R.string.toast_error_invalid_amount);
-                        }
-                    } else {
-                        showToastLong(R.string.toast_error_empty_amount);
-                    }
-                })
-                .setNegativeButton("Cancel", null);
-
-        builder.create().show();
+        CreateBudgetAccountDialog dialog = new CreateBudgetAccountDialog(this) {
+            @Override
+            public void onConfirm(String budgetName, float currentMonthBudget, float yearlyBudget) {
+                createBudgetAccount(budgetName, currentMonthBudget, yearlyBudget);
+            }
+        };
+        dialog.show();
     }
 
 
@@ -253,10 +229,7 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
                 updateUISums();
             }
         } catch (JSONException | IOException e) {
-            if (e instanceof JSONException)
-                showToastLong(R.string.toast_error_JSONError);
-            else
-                showToastLong(R.string.toast_error_IOError);
+            showErrorToast(e);
         }
     }
     // endregion
@@ -264,20 +237,10 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     // set values of total sum text views
     @SuppressLint("DefaultLocale")
     private void updateUISums() {
-        float current_percentage = Util.calculateAdvancedPercentage(totalAvailableBudget, totalSpent, totalAllottedBudget);
-
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(totalAvailableBudget),5);
-        String currentSumString = String.format("%s / %s",
-                Util.formatLargeFloatShort(totalSpent),
-                currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                (current_percentage) * 100);
-        String yearly_budget_string = Util.formatLargeFloatShort(totalYearlyBudget);
-        totalValue.setText(currentSumString);
-        totalPercentage.setText(currentPercentageString);
-        totalYearly.setText(yearly_budget_string);
+        float current_percentage = BudgetFigures.render(totalValue, totalPercentage, totalYearly,
+                totalSpent, totalAvailableBudget, totalAllottedBudget, totalYearlyBudget);
 
         // color percentage label
-        totalPercentage.setBackground(Util.evaluatePercentageBG(current_percentage, this));
+        totalPercentage.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, this));
     }
 }

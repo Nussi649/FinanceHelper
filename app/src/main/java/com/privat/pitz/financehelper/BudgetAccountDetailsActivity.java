@@ -1,6 +1,7 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -16,20 +17,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import Backend.BudgetAccountListHandler;
-import Backend.Util;
-import Logic.AccountBE;
-import Logic.BudgetAccountBE;
-import Logic.ProjectBudgetBE;
-import Logic.TxBE;
-import View.BudgetAccountTableRow;
-import View.Dialogs.CreateBudgetAccountDialog;
-import View.Dialogs.EditRenewalDialog;
-import View.Dialogs.SetYearlyBudgetDialog;
-import View.Dialogs.TransferAvailableBudgetDialog;
-import View.Dialogs.TransferSubBudgetDialog;
+import com.privat.pitz.financehelper.ui.BudgetAccountListHandler;
+import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.AccountBE;
+import com.privat.pitz.financehelper.data.BudgetAccountBE;
+import com.privat.pitz.financehelper.data.ProjectBudgetBE;
+import com.privat.pitz.financehelper.ui.BudgetAccountTableRow;
+import com.privat.pitz.financehelper.ui.BudgetFigures;
+import com.privat.pitz.financehelper.ui.PercentageBackground;
+import com.privat.pitz.financehelper.ui.TxListSection;
+import com.privat.pitz.financehelper.ui.TxSwipeActions;
+import com.privat.pitz.financehelper.ui.adapter.TxListAdapter;
+import com.privat.pitz.financehelper.ui.dialog.CreateBudgetAccountDialog;
+import com.privat.pitz.financehelper.ui.dialog.EditRenewalDialog;
+import com.privat.pitz.financehelper.ui.dialog.SetYearlyBudgetDialog;
+import com.privat.pitz.financehelper.ui.dialog.TransferAvailableBudgetDialog;
+import com.privat.pitz.financehelper.ui.dialog.TransferSubBudgetDialog;
 
-public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity implements BudgetAccountListHandler {
+public class BudgetAccountDetailsActivity extends AbstractActivity implements BudgetAccountListHandler {
     BudgetAccountBE mAccount;
     List<BudgetAccountTableRow> budgetViews = new ArrayList<>();
     LinearLayout rootLayout;
@@ -37,6 +42,12 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     TextView totalPercentage;
     TextView totalYearly;
     TextView tvRenewal;
+
+    TxListSection section;
+    TxListAdapter listAdapter;
+    TextView indivValue;
+    TextView indivPercentage;
+    TextView indivYearly;
 
     // region AbstractActivity & Activity Overrides
     @Override
@@ -60,9 +71,56 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     }
 
     @Override
+    protected void endWorkingThread() {
+        setContentView(R.layout.activity_budget_account_details);
+
+        rootLayout = findViewById(R.id.root_layout);
+        tvRenewal = findViewById(R.id.tv_renewal);
+
+        View containerTx = findViewById(R.id.container_tx_sum);
+        indivValue = containerTx.findViewById(R.id.total_current_value);
+        indivPercentage = containerTx.findViewById(R.id.total_current_percentage);
+        indivYearly = containerTx.findViewById(R.id.total_yearly_budget);
+
+        View containerTotal = findViewById(R.id.container_total_sum);
+        totalValue = containerTotal.findViewById(R.id.total_current_value);
+        totalPercentage = containerTotal.findViewById(R.id.total_current_percentage);
+        totalYearly = containerTotal.findViewById(R.id.total_yearly_budget);
+
+        listAdapter = new TxListAdapter();
+        View recyclerView = rootLayout.findViewById(R.id.recyclerView);
+        TxSwipeActions swipeActions = new TxSwipeActions(this, controller, mAccount, listAdapter, recyclerView, this);
+        section = new TxListSection(
+                rootLayout,
+                listAdapter,
+                () -> mAccount.getTxList(),
+                TxListSection.MATCH_DESCRIPTION,
+                this::renderTxSum,
+                swipeActions);
+
+        // TxListSection hides these two by default (plain asset-account screens don't use them),
+        // but the budget screen needs them visible to show percentage/yearly budget alongside
+        // the sum - restore what BudgetAccountDetailsActivity.initViews() used to do by
+        // re-enabling them after super.initViews() had hidden them.
+        indivPercentage.setVisibility(View.VISIBLE);
+        indivYearly.setVisibility(View.VISIBLE);
+
+        // The inherited populateUI() used to force this label to the short "Σ" form (rather than
+        // the layout's default "Total Σ") for the per-entry sum card. Preserve that.
+        TextView labelSigma = containerTx.findViewById(R.id.label_sigma);
+        labelSigma.setText(R.string.label_sum_tx);
+
+        populateUI();
+    }
+
+    @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();
         inflater.inflate(R.menu.menu_budgetaccount_details, menu);
+        // AssetAccountDetailsActivity used to contribute this second menu via its own
+        // onCreateOptionsMenu() through the super call. Now that the inheritance link is gone,
+        // this activity inflates it directly so "delete budget account" keeps showing up.
+        inflater.inflate(R.menu.menu_account_details, menu);
         return super.onCreateOptionsMenu(menu);
     }
 
@@ -79,47 +137,25 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
             showCreateProjectBudgetDialog();
         } else if (itemId == R.id.item_transfer_sub_budget) {
             showTransferSubBudgetDialog();
+        } else if (itemId == R.id.item_delete_account) {
+            // AssetAccountDetailsActivity used to handle this item through the super call.
+            // Handle it directly now that this activity no longer extends it.
+            deleteAccount();
         }
         return super.onOptionsItemSelected(item);
     }
     // endregion
 
-    // region AssetAccountDetailsActivity Overrides
-    @Override
-    protected void setContentLayout() {
-        setContentView(R.layout.activity_budget_account_details);
-    }
-
-    @Override
-    protected void initViews() {
-        super.initViews();
-        rootLayout = findViewById(R.id.root_layout);
-        tvRenewal = findViewById(R.id.tv_renewal);
-        indivYearly.setVisibility(View.VISIBLE);
-        indivPercentage.setVisibility(View.VISIBLE);
-        View containerTotal = findViewById(R.id.container_total_sum);
-        totalValue = containerTotal.findViewById(R.id.total_current_value);
-        totalPercentage = containerTotal.findViewById(R.id.total_current_percentage);
-        totalYearly = containerTotal.findViewById(R.id.total_yearly_budget);
-    }
-
-    @Override
-    protected void redirectAfterAccountDelete() {
-        startActivity(BudgetsActivity.class);
-    }
-
     @SuppressLint("DefaultLocale")
-    @Override
-    protected void setTxSum(float newValue) {
+    private void renderTxSum(float newValue) {
         float allotted_budget = mAccount.getMeanAllottedIndivBudget();
 
         float current_percentage = Util.calculateAdvancedPercentage(mAccount.indivAvailableBudget, newValue, allotted_budget);
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatDisplay(mAccount.indivAvailableBudget),5);
+        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatDisplay(mAccount.indivAvailableBudget), 5);
         String currentSumString = String.format("%sx / %sx",
                 Util.formatLargeFloatDisplay(newValue),
                 currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                current_percentage * 100);
+        String currentPercentageString = Util.formatPercentage(current_percentage);
         String yearly_budget_string = Util.formatLargeFloatShort(mAccount.indivYearlyBudget) + "x";
         // get currency character
         String currency = getString(R.string.label_currency);
@@ -129,34 +165,21 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         indivYearly.setText(yearly_budget_string.replace("x", currency));
     }
 
-    @Override
-    protected void setTitle() {
-        // needs to override because mAccount is different from parent's mAccount
+    private void setTitle() {
         setCustomTitle();
         setCustomTitleDetails(mAccount.toString());
     }
 
-    @Override
-    protected boolean hasEntries() {
-        // needs to override because mAccount is different from parent's mAccount
-        return !mAccount.getTxList().isEmpty();
-    }
-
-    @Override
-    protected List<TxBE> getEntries() {
-        // needs to override because mAccount is different from parent's mAccount
-        return mAccount.getTxList();
-    }
-
-    @Override
-    protected AccountBE getReference() {
-        return mAccount;
-    }
-
     @SuppressLint("DefaultLocale")
-    protected void populateUI() {
-        // populate tx entries
-        super.populateUI();
+    private void populateUI() {
+        // Reset the search state and repopulate entries against the (possibly freshly reloaded)
+        // mAccount data, mirroring the inherited AssetAccountDetailsActivity.populateUI() ->
+        // filterEntries(null) call this used to rely on via super.populateUI().
+        section.applyFilter(null);
+        if (section.isEmpty()) {
+            showToastLong(R.string.toast_error_no_entries);
+        }
+
         // if budget is a project budget, color background
         if (mAccount instanceof ProjectBudgetBE) {
             rootLayout.setBackgroundColor(getColor(R.color.colorSecondaryLight));
@@ -183,15 +206,32 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
     public void onRefresh() {
         for (BudgetAccountTableRow row : budgetViews)
             row.updateUI();
-        setTxSum(mAccount.getSum());
+        // section.refresh() rather than renderTxSum(mAccount.getSum()): re-sums the rows that
+        // are actually visible, so an active search filter no longer disagrees with the sum.
+        section.refresh();
         updateUITotalSums();
     }
 
-    @Override
-    protected void sortAccountTx() {
-        mAccount.sortTxByDate();
+    private void redirectAfterAccountDelete() {
+        startActivity(BudgetsActivity.class);
     }
-    // endregion
+
+    private void deleteAccount() {
+        Dialog.OnClickListener listener = (dialogInterface, i) -> {
+            try {
+                boolean result = controller.deleteAccount(mAccount);
+                if (result) {
+                    redirectAfterAccountDelete();
+                    showToastLong(R.string.toast_success_delete_account);
+                } else {
+                    showToastLong(R.string.toast_error_account_not_found);
+                }
+            } catch (JSONException | IOException e) {
+                showErrorToast(e);
+            }
+        };
+        showConfirmDialog(R.string.question_delete_account, listener);
+    }
 
     // region BudgetAccountListHandler Overrides
     @Override
@@ -360,21 +400,10 @@ public class BudgetAccountDetailsActivity extends AssetAccountDetailsActivity im
         float current_budget = mAccount.getTotalAvailableBudget();
         float allotted_budget = mAccount.getMeanAllottedTotalBudget();
 
-        float current_percentage = Util.calculateAdvancedPercentage(current_budget, totalSum, allotted_budget);
+        float current_percentage = BudgetFigures.render(totalValue, totalPercentage, totalYearly,
+                totalSum, current_budget, allotted_budget, mAccount.getTotalYearlyBudget());
 
-        // set values of total sum text views
-        String currentBudgetString = Util.formatToFixedLength(Util.formatLargeFloatShort(current_budget),5);
-        String currentSumString = String.format("%s / %s",
-                Util.formatLargeFloatShort(totalSum),
-                currentBudgetString);
-        String currentPercentageString = String.format("%.0f%%",
-                current_percentage * 100);
-        String yearly_budget_string = Util.formatLargeFloatShort(mAccount.getTotalYearlyBudget());
-        totalValue.setText(currentSumString);
-        totalPercentage.setText(currentPercentageString);
-        totalYearly.setText(yearly_budget_string);
-
-        totalPercentage.setBackground(Util.evaluatePercentageBG(current_percentage, this));
+        totalPercentage.setBackground(PercentageBackground.evaluatePercentageBG(current_percentage, this));
     }
 
     private void loadSubBudgets() {
