@@ -80,6 +80,24 @@ asset and budget accounts, but budget-account entries are plausibly typed with c
 (e.g. "12,50") far more often in practice than asset-account balance adjustments, which would explain
 why the crash was reported as budget-account-specific even though the underlying code path wasn't.
 
+### 6. `updateTx`'s account search only descended one level of sub-budget — FIXED
+
+`TxService.updateTx` (both overloads) used to build its search list by hand: every asset account,
+then every budget account plus its `getDirectSubBudgets()` — one level only. Replaced with
+`Model.getAllAccounts()`, which recurses every level via `getAllSubBudgets()`. The
+`toSearch.remove(source)` call afterwards stays safe because `getAllAccounts()` allocates a fresh
+`ArrayList` on every call — see the comment left in `TxService.findTxPair` warning against
+"optimising" that allocation away. Covered by `UpdateTxSubBudgetTest` (2nd-level counterpart is the
+fix, 1st-level counterpart is the regression guard, both overloads).
+
+**Caveat: `TxService.updateTx`/`Controller.updateTx` currently have no caller anywhere in the app.**
+Their only caller used to be `AssetAccountDetailsActivity.updateEntryDescription`/`updateEntryAmount`,
+which were removed earlier on this branch as dead code (their own only callers were commented-out
+lines in the deleted `TxAdvancedAdapter`). So this fix closes a latent defect in a public API, not a
+bug a user can trigger today. It is still worth having fixed now — `updateTx` is the only correct
+implementation of "update one side and keep the counterpart in step" in this codebase, and the live
+swipe-to-edit path has a related, worse gap of its own (see "Not yet fixed" below).
+
 ## Fixed in the Phase 6/7 cleanup
 
 ### 1. Asset-preview child rows registered the *parent's* radio buttons — FIXED
@@ -216,17 +234,18 @@ guard dereferences that would throw anyway, so they are misleading rather than h
 
 ## Not yet fixed
 
-### 1. `updateTx`'s account search only descends one level of sub-budget
+### 1. The live swipe-to-edit path never updates the counterpart transaction
 
-`TxService.updateTx` (both overloads) builds its search list by hand: every budget account plus its
-`getDirectSubBudgets()` — **one level only**. `Model.getAllAccounts()` recurses all levels.
+`ui/TxSwipeActions.onEditRequested` opens `EditTxDialog`, and on confirm just sorts the account's
+tx list and saves — it mutates the `TxBE` object in place and never looks for the matching entry on
+the other side of the transfer. Unlike the old `TxService.updateTx` gap (see the "FIXED" entry
+above), this is not depth-dependent: it desyncs the two sides of a transfer at *every* nesting
+level, including a transfer between two top-level accounts, because it never calls `updateTx` (or
+anything like it) at all. This is the actual live edit path reachable from the UI.
 
-Consequence: editing a transaction that lives in a 2nd-level-or-deeper sub-budget fails to find and
-update its counterpart, so the two sides of the transfer silently drift apart.
-
-Left alone deliberately. Merging the two overloads onto `Model.getAllAccounts()` would fix this,
-but it is a behaviour change that needs a decision about whether deep sub-budget transactions
-*should* be matched, plus a test — not something to slip into a dedup commit.
+Left alone deliberately — it needs a decision about whether an edit *should* propagate to the
+counterpart (and if so, whether to route it through `Controller.updateTx`/`TxService.findTxPair`,
+now that those are fixed and available), not something to fix as a drive-by.
 
 ### 2. Budget branch of `completeTxRedirection` logs "asset" on a parse failure
 

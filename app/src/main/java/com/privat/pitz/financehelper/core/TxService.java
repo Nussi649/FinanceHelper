@@ -173,7 +173,29 @@ public class TxService {
     // endregion
 
     // region update objects
-    public boolean updateTx(Date date, String description, AccountBE source, float newAmount) throws JSONException, IOException {
+
+    /**
+     * The two halves of a transfer, matched by date+description: {@code sourceEntry} is the
+     * entry on the account the caller already has a handle on, {@code counterpartEntry} is the
+     * matching entry found on the other side of the transfer, however deep in the sub-budget
+     * tree it lives.
+     */
+    private static final class TxPair {
+        final TxBE sourceEntry;
+        final TxBE counterpartEntry;
+
+        TxPair(TxBE sourceEntry, TxBE counterpartEntry) {
+            this.sourceEntry = sourceEntry;
+            this.counterpartEntry = counterpartEntry;
+        }
+    }
+
+    /**
+     * Finds the entry matching {@code date}/{@code description} on {@code source}, and its
+     * counterpart entry (same date+description) on whichever other account holds it. Returns
+     * {@code null} if either side cannot be found.
+     */
+    private TxPair findTxPair(Date date, String description, AccountBE source) {
         // try identifying the entry making the call
         TxBE sourceEntry = null;
         for (TxBE e : source.getTxList()) {
@@ -181,98 +203,63 @@ public class TxService {
                 sourceEntry = e;
             }
         }
-        // if none was found, then return false
+        // if none was found, then return null
         if (sourceEntry == null)
-            return false;
-        // assigned inside the search loop above, so not effectively final and not capturable by
-        // the revert lambda without a copy
-        final TxBE foundEntry = sourceEntry;
+            return null;
 
-        // setup list of all accounts to search for other part of transaction
-        // for this take asset accounts which are already of type AccountBE
-        // (copy the list! it must not be mutated, since it's the live model list)
-        List<AccountBE> toSearch = new ArrayList<>(model.asset_accounts);
-        // then transform budget accounts and first order sub budgets
-        List<AccountBE> transformed_budget_accounts = new ArrayList<>();
-        for (BudgetAccountBE budget_account : model.budget_accounts) {
-            transformed_budget_accounts.add(budget_account);
-            List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
-            if (!sub_budgets.isEmpty())
-                transformed_budget_accounts.addAll(sub_budgets);
-
-        }
-        // and add to toSearch list
-        toSearch.addAll(transformed_budget_accounts);
+        // search every account - asset accounts and budget accounts at every sub-budget depth -
+        // for the other half of the transfer. model.getAllAccounts() recurses the whole
+        // sub-budget tree via getAllSubBudgets(), unlike a hand-built one-level list.
+        // (it must not be mutated beyond this point, since it's the live model list - but
+        // getAllAccounts() allocates a fresh ArrayList on every call, so the remove() below is
+        // safe. Do not "optimise" that allocation away.)
+        List<AccountBE> toSearch = model.getAllAccounts();
         // remove source account, which by then will inevitably have been added
         toSearch.remove(source);
-
-        // store old amount for later in case, changes need to be reverted
-        float oldAmount = sourceEntry.getAmount();
 
         for (AccountBE account : toSearch) {
             for (TxBE entry : account.getTxList()) {
                 if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
-                    entry.setAmount(newAmount * (-1.0f));
-                    foundEntry.setAmount(newAmount);
-                    repo.saveOrRevert("save_file", "updating entry amount", () -> {
-                        entry.setAmount(oldAmount * (-1.0f));
-                        foundEntry.setAmount(oldAmount);
-                    });
-                    return true;
+                    return new TxPair(sourceEntry, entry);
                 }
             }
         }
-        return false;
+        return null;
+    }
+
+    public boolean updateTx(Date date, String description, AccountBE source, float newAmount) throws JSONException, IOException {
+        TxPair pair = findTxPair(date, description, source);
+        if (pair == null)
+            return false;
+        final TxBE foundEntry = pair.sourceEntry;
+        final TxBE entry = pair.counterpartEntry;
+
+        // store old amount for later in case, changes need to be reverted
+        float oldAmount = foundEntry.getAmount();
+
+        entry.setAmount(newAmount * (-1.0f));
+        foundEntry.setAmount(newAmount);
+        repo.saveOrRevert("save_file", "updating entry amount", () -> {
+            entry.setAmount(oldAmount * (-1.0f));
+            foundEntry.setAmount(oldAmount);
+        });
+        return true;
     }
 
     public boolean updateTx(Date date, String description, AccountBE source, String newDescription) throws JSONException, IOException {
-        // try identifying the entry making the call
-        TxBE sourceEntry = null;
-        for (TxBE e : source.getTxList()) {
-            if (e.getDate().equals(date) && e.getDescription().equals(description)) {
-                sourceEntry = e;
-            }
-        }
-        // if none was found, then return false
-        if (sourceEntry == null)
+        TxPair pair = findTxPair(date, description, source);
+        if (pair == null)
             return false;
-        // assigned inside the search loop above, so not effectively final and not capturable by
-        // the revert lambda without a copy
-        final TxBE foundEntry = sourceEntry;
+        final TxBE foundEntry = pair.sourceEntry;
+        final TxBE entry = pair.counterpartEntry;
 
-        // setup list of all accounts to search for other part of transaction
-        // for this take asset accounts which are already of type AccountBE
-        // (copy the list! it must not be mutated, since it's the live model list)
-        List<AccountBE> toSearch = new ArrayList<>(model.asset_accounts);
-        // then transform budget accounts and first order sub budgets
-        List<AccountBE> transformed_budget_accounts = new ArrayList<>();
-        for (BudgetAccountBE budget_account : model.budget_accounts) {
-            transformed_budget_accounts.add(budget_account);
-            List<BudgetAccountBE> sub_budgets = budget_account.getDirectSubBudgets();
-            if (!sub_budgets.isEmpty())
-                for (BudgetAccountBE sub_budget : sub_budgets)
-                    transformed_budget_accounts.add(sub_budget);
-
-        }
-        // and add to toSearch list
-        toSearch.addAll(transformed_budget_accounts);
-        // remove source account, which by then will inevitably have been added
-        toSearch.remove(source);
-
-        for (AccountBE account : toSearch) {
-            for (TxBE entry : account.getTxList()) {
-                if (entry.getDate().equals(date) && entry.getDescription().equals(description)) {
-                    entry.setDescription(newDescription);
-                    foundEntry.setDescription(newDescription);
-                    repo.saveOrRevert("save_file", "updating entry description", () -> {
-                        entry.setDescription(description);
-                        foundEntry.setDescription(description);
-                    });
-                    return true;
-                }
-            }
-        }
-        return false;
+        entry.setDescription(newDescription);
+        foundEntry.setDescription(newDescription);
+        repo.saveOrRevert("save_file", "updating entry description", () -> {
+            entry.setDescription(description);
+            foundEntry.setDescription(description);
+        });
+        return true;
     }
     // endregion
 }
