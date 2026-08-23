@@ -89,13 +89,10 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
 
     @Override
     public void onRefresh() {
-        // Deliberately the full account sum, not section.refresh(). The pre-refactor code did
-        // setTxSum(getReference().getSum()) here, which ignores any active search filter - so
-        // after editing or deleting a transaction while filtering, the sum shows the whole
-        // account while the list shows the filtered subset. That disagreement is pre-existing
-        // and BudgetAccountDetailsActivity.onRefresh does the same; changing it is a behaviour
-        // fix that belongs in its own commit, not in this move.
-        renderTxSum(mAccount.getSum());
+        // Re-applies the active filter and re-sums what is actually on screen. With no filter
+        // active this is the whole account, exactly as before; with one active the sum now
+        // agrees with the visible rows instead of silently reverting to the account total.
+        section.refresh();
     }
 
     private void renderTxSum(float newValue) {
