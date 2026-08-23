@@ -38,32 +38,12 @@ public class SaveFileRepository {
     public String exportAccounts() throws JSONException {
         JSONObject json = new JSONObject();
 
-        // save Asset accounts
-        JSONArray asset_accounts_json = new JSONArray();
-        for (AccountBE account : model.asset_accounts) {
-            JSONObject new_account_json = Util.serialise_Account(account);
-            if (new_account_json != null)
-                asset_accounts_json.put(new_account_json);
-        }
-        json.put(Const.JSON_TAG_ASSET_ACCOUNTS, asset_accounts_json);
-
-        // save Budget accounts
-        JSONArray budget_accounts_json = new JSONArray();
-        for (BudgetAccountBE budget_account : model.budget_accounts) {
-            JSONObject new_budget_account_json = Util.serialise_BudgetAccount(budget_account);
-            if (new_budget_account_json != null)
-                budget_accounts_json.put(new_budget_account_json);
-        }
-        json.put(Const.JSON_TAG_BUDGET_ACCOUNTS, budget_accounts_json);
-
-        // save Recurring Orders
-        JSONArray recurring_orders_json = new JSONArray();
-        for (RecurringTxBE recurring_order : model.recurringTx) {
-            JSONObject new_recurring_order_json = Util.serialise_RecurringOrder(recurring_order);
-            if (new_recurring_order_json != null)
-                recurring_orders_json.put(new_recurring_order_json);
-        }
-        json.put(Const.JSON_TAG_RECURRING_TX, recurring_orders_json);
+        json.put(Const.JSON_TAG_ASSET_ACCOUNTS,
+                Util.serialiseAll(model.asset_accounts, Util::serialise_Account));
+        json.put(Const.JSON_TAG_BUDGET_ACCOUNTS,
+                Util.serialiseAll(model.budget_accounts, Util::serialise_BudgetAccount));
+        json.put(Const.JSON_TAG_RECURRING_TX,
+                Util.serialiseAll(model.recurringTx, Util::serialise_RecurringOrder));
 
         // save Income list
         JSONArray income_list_json = Util.serialise_Income(model.currentIncome);

@@ -16,12 +16,11 @@ import java.io.OutputStream;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.function.Function;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -170,21 +169,6 @@ public abstract class Util {
             return filename.substring(0, filename.length() - fileType.length() - 1);
         } else {
             return filename;
-        }
-    }
-
-    public static char evaluatePercentage(float percentage) {
-        LocalDate today = LocalDate.now();
-        YearMonth yearMonthObject = YearMonth.of(today.getYear(), today.getMonth());
-        int daysInMonth = yearMonthObject.lengthOfMonth();
-        float monthProgress = (float) today.getDayOfMonth() / daysInMonth;
-
-        if (percentage > monthProgress + 0.1) {
-            return '+';
-        } else if (percentage < monthProgress - 0.1) {
-            return '-';
-        } else {
-            return 'O';
         }
     }
 
@@ -689,14 +673,22 @@ public abstract class Util {
         return null;
     }
 
-    public static JSONArray serialise_Income(List<TxBE> income_in) {
-        JSONArray new_income_list_json = new JSONArray();
-        for (TxBE income : income_in) {
-            JSONObject income_json = serialise_Entry(income);
-            if (income_json != null)
-                new_income_list_json.put(income_json);
+    /**
+     * Serialises a list into a JSONArray, silently dropping any element the serialiser rejects
+     * with null. The four serialise loops in the save file all had this shape.
+     */
+    public static <T> JSONArray serialiseAll(List<T> items, Function<T, JSONObject> serialiser) {
+        JSONArray array = new JSONArray();
+        for (T item : items) {
+            JSONObject json = serialiser.apply(item);
+            if (json != null)
+                array.put(json);
         }
-        return new_income_list_json;
+        return array;
+    }
+
+    public static JSONArray serialise_Income(List<TxBE> income_in) {
+        return serialiseAll(income_in, Util::serialise_Entry);
     }
     // endregion
 }
