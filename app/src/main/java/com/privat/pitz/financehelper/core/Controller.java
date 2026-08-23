@@ -171,6 +171,10 @@ public class Controller {
         return repo.getCurrentAvailableEntities();
     }
 
+    public List<String> getValidSavefileNames() {
+        return repo.getValidSavefileNames();
+    }
+
     // searches for save files of financial entities regardless of period
     public List<String> getAllAvailableEntities() {
         return repo.getAllAvailableEntities();

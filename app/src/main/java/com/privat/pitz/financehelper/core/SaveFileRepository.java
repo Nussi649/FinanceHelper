@@ -235,6 +235,19 @@ public class SaveFileRepository {
     }
 
     // searches for save files of financial entities regardless of period
+    /**
+     * Names of every valid save file in storage. Replaces callers reaching for
+     * Context.getFilesDir() directly, which bypassed the storage seam entirely.
+     */
+    public List<String> getValidSavefileNames() {
+        List<String> result = new ArrayList<>();
+        for (String name : storage.list()) {
+            if (Util.isValidSavefileName(name))
+                result.add(name);
+        }
+        return result;
+    }
+
     public List<String> getAllAvailableEntities() {
         // Get all files in the directory
         List<String> names = storage.list();

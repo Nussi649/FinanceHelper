@@ -15,18 +15,17 @@ import android.widget.Toast;
 
 import com.privat.pitz.financehelper.R;
 
-import java.io.File;
 import java.util.List;
 
 import com.privat.pitz.financehelper.core.Util;
 
 public abstract class LoadFileDialog {
     private final Context context;
-    private final List<File> availableFiles;
+    private final List<String> availableFileNames;
 
-    public LoadFileDialog(Context context, List<File> availableFiles) {
+    public LoadFileDialog(Context context, List<String> availableFileNames) {
         this.context = context;
-        this.availableFiles = availableFiles;
+        this.availableFileNames = availableFileNames;
     }
 
     public abstract void onConfirm(String filename);
@@ -44,8 +43,7 @@ public abstract class LoadFileDialog {
 
         importButton.setOnClickListener(v -> onImport());
 
-        List<String> availableFileNames = Util.getFileNames(availableFiles);
-        if (availableFileNames == null || availableFileNames.size() == 0)
+        if (availableFileNames == null || availableFileNames.isEmpty())
             Toast.makeText(context, R.string.toast_error_no_valid_files, Toast.LENGTH_LONG).show();
         else {
             for (String s : availableFileNames) {

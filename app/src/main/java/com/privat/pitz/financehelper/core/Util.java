@@ -227,30 +227,6 @@ public abstract class Util {
         }
     }
 
-    public static List<File> getValidFiles(File dir) {
-        File[] files = dir.listFiles();
-        ArrayList<File> matchingFiles = new ArrayList<>();
-        if (files != null) {
-            for (File file : files) {
-                if (isValidSavefileName(file.getName())) {
-                    matchingFiles.add(file);
-                }
-            }
-        } else
-            return null;
-        return matchingFiles;
-    }
-
-    public static List<String> getFileNames(List<File> files) {
-        if (files == null)
-            return null;
-        List<String> re = new ArrayList<>();
-        for (File file : files) {
-            re.add(file.getName());
-        }
-        return re;
-    }
-
     public static JSONArray copyJSONArray(JSONArray arrayIn) {
         JSONArray copyArray = new JSONArray();
         for (int i = 0; i < arrayIn.length(); i++) {

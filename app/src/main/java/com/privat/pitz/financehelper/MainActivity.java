@@ -23,7 +23,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -337,8 +336,7 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
     }
 
     private void showLoadFileDialog() {
-        List<File> availableFiles = Util.getValidFiles(getFilesDir());
-        LoadFileDialog dialog = new LoadFileDialog(this, availableFiles) {
+        LoadFileDialog dialog = new LoadFileDialog(this, controller.getValidSavefileNames()) {
             @Override
             public void onConfirm(String filename) {
                 try {
@@ -539,9 +537,8 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
     }
 
     private void showIntegrityCheckDialog() {
-        List<File> availableFiles = Util.getValidFiles(getFilesDir());
-        List<String> names = Util.getFileNames(availableFiles);
-        if (names == null || names.isEmpty()) {
+        List<String> names = controller.getValidSavefileNames();
+        if (names.isEmpty()) {
             showToastLong(R.string.toast_error_no_valid_files);
             return;
         }
