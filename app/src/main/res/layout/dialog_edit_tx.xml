@@ -47,4 +47,12 @@
         android:inputType="numberDecimal"
         android:hint="@string/label_amount" />
 
+    <CheckBox
+        android:id="@+id/cb_update_counterpart"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:checked="false"
+        android:text="@string/label_update_counterpart" />
+
 </LinearLayout>

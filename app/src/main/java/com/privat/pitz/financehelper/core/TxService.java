@@ -264,6 +264,54 @@ public class TxService {
         return true;
     }
 
+    /**
+     * Applies a whole edit - date, description and amount - to both halves of a transfer at once.
+     *
+     * <p>The per-field overloads below each change one thing, which is wrong for the edit dialog:
+     * it changes all three together, and the pair is matched on date+description, so applying the
+     * changes one at a time would move the goalposts between calls. The date in particular has no
+     * per-field overload precisely because changing it unilaterally breaks the matching.
+     *
+     * <p>{@code oldDate}/{@code oldDescription} must be the values as they were before the user
+     * edited anything - the entry has to still be findable. Nothing is mutated unless both halves
+     * are found, so a false return leaves the model exactly as it was and the caller is free to
+     * apply a one-sided edit instead.
+     *
+     * @return false if either half of the pair could not be found
+     */
+    public boolean updateTxPair(Date oldDate, String oldDescription, AccountBE source,
+                                Date newDate, String newDescription, float newAmount)
+            throws JSONException, IOException {
+        TxPair pair = findTxPair(oldDate, oldDescription, source);
+        if (pair == null)
+            return false;
+        final TxBE sourceEntry = pair.sourceEntry;
+        final TxBE counterpart = pair.counterpartEntry;
+
+        final Date oldCounterpartDate = counterpart.getDate();
+        final String oldCounterpartDescription = counterpart.getDescription();
+        final float oldSourceAmount = sourceEntry.getAmount();
+        final float oldCounterpartAmount = counterpart.getAmount();
+
+        sourceEntry.setDate(newDate);
+        sourceEntry.setDescription(newDescription);
+        sourceEntry.setAmount(newAmount);
+        // the counterpart carries the opposite sign, exactly as createTx booked it
+        counterpart.setDate(newDate);
+        counterpart.setDescription(newDescription);
+        counterpart.setAmount(newAmount * (-1.0f));
+
+        repo.saveOrRevert("save_file", "updating both sides of a transfer", () -> {
+            sourceEntry.setDate(oldDate);
+            sourceEntry.setDescription(oldDescription);
+            sourceEntry.setAmount(oldSourceAmount);
+            counterpart.setDate(oldCounterpartDate);
+            counterpart.setDescription(oldCounterpartDescription);
+            counterpart.setAmount(oldCounterpartAmount);
+        });
+        return true;
+    }
+
     public boolean updateTx(Date date, String description, AccountBE source, String newDescription) throws JSONException, IOException {
         TxPair pair = findTxPair(date, description, source);
         if (pair == null)

@@ -305,6 +305,12 @@ public class Controller {
         return txService.updateTx(date, description, source, newDescription);
     }
 
+    public boolean updateTxPair(Date oldDate, String oldDescription, AccountBE source,
+                                Date newDate, String newDescription, float newAmount)
+            throws JSONException, IOException {
+        return txService.updateTxPair(oldDate, oldDescription, source, newDate, newDescription, newAmount);
+    }
+
     public void updateYearlyBudget(float newBudget, BudgetAccountBE account, boolean adjustAvailable) throws JSONException, IOException {
         accounts.updateYearlyBudget(newBudget, account, adjustAvailable);
     }

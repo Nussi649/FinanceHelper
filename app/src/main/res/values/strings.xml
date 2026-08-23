@@ -152,6 +152,8 @@
         <!-- Info -->
     <string name="toast_info_blank_accounts">Es wurden leere Konten geladen.</string>
     <string name="toast_warn_integrity_findings">Integritätsprüfung: %1$d Auffälligkeit(en) in der geladenen Datei. Details über das Menü "Integritätsprüfung".</string>
+    <string name="label_update_counterpart">Gegenbuchung mit ändern</string>
+    <string name="toast_info_no_counterpart_found">Keine Gegenbuchung gefunden - nur diese Buchung wurde geändert.</string>
     <string name="toast_error_tx_not_deleted">Die Buchung konnte nicht gelöscht werden und wurde wiederhergestellt.</string>
     <string name="toast_error_no_sender_or_receiver">Bitte Sender- und Empfängerkonto auswählen.</string>
     <string name="toast_error_tx_not_created">Die Buchung konnte nicht angelegt werden.</string>

@@ -57,10 +57,34 @@ public class TxSwipeActions implements TxListSection.TxActions {
     public void onEditRequested(int position, TxBE tx) {
         EditTxDialog dialog = new EditTxDialog(context, tx) {
             @Override
-            public void onConfirm(TxBE tx) {
+            public void onConfirm(Edit edit) {
                 try {
-                    account.sortTxByDate();
-                    controller.saveAccountsToInternal();
+                    // A transfer books two entries, one per account. Whether an edit moves the
+                    // other one is the user's call, because not every entry actually has a
+                    // counterpart - an opening balance or an income has none, and a same-day
+                    // same-description entry on another account may be a coincidence rather than
+                    // the other half of this transfer. Hence the opt-in checkbox, default off,
+                    // which preserves the previous one-sided behaviour unless asked otherwise.
+                    if (edit.updateCounterpart) {
+                        boolean paired = controller.updateTxPair(
+                                edit.originalDate, edit.originalDescription, account,
+                                edit.newDate, edit.newDescription, edit.newAmount);
+                        if (!paired) {
+                            // updateTxPair changed nothing, so this side is still unedited
+                            edit.applyToTx();
+                            account.sortTxByDate();
+                            controller.saveAccountsToInternal();
+                            Toast.makeText(context, R.string.toast_info_no_counterpart_found,
+                                    Toast.LENGTH_LONG).show();
+                        } else {
+                            account.sortTxByDate();
+                            controller.saveAccountsToInternal();
+                        }
+                    } else {
+                        edit.applyToTx();
+                        account.sortTxByDate();
+                        controller.saveAccountsToInternal();
+                    }
                     onChanged.onRefresh();
                 } catch (JSONException | IOException e) {
                     if (e instanceof JSONException)
@@ -69,6 +93,7 @@ public class TxSwipeActions implements TxListSection.TxActions {
                     else
                         Log.println(Log.ERROR, "edit_tx",
                                 String.format("Error writing safe file after editing a transaction (%s): %s", tx, e));
+                    showErrorToast(e);
                 }
                 // Update the list
                 adapter.notifyItemChanged(position);
