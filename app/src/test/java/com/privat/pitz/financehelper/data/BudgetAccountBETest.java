@@ -7,6 +7,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import com.privat.pitz.financehelper.core.Util;
+
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -306,15 +308,21 @@ public class BudgetAccountBETest {
         assertEquals("2000-02", child.getNextRenewal());
     }
 
-    @Test(expected = NullPointerException.class)
-    public void tryRenew_withoutEverSettingNextRenewal_throwsNullPointerException() {
-        // Characterizes CURRENT (surprising) behavior: a freshly constructed BudgetAccountBE
-        // has nextRenewal == null. tryRenew() only catches IllegalArgumentException, but
+    @Test
+    public void tryRenew_withoutEverSettingNextRenewal_isASafeNoOp() {
+        // Regression guard. nextRenewal used to default to null, and
         // Util.isAfter(null, ...) -> Util.validatePeriod(null) throws NullPointerException
-        // (Pattern.matcher(null).matches() dereferences a null CharSequence), which is NOT an
-        // IllegalArgumentException and therefore propagates out of tryRenew() uncaught.
+        // (Pattern.matcher dereferences the null), which tryRenew() does not catch - it catches
+        // only IllegalArgumentException, so the NPE escaped. The default is now the *next*
+        // period, which is after the present one, so tryRenew() leaves the account alone.
         BudgetAccountBE b = new BudgetAccountBE("Root", 100f, 1200f);
+        b.addTx(new TxBE(-10f, "Einkauf", dateFor(2026, 8, 12)));
+
         b.tryRenew();
+
+        assertEquals(Util.getNextPeriod(), b.getNextRenewal());
+        assertEquals(100f, b.indivAvailableBudget, 0.0001f);
+        assertEquals(1, b.getTxList().size());
     }
 
     @Test

@@ -3,11 +3,13 @@ package com.privat.pitz.financehelper.core;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.junit.Test;
 
@@ -414,21 +416,54 @@ public class UtilTest {
     }
 
     @Test
-    public void budgetAccountRoundTrip_nonProjectWithoutNextRenewalSet_failsToParseBack() {
-        // Characterizes current behavior: BudgetAccountBE.put(KEY, null) removes the key
-        // (org.json semantics), so an account whose nextRenewal was never set serializes without
-        // JSON_TAG_RENEWAL_NEXT. On parse, the missing key is treated as a hard error for
-        // non-project accounts and parseJSON_BudgetAccount() returns null for the whole account,
-        // silently discarding it rather than reporting a partial/default value.
+    public void budgetAccountRoundTrip_nextRenewalNeverSet_stillRoundTrips() {
+        // Regression guard. nextRenewal used to default to null; JSONObject.put(key, null)
+        // REMOVES the key rather than storing a null, so the account serialised without
+        // JSON_TAG_RENEWAL_NEXT, and parseJSON_BudgetAccount treated the missing key as fatal and
+        // returned null for the whole account. That is why every budget account created in the
+        // app disappeared on the next load. It now defaults to the next period.
         BudgetAccountBE b = new BudgetAccountBE("NoRenewalSet", 100f);
         b.setRenewalPeriod(1);
         // setNextRenewal() intentionally never called
 
         JSONObject json = Util.serialise_BudgetAccount(b);
-        assertFalse(json.has(Const.JSON_TAG_RENEWAL_NEXT));
+        assertTrue(json.has(Const.JSON_TAG_RENEWAL_NEXT));
 
         BudgetAccountBE parsed = Util.parseJSON_BudgetAccount(json);
-        assertNull(parsed);
+        assertNotNull(parsed);
+        assertEquals("NoRenewalSet", parsed.getName());
+        assertEquals(b.getNextRenewal(), parsed.getNextRenewal());
+    }
+
+    @Test
+    public void budgetAccountParse_missingNextRenewal_loadsWithDefaultInsteadOfBeingDiscarded() {
+        // Recovery path for save files already written by the broken version, where renew_next is
+        // simply absent. Those accounts must load rather than vanish.
+        JSONObject json = Util.serialise_BudgetAccount(new BudgetAccountBE("Lebensmittel", 100f, 1200f));
+        json.remove(Const.JSON_TAG_RENEWAL_NEXT);
+
+        BudgetAccountBE parsed = Util.parseJSON_BudgetAccount(json);
+
+        assertNotNull(parsed);
+        assertEquals("Lebensmittel", parsed.getName());
+        assertEquals(1200f, parsed.indivYearlyBudget, 0.001f);
+        assertEquals(100f, parsed.indivAvailableBudget, 0.001f);
+        assertEquals(Util.getNextPeriod(), parsed.getNextRenewal());
+    }
+
+    @Test
+    public void budgetAccountParse_malformedNextRenewal_dropsOnlyThatAccountWithoutThrowing() {
+        // setNextRenewal throws IllegalArgumentException, not JSONException, on a bad format. It
+        // used to escape parseJSON_BudgetAccount uncaught and abort the entire load - reachable
+        // through the raw-JSON editor in the app.
+        JSONObject json = Util.serialise_BudgetAccount(new BudgetAccountBE("Kaputt", 100f, 1200f));
+        try {
+            json.put(Const.JSON_TAG_RENEWAL_NEXT, "not-a-period");
+        } catch (JSONException e) {
+            fail("fixture setup failed: " + e);
+        }
+
+        assertNull(Util.parseJSON_BudgetAccount(json));
     }
 
     @Test
