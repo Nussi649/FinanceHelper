@@ -126,11 +126,11 @@ public abstract class AccountPreviewList {
                 // add child to parent layout and add listeners
                 container.addView(child);
                 // add radio button to receiver group
-                RadioButton rbReceiveChild = newItem.getRBReceiver();
+                RadioButton rbReceiveChild = child.getRBReceiver();
                 assert rbReceiveChild != null;
                 receiverManager.addRadioButton(rbReceiveChild, currentChildAccount);
                 // add radio button to sender group
-                RadioButton rbSendChild = newItem.getRBSender();
+                RadioButton rbSendChild = child.getRBSender();
                 assert rbSendChild != null;
                 senderManager.addRadioButton(rbSendChild, currentChildAccount);
             }

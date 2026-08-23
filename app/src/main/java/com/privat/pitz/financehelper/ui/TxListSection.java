@@ -191,22 +191,17 @@ public class TxListSection {
         List<? extends TxBE> rawEntries = entriesSupplier.get();
         List<? extends TxBE> visible;
 
-        // Gate on null only, never on emptiness. The original filterEntries handed back the live
-        // list for a null query and a fresh copy for any non-null one - including "". Because
-        // TxListAdapter stores whatever it is given by reference and mutates it in place on
-        // swipe-delete, "live list vs copy" decides whether a swipe edits the model directly.
-        // Treating "" like null would quietly change that, so it does not.
-        if (query != null) {
-            List<TxBE> filtered = new ArrayList<>();
-            for (TxBE entry : rawEntries) {
-                if (filter.test(entry, query)) {
-                    filtered.add(entry);
-                }
+        // Always a fresh list, never the caller's own. TxListAdapter stores what it is given by
+        // reference and mutates it in place on swipe-delete, so handing it the live model list
+        // (which is what the unfiltered path used to do) let the optimistic removal delete the
+        // transaction from the model before Controller.deleteTx ever looked for it.
+        List<TxBE> selected = new ArrayList<>();
+        for (TxBE entry : rawEntries) {
+            if (query == null || filter.test(entry, query)) {
+                selected.add(entry);
             }
-            visible = filtered;
-        } else {
-            visible = rawEntries;
         }
+        visible = selected;
 
         float sum = 0.0f;
         for (TxBE entry : visible) {

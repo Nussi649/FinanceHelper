@@ -206,7 +206,9 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
     public void onRefresh() {
         for (BudgetAccountTableRow row : budgetViews)
             row.updateUI();
-        renderTxSum(mAccount.getSum());
+        // section.refresh() rather than renderTxSum(mAccount.getSum()): re-sums the rows that
+        // are actually visible, so an active search filter no longer disagrees with the sum.
+        section.refresh();
         updateUITotalSums();
     }
 
