@@ -16,6 +16,9 @@ commit and this document does not repeat them.
 The structural refactor is done. What remains is a hardening pass, then the leftover known issues,
 then merge.
 
+**No decisions are outstanding.** The commit grouping in step 1 and the deep sub-budget fix in
+step 3.1 were both approved by the user; everything below is execution.
+
 ---
 
 ## Step 1 — Squash, but not into a single commit
@@ -135,26 +138,42 @@ afterwards. Both were deliberately left alone by the refactor (see "Out of scope
 
 ## Step 3 — Known issues not covered by hardening
 
-Both are recorded in `docs/known-issues.md` under "Not yet fixed":
+Both are recorded in `docs/known-issues.md` under "Not yet fixed".
 
-1. **`updateTx` searches only one level of sub-budget** — needs the decision below.
-2. **The budget branch of `completeTxRedirection` logs "asset" on a parse failure.** Cosmetic,
-   one-line, in `TxRedirectionService.injectTx`. Now that the message exists once instead of twice,
-   just fix it.
+### 3.1 `updateTx` only descends one level of sub-budget — APPROVED, go ahead
 
----
+**The user approved this fix.** No further decision needed; it just needs doing, with a test, in its
+own commit labelled as a behaviour change.
 
-## The one decision needed from the user
+Both overloads — `TxService.updateTx` at `:176` (amount) and `:228` (description) — build their
+search list by hand: every asset account, then every budget account plus its
+`getDirectSubBudgets()`. That is **one level only**, so editing a transaction whose counterpart sits
+in a 2nd-level-or-deeper sub-budget fails to find it, and the two sides of the transfer silently
+drift apart.
 
-`TxService.updateTx` (both overloads) builds its search list by hand: every budget account plus its
-`getDirectSubBudgets()` — **one level only**. `Model.getAllAccounts()` recurses all levels.
+Replace that ~15-line block with `model.getAllAccounts()`, which recurses all levels via
+`getAllSubBudgets()`.
 
-So editing a transaction that lives in a 2nd-level-or-deeper sub-budget fails to find and update its
-counterpart, and the two sides of the transfer silently drift apart.
+Two details that make this safe and easy to get wrong:
 
-Switching to `getAllAccounts()` fixes that *and* lets the two near-identical overloads merge. But it
-changes which transactions get matched, so it needs an explicit "yes, deep sub-budget transactions
-should be matched" before it is done. Own commit, with a test.
+- The existing code carries a `(copy the list! it must not be mutated, since it's the live model
+  list)` warning, because it goes on to call `toSearch.remove(source)`. `Model.getAllAccounts()`
+  already returns a freshly allocated `ArrayList` on every call, so the removal stays safe — but do
+  not "optimise" that allocation away later.
+- With the search list no longer hand-built, the two overloads differ only in the single mutation
+  they apply. Extract `findTxPair(Date, String, AccountBE)` for the ~28 genuinely identical lines
+  and let each overload keep its own mutation and revert. **Do not** parameterise over four lambdas
+  to force them into one method — that was considered and rejected during the refactor.
+
+Tests to write: a transaction pair whose counterpart lives in a **2nd-level** sub-budget updates
+both sides (this is the fix), and one whose counterpart is a **1st-level** sub-budget still updates
+both sides (this is the regression guard). Both are plain JVM tests against
+`InMemorySavefileStorage`.
+
+### 3.2 The budget branch of `completeTxRedirection` logs "asset" on a parse failure
+
+Cosmetic, one line, in `TxRedirectionService.injectTx`. Now that the message exists once instead of
+twice, just fix it.
 
 ---
 
