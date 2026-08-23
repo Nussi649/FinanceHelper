@@ -1,15 +1,12 @@
 package com.privat.pitz.financehelper.ui.dialog;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.EditText;
-import android.widget.Toast;
 
 import com.privat.pitz.financehelper.R;
 
@@ -21,8 +18,7 @@ import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.data.TxBE;
 
 @SuppressLint("DefaultLocale")
-public abstract class EditTxDialog {
-    private final Context context;
+public abstract class EditTxDialog extends BaseInputDialog {
     private final TxBE tx;
     private Calendar calendar;
 
@@ -33,7 +29,7 @@ public abstract class EditTxDialog {
     EditText etAmount;
 
     public EditTxDialog(Context context, TxBE tx) {
-        this.context = context;
+        super(context);
         this.tx = tx;
         this.calendar = Calendar.getInstance();
         this.calendar.setTime(tx.getDate());
@@ -41,12 +37,18 @@ public abstract class EditTxDialog {
 
     public abstract void onConfirm(TxBE tx);
 
-    @SuppressLint("InflateParams")
-    public void show() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        LayoutInflater inflater = LayoutInflater.from(context);
+    @Override
+    protected int getLayoutRes() {
+        return R.layout.dialog_edit_tx;
+    }
 
-        View view = inflater.inflate(R.layout.dialog_edit_tx, null);
+    @Override
+    protected int getTitleRes() {
+        return R.string.label_transaction_edit;
+    }
+
+    @Override
+    protected void bindViews(View view) {
         tvDate = view.findViewById(R.id.tv_date);
         tvTime = view.findViewById(R.id.tv_time);
         etDescription = view.findViewById(R.id.et_description);
@@ -76,38 +78,31 @@ public abstract class EditTxDialog {
             }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), true);
             timePickerDialog.show();
         });
+    }
 
-        builder.setView(view)
-                .setPositiveButton(context.getString(R.string.confirm), null)
-                .setNegativeButton(context.getString(R.string.cancel), null)
-                .setTitle(R.string.label_transaction_edit);
+    @Override
+    protected boolean onConfirmClicked() {
+        String description = etDescription.getText().toString();
+        String amountString = etAmount.getText().toString();
 
-        AlertDialog dialog = builder.create();
-
-        dialog.setOnShowListener(dialogInterface -> {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view1 -> {
-                String description = etDescription.getText().toString();
-                String amountString = etAmount.getText().toString();
-
-                if (description.isEmpty())
-                    Toast.makeText(context, context.getString(R.string.toast_error_empty_description), Toast.LENGTH_LONG).show();
-                else if (amountString.isEmpty())
-                    Toast.makeText(context, context.getString(R.string.toast_error_empty_amount), Toast.LENGTH_LONG).show();
-                else {
-                    try {
-                        float amount = Util.parseAmount(amountString);
-                        tx.setDate(calendar.getTime());
-                        tx.setDescription(description);
-                        tx.setAmount(amount);
-                        onConfirm(tx);
-                        dialog.dismiss();
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(context, context.getString(R.string.toast_error_invalid_amount), Toast.LENGTH_LONG).show();
-                    }
-                }
-            });
-        });
-
-        dialog.show();
+        if (description.isEmpty()) {
+            toastLong(R.string.toast_error_empty_description);
+            return false;
+        } else if (amountString.isEmpty()) {
+            toastLong(R.string.toast_error_empty_amount);
+            return false;
+        } else {
+            try {
+                float amount = Util.parseAmount(amountString);
+                tx.setDate(calendar.getTime());
+                tx.setDescription(description);
+                tx.setAmount(amount);
+                onConfirm(tx);
+                return true;
+            } catch (NumberFormatException e) {
+                toastLong(R.string.toast_error_invalid_amount);
+                return false;
+            }
+        }
     }
 }

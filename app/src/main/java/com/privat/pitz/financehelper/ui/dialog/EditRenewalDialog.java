@@ -1,20 +1,16 @@
 package com.privat.pitz.financehelper.ui.dialog;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.Context;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.Toast;
 
 import com.privat.pitz.financehelper.R;
 
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 
 @SuppressLint("DefaultLocale")
-public abstract class EditRenewalDialog {
-    private final Context context;
+public abstract class EditRenewalDialog extends BaseInputDialog {
     private final BudgetAccountBE account;
 
     // View objects
@@ -22,51 +18,52 @@ public abstract class EditRenewalDialog {
     EditText etNextRenewal;
 
     public EditRenewalDialog(Context context, BudgetAccountBE account) {
-        this.context = context;
+        super(context);
         this.account = account;
     }
 
     public abstract void onConfirm(int renewalPeriod, String nextRenewal);
 
-    @SuppressLint("InflateParams")
-    public void show() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        LayoutInflater inflater = LayoutInflater.from(context);
+    @Override
+    protected int getLayoutRes() {
+        return R.layout.dialog_edit_renewal;
+    }
 
-        View view = inflater.inflate(R.layout.dialog_edit_renewal, null);
+    @Override
+    protected int getTitleRes() {
+        return R.string.label_account_renewal;
+    }
+
+    @Override
+    protected void bindViews(View view) {
         etRenewalPeriod = view.findViewById(R.id.et_renewal_period);
         etNextRenewal = view.findViewById(R.id.et_next_renewal);
 
         // Pre-fill the fields with the current values
         etRenewalPeriod.setText(String.valueOf(account.getRenewalPeriod()));
         etNextRenewal.setText(account.getNextRenewal());
+    }
 
-        builder.setView(view)
-                .setPositiveButton(context.getString(R.string.confirm), null)
-                .setNegativeButton(context.getString(R.string.cancel), null)
-                .setTitle(R.string.label_account_renewal);
+    @Override
+    protected boolean onConfirmClicked() {
+        String renewalPeriodString = etRenewalPeriod.getText().toString();
+        String nextRenewal = etNextRenewal.getText().toString();
 
-        AlertDialog dialog = builder.create();
-
-        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view1 -> {
-            String renewalPeriodString = etRenewalPeriod.getText().toString();
-            String nextRenewal = etNextRenewal.getText().toString();
-
-            if (renewalPeriodString.isEmpty())
-                Toast.makeText(context, context.getString(R.string.toast_error_empty_renewal_period), Toast.LENGTH_LONG).show();
-            else if (nextRenewal.isEmpty())
-                Toast.makeText(context, context.getString(R.string.toast_error_empty_next_renewal), Toast.LENGTH_LONG).show();
-            else {
-                try {
-                    int renewalPeriod = Integer.parseInt(renewalPeriodString);
-                    onConfirm(renewalPeriod, nextRenewal);
-                    dialog.dismiss();
-                } catch (NumberFormatException e) {
-                    Toast.makeText(context, context.getString(R.string.toast_error_invalid_renewal_period), Toast.LENGTH_LONG).show();
-                }
+        if (renewalPeriodString.isEmpty()) {
+            toastLong(R.string.toast_error_empty_renewal_period);
+            return false;
+        } else if (nextRenewal.isEmpty()) {
+            toastLong(R.string.toast_error_empty_next_renewal);
+            return false;
+        } else {
+            try {
+                int renewalPeriod = Integer.parseInt(renewalPeriodString);
+                onConfirm(renewalPeriod, nextRenewal);
+                return true;
+            } catch (NumberFormatException e) {
+                toastLong(R.string.toast_error_invalid_renewal_period);
+                return false;
             }
-        }));
-
-        dialog.show();
+        }
     }
 }

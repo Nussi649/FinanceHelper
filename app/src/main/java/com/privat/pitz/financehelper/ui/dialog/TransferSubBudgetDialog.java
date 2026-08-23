@@ -1,16 +1,10 @@
 package com.privat.pitz.financehelper.ui.dialog;
 
-import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
 import android.widget.Spinner;
-import android.widget.Toast;
 
 import com.privat.pitz.financehelper.R;
 
@@ -19,8 +13,7 @@ import java.util.List;
 
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 
-public abstract class TransferSubBudgetDialog {
-    private final Context context;
+public abstract class TransferSubBudgetDialog extends BaseInputDialog {
     private final List<BudgetAccountBE> directSubBudgets;
     private final List<BudgetAccountBE> allBudgetAccounts;
 
@@ -29,7 +22,7 @@ public abstract class TransferSubBudgetDialog {
     Spinner targetSpinner;
 
     public TransferSubBudgetDialog(Context context, BudgetAccountBE currentAccount, List<BudgetAccountBE> allBudgetAccounts) {
-        this.context = context;
+        super(context);
         this.directSubBudgets = currentAccount.getDirectSubBudgets();
         this.allBudgetAccounts = allBudgetAccounts;
         this.allBudgetAccounts.remove(currentAccount);
@@ -37,12 +30,18 @@ public abstract class TransferSubBudgetDialog {
 
     public abstract void onConfirm(BudgetAccountBE subBudget, BudgetAccountBE target);
 
-    @SuppressLint("InflateParams")
-    public void show() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        LayoutInflater inflater = LayoutInflater.from(context);
+    @Override
+    protected int getLayoutRes() {
+        return R.layout.dialog_transfer_sub_budget;
+    }
 
-        View view = inflater.inflate(R.layout.dialog_transfer_sub_budget, null);
+    @Override
+    protected int getTitleRes() {
+        return R.string.label_sub_budget_transfer;
+    }
+
+    @Override
+    protected void bindViews(View view) {
         subBudgetSpinner = view.findViewById(R.id.direct_sub_budgets_spinner);
         targetSpinner = view.findViewById(R.id.target_account_spinner);
 
@@ -79,46 +78,22 @@ public abstract class TransferSubBudgetDialog {
                 targetSpinner.setEnabled(false);
             }
         });
-        builder.setTitle(R.string.label_sub_budget_transfer);
+    }
 
-        // set positive button with null onClickListener for now
-        builder.setView(view)
-                .setPositiveButton(context.getString(R.string.confirm), null)
-                .setNegativeButton(context.getString(R.string.cancel), null);
+    @Override
+    protected boolean onConfirmClicked() {
+        Object selectedDirectSubBudgetObj = subBudgetSpinner.getSelectedItem();
+        Object selectedTargetAccountObj = targetSpinner.getSelectedItem();
 
-        // set the dialog's view
-        builder.setView(view);
+        if (selectedDirectSubBudgetObj == null || selectedTargetAccountObj == null) {
+            toastShort(R.string.toast_error_select_both_accounts);
+            return false;
+        }
 
-        // create dialog
-        AlertDialog dialog = builder.create();
+        BudgetAccountBE selectedDirectSubBudget = (BudgetAccountBE) selectedDirectSubBudgetObj;
+        BudgetAccountBE selectedTargetAccount = (BudgetAccountBE) selectedTargetAccountObj;
 
-        // set onShowListener to add an confirm onClickListener that doesn't by default dismiss the dialog
-        dialog.setOnShowListener(new DialogInterface.OnShowListener() {
-            @Override
-            public void onShow(DialogInterface dialogInterface) {
-                Button button = ((AlertDialog) dialog).getButton(AlertDialog.BUTTON_POSITIVE);
-                button.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(View view) {
-                        Object selectedDirectSubBudgetObj = subBudgetSpinner.getSelectedItem();
-                        Object selectedTargetAccountObj = targetSpinner.getSelectedItem();
-
-                        if (selectedDirectSubBudgetObj == null || selectedTargetAccountObj == null) {
-                            Toast.makeText(context, context.getString(R.string.toast_error_select_both_accounts), Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-
-                        BudgetAccountBE selectedDirectSubBudget = (BudgetAccountBE) selectedDirectSubBudgetObj;
-                        BudgetAccountBE selectedTargetAccount = (BudgetAccountBE) selectedTargetAccountObj;
-
-                        onConfirm(selectedDirectSubBudget, selectedTargetAccount);
-                        dialog.dismiss(); // manually dismiss dialog
-                    }
-                });
-            }
-        });
-
-        // show it
-        dialog.show();
+        onConfirm(selectedDirectSubBudget, selectedTargetAccount);
+        return true;
     }
 }

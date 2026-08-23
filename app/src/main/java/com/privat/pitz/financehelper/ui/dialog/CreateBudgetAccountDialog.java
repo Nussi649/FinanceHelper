@@ -1,20 +1,14 @@
 package com.privat.pitz.financehelper.ui.dialog;
 
-import android.annotation.SuppressLint;
-import android.app.AlertDialog;
 import android.content.Context;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Toast;
 
 import com.privat.pitz.financehelper.R;
 
 import com.privat.pitz.financehelper.core.Util;
 
-public abstract class CreateBudgetAccountDialog {
-    private final Context context;
+public abstract class CreateBudgetAccountDialog extends BaseInputDialog {
     private final boolean isProjectBudget;
 
     // View objects
@@ -23,7 +17,7 @@ public abstract class CreateBudgetAccountDialog {
     EditText currentMonthBudgetInput;
 
     public CreateBudgetAccountDialog(Context context, boolean projectBudget) {
-        this.context = context;
+        super(context);
         this.isProjectBudget = projectBudget;
     }
 
@@ -33,12 +27,18 @@ public abstract class CreateBudgetAccountDialog {
 
     public abstract void onConfirm(String subBudgetName, float currentMonthBudget, float yearlyBudget);
 
-    @SuppressLint("InflateParams")
-    public void show() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        LayoutInflater inflater = LayoutInflater.from(context);
+    @Override
+    protected int getLayoutRes() {
+        return R.layout.dialog_new_budget_account;
+    }
 
-        View view = inflater.inflate(R.layout.dialog_new_budget_account, null);
+    @Override
+    protected int getTitleRes() {
+        return isProjectBudget ? R.string.label_project_budget_new : R.string.label_budget_account_new;
+    }
+
+    @Override
+    protected void bindViews(View view) {
         subBudgetNameInput = view.findViewById(R.id.budget_name_input);
         yearlyBudgetInput = view.findViewById(R.id.yearly_budget_input);
         currentMonthBudgetInput = view.findViewById(R.id.current_month_budget_input);
@@ -48,40 +48,31 @@ public abstract class CreateBudgetAccountDialog {
             subBudgetNameInput.setHint(R.string.label_project_name);
             yearlyBudgetInput.setHint(R.string.label_project_budget);
         }
+    }
 
-        builder.setTitle(isProjectBudget ? R.string.label_project_budget_new : R.string.label_budget_account_new);
+    @Override
+    protected boolean onConfirmClicked() {
+        String subBudgetNameString = subBudgetNameInput.getText().toString();
+        String yearlyBudgetString = yearlyBudgetInput.getText().toString();
+        String currentMonthBudgetString = currentMonthBudgetInput.getText().toString();
 
-        builder.setView(view)
-                .setPositiveButton(context.getString(R.string.confirm), null)
-                .setNegativeButton(context.getString(R.string.cancel), null);
+        if (subBudgetNameString.isEmpty()) {
+            toastLong(R.string.toast_error_empty_name);
+            return false;
+        } else if (yearlyBudgetString.isEmpty()) {
+            toastLong(R.string.toast_error_empty_amount);
+            return false;
+        } else {
+            try {
+                float yearlyBudget = Util.parseAmount(yearlyBudgetString);
+                float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : Util.parseAmount(currentMonthBudgetString);
 
-        AlertDialog dialog = builder.create();
-
-        dialog.setOnShowListener(dialogInterface -> {
-            Button button = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
-            button.setOnClickListener(view1 -> {
-                String subBudgetNameString = subBudgetNameInput.getText().toString();
-                String yearlyBudgetString = yearlyBudgetInput.getText().toString();
-                String currentMonthBudgetString = currentMonthBudgetInput.getText().toString();
-
-                if (subBudgetNameString.isEmpty())
-                    Toast.makeText(context, context.getString(R.string.toast_error_empty_name), Toast.LENGTH_LONG).show();
-                else if (yearlyBudgetString.isEmpty())
-                    Toast.makeText(context, context.getString(R.string.toast_error_empty_amount), Toast.LENGTH_LONG).show();
-                else {
-                    try {
-                        float yearlyBudget = Util.parseAmount(yearlyBudgetString);
-                        float currentMonthBudget = currentMonthBudgetString.isEmpty() ? yearlyBudget / 12 : Util.parseAmount(currentMonthBudgetString);
-
-                        onConfirm(subBudgetNameString, currentMonthBudget, yearlyBudget);
-                        dialog.dismiss();
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(context, context.getString(R.string.toast_error_invalid_amount), Toast.LENGTH_LONG).show();
-                    }
-                }
-            });
-        });
-
-        dialog.show();
+                onConfirm(subBudgetNameString, currentMonthBudget, yearlyBudget);
+                return true;
+            } catch (NumberFormatException e) {
+                toastLong(R.string.toast_error_invalid_amount);
+                return false;
+            }
+        }
     }
 }
