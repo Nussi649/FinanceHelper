@@ -95,8 +95,17 @@ public class TxSwipeActions implements TxListSection.TxActions {
                                 String.format("Error writing safe file after editing a transaction (%s): %s", tx, e));
                     showErrorToast(e);
                 }
-                // Update the list
-                adapter.notifyItemChanged(position);
+                // Deliberately no notifyItemChanged(position) here. An edit can change the date,
+                // and onRefresh() runs after account.sortTxByDate(), so by this point `position`
+                // may refer to a completely different entry. onRefresh() -> section.refresh() ->
+                // applyFilter() -> TxListAdapter.setEntries() already calls notifyDataSetChanged(),
+                // which rebinds the whole list correctly; a targeted notify against the pre-sort
+                // index on top of that re-bound one row from a stale mapping and rendered the
+                // edited entry twice - once in its new position and once in its old one.
+                //
+                // The swipe translation is restored unconditionally in TxListSection.onSwiped,
+                // which is what covers the cancelled-dialog case. These are two different
+                // concerns; do not collapse them back into one call here.
             }
         };
 
