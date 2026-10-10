@@ -72,7 +72,7 @@
     <string name="label_transaction_edit">Transaktion bearbeiten</string>
     <string name="label_transaction_redirection_select_target">Zielkonto auswählen</string>
     <string name="label_add_entry">Einzeleintrag speichern</string>
-    <string name="label_add_recurring_order">Dauerauftrag\n speichern</string>
+    <string name="label_add_recurring_order">Dauerauftrag speichern</string>
     <string name="label_arrow"><![CDATA[  —>]]></string>
     <string name="label_add_funds">Einkommen buchen</string>
     <string name="label_choose_recipient">Empfänger wählen:</string>

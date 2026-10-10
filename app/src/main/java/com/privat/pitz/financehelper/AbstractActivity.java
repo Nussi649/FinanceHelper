@@ -11,10 +11,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+import androidx.core.content.ContextCompat;
 
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Spinner;
@@ -106,6 +111,34 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return windowInsets;
         });
+        paintStatusBarBackground();
+    }
+
+    /**
+     * Gives the status bar a solid grey background again, so its white icons stay readable.
+     *
+     * <p>Edge-to-edge makes the status bar transparent and Window.setStatusBarColor is ignored from
+     * targetSdk 35, so the light window background showed through and the white clock and icons
+     * nearly vanished against it. Before the bump the system painted this strip in the theme's
+     * colorPrimaryDark - AppCompat.Light's default grey - so a view of that color sized to the
+     * status bar inset restores the old look.
+     */
+    private void paintStatusBarBackground() {
+        ViewGroup decor = (ViewGroup) getWindow().getDecorView();
+        View statusBarBackground = new View(this);
+        statusBarBackground.setBackgroundColor(ContextCompat.getColor(this, R.color.colorStatusBar));
+        decor.addView(statusBarBackground,
+                new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, Gravity.TOP));
+        ViewCompat.setOnApplyWindowInsetsListener(statusBarBackground, (view, windowInsets) -> {
+            int height = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
+            ViewGroup.LayoutParams params = view.getLayoutParams();
+            if (params.height != height) {
+                params.height = height;
+                view.setLayoutParams(params);
+            }
+            return windowInsets;
+        });
+        new WindowInsetsControllerCompat(getWindow(), decor).setAppearanceLightStatusBars(false);
     }
 
     protected void setupActionBar() {
