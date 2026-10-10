@@ -8,6 +8,9 @@ import android.os.Bundle;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -75,6 +78,34 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
                 });
             }
         }).start();
+    }
+
+    @Override
+    protected void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        applySystemBarInsets();
+    }
+
+    /**
+     * Keeps screen content out from under the navigation bar and display cutouts.
+     *
+     * <p>Since targetSdk 35 Android draws every app edge-to-edge, and from 36 there is no opt-out:
+     * the window extends behind the status and navigation bars and the app has to inset itself.
+     * The window-decor ActionBar already handles the top (it sits below the status bar), but
+     * nothing moves the content up from the bottom - buttons and the last list rows ended up behind
+     * the gesture bar. Padding the content root on the remaining three sides fixes that for every
+     * screen at once.
+     */
+    private void applySystemBarInsets() {
+        View content = findViewById(android.R.id.content);
+        if (content == null)
+            return;
+        ViewCompat.setOnApplyWindowInsetsListener(content, (view, windowInsets) -> {
+            Insets bars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            view.setPadding(bars.left, view.getPaddingTop(), bars.right, bars.bottom);
+            return windowInsets;
+        });
     }
 
     protected void setupActionBar() {
