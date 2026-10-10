@@ -16,7 +16,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    namespace 'com.privat.pitz.financehelper'
+    namespace = 'com.privat.pitz.financehelper'
     testOptions {
         unitTests {
             // Android stub methods (e.g. android.util.Log.println, called from error paths in
