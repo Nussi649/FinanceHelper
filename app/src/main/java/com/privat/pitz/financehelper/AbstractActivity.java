@@ -87,14 +87,14 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
     }
 
     /**
-     * Keeps screen content out from under the navigation bar and display cutouts.
+     * Keeps screen content out from under the system bars, the ActionBar and display cutouts.
      *
      * <p>Since targetSdk 35 Android draws every app edge-to-edge, and from 36 there is no opt-out:
      * the window extends behind the status and navigation bars and the app has to inset itself.
-     * The window-decor ActionBar already handles the top (it sits below the status bar), but
-     * nothing moves the content up from the bottom - buttons and the last list rows ended up behind
-     * the gesture bar. Padding the content root on the remaining three sides fixes that for every
-     * screen at once.
+     * The window-decor ActionBar positions itself below the status bar, but the content still
+     * starts at the very top of the window, underneath both. AppCompat does hand the content an
+     * inset whose top already covers status bar + ActionBar height, it just never applies it -
+     * so padding the content root by the insets it receives fixes every screen at once.
      */
     private void applySystemBarInsets() {
         View content = findViewById(android.R.id.content);
@@ -103,7 +103,7 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         ViewCompat.setOnApplyWindowInsetsListener(content, (view, windowInsets) -> {
             Insets bars = windowInsets.getInsets(
                     WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            view.setPadding(bars.left, view.getPaddingTop(), bars.right, bars.bottom);
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
             return windowInsets;
         });
     }
