@@ -36,14 +36,15 @@ public class JsonCompactPrinterTest {
     @Test
     public void nestedContainersAreIndented() throws Exception {
         String printed = JsonCompactPrinter.format("{\"a\": [{\"b\": 1}, [1, 2]]}");
-        assertEquals("{\n  \"a\": [\n    {\"b\": 1},\n    [1, 2]\n  ]\n}", printed);
+        // root children flush left, one indent per level below that
+        assertEquals("{\n\"a\": [\n  {\"b\": 1},\n  [1, 2]\n]\n}", printed);
     }
 
     @Test
     public void emptyContainersPrintInlineButKeepTheirParentMultiLine() throws Exception {
         // an account without entries must still get its own lines (and a fold marker)
-        assertEquals("{\n  \"x\": []\n}", JsonCompactPrinter.format("{\"x\":[]}"));
-        assertEquals("[\n  {},\n  []\n]", JsonCompactPrinter.format("[{},[]]"));
+        assertEquals("{\n\"x\": []\n}", JsonCompactPrinter.format("{\"x\":[]}"));
+        assertEquals("[\n{},\n[]\n]", JsonCompactPrinter.format("[{},[]]"));
     }
 
     @Test

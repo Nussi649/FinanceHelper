@@ -32,7 +32,10 @@ public final class JsonCompactPrinter {
 
     public static String format(Object value) {
         StringBuilder sb = new StringBuilder();
-        write(sb, value, 0);
+        // The root's children start flush left instead of one level in: the root brace would
+        // otherwise cost every line in the file an indent, and on a phone horizontal space is
+        // the scarce thing. newline() indents nothing for a negative level.
+        write(sb, value, -1);
         return sb.toString();
     }
 

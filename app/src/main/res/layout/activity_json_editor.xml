@@ -52,8 +52,9 @@
             android:src="@drawable/ic_arrow_down_24" />
     </LinearLayout>
 
-    <!-- monospace + textNoSuggestions: this is JSON, not prose; autocorrect and capitalisation
-         would silently corrupt keys and values -->
+    <!-- textNoSuggestions: this is JSON, not prose; autocorrect and capitalisation would
+         silently corrupt keys and values. Roboto Condensed rather than monospace: lines do not
+         wrap, and a narrow font lets nearly every transaction fit without scrolling sideways. -->
     <com.privat.pitz.financehelper.ui.FoldEditText
         android:id="@+id/json_editor"
         android:layout_width="match_parent"
@@ -67,5 +68,5 @@
         android:paddingEnd="8dp"
         android:scrollbars="vertical"
         android:textSize="13sp"
-        android:typeface="monospace" />
+        android:fontFamily="sans-serif-condensed" />
 </LinearLayout>
