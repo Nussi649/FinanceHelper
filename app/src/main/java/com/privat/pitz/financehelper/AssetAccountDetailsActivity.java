@@ -79,6 +79,8 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.item_delete_account)
             deleteAccount();
+        else if (item.getItemId() == R.id.item_edit_json)
+            startActivity(JsonEditorActivity.focusIntent(this, mAccount, false));
         return super.onOptionsItemSelected(item);
     }
     // endregion

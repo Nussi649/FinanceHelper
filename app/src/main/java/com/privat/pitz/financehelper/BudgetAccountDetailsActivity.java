@@ -142,6 +142,8 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
             // AssetAccountDetailsActivity used to handle this item through the super call.
             // Handle it directly now that this activity no longer extends it.
             deleteAccount();
+        } else if (itemId == R.id.item_edit_json) {
+            startActivity(JsonEditorActivity.focusIntent(this, mAccount, true));
         }
         return super.onOptionsItemSelected(item);
     }

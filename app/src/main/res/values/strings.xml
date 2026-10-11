@@ -201,4 +201,20 @@
     <string name="toast_error_tx_not_moved">Verschieben fehlgeschlagen, es wurde nichts geändert.</string>
     <string name="toast_error_tx_not_merged">Zusammenführen fehlgeschlagen, es wurde nichts geändert.</string>
     <string name="toast_info_merge_needs_two">Zum Zusammenführen mindestens zwei Einträge auswählen.</string>
+
+    <!-- JSON editor -->
+    <string name="label_json_editor_title">Speicherdatei bearbeiten</string>
+    <string name="label_json_edit">JSON bearbeiten</string>
+    <string name="label_search">Suchen</string>
+    <string name="label_search_hint">Suchbegriff</string>
+    <string name="label_search_previous">Vorheriger Treffer</string>
+    <string name="label_search_next">Nächster Treffer</string>
+    <string name="label_search_counter">%1$d/%2$d</string>
+    <string name="label_search_no_hits">0/0</string>
+    <string name="label_fold_all">Alle einklappen</string>
+    <string name="label_unfold_all">Alle ausklappen</string>
+    <string name="label_discard">Verwerfen</string>
+    <string name="question_discard_changes">Änderungen verwerfen?</string>
+    <string name="toast_info_folded_block_protected">Eingeklappter Block: zum Bearbeiten zuerst über den Pfeil am Rand ausklappen.</string>
+    <string name="toast_error_json_invalid">Ungültiges JSON, nichts wurde übernommen: %1$s</string>
 </resources>

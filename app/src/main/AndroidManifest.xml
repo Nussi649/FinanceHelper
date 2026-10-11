@@ -60,6 +60,14 @@
             android:configChanges="orientation"
             android:screenOrientation="portrait">
         </activity>
+        <!-- unsaved edits live only in the view, so survive configuration changes instead of recreating -->
+        <activity android:name=".JsonEditorActivity"
+            android:theme="@style/Theme.AppCompat.Light"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection|fontScale"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize">
+        </activity>
     </application>
 
 </manifest>

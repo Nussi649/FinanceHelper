@@ -15,4 +15,10 @@
     <color name="colorPositive">#B397FA89</color>
     <color name="colorNeutral">#B3F4FA89</color>
     <color name="colorNegative">#B3FA7272</color>
+    <color name="jsonEditorGutter">#F1F1F1</color>
+    <color name="jsonEditorGutterDivider">#D3D3D3</color>
+    <color name="jsonEditorMarker">#606060</color>
+    <color name="jsonEditorPlaceholderText">#303F9F</color>
+    <color name="jsonEditorPlaceholderBackground">#1F303F9F</color>
+    <color name="jsonEditorSearchHit">#FFE066</color>
 </resources>

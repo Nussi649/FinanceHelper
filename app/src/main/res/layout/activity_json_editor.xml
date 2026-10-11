@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/search_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="4dp"
+        android:background="@color/colorSubtleDistinction"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/search_query"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/label_search_hint"
+            android:importantForAutofill="no"
+            android:imeOptions="actionSearch"
+            android:inputType="text|textNoSuggestions"
+            android:maxLines="1" />
+
+        <TextView
+            android:id="@+id/search_counter"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="56dp"
+            android:gravity="center"
+            android:fontFamily="monospace"
+            android:textSize="13sp" />
+
+        <ImageButton
+            android:id="@+id/search_previous"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/label_search_previous"
+            android:src="@drawable/ic_arrow_up_24" />
+
+        <ImageButton
+            android:id="@+id/search_next"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/label_search_next"
+            android:src="@drawable/ic_arrow_down_24" />
+    </LinearLayout>
+
+    <!-- monospace + textNoSuggestions: this is JSON, not prose; autocorrect and capitalisation
+         would silently corrupt keys and values -->
+    <com.privat.pitz.financehelper.ui.FoldEditText
+        android:id="@+id/json_editor"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@android:color/white"
+        android:gravity="top|start"
+        android:importantForAutofill="no"
+        android:inputType="textMultiLine|textNoSuggestions"
+        android:paddingTop="4dp"
+        android:paddingEnd="8dp"
+        android:scrollbars="vertical"
+        android:textSize="13sp"
+        android:typeface="monospace" />
+</LinearLayout>

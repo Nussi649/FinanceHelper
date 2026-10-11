@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/item_json_save"
+        android:title="@string/label_save"
+        android:icon="@drawable/ic_check_24"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/item_json_search"
+        android:title="@string/label_search"
+        android:icon="@drawable/ic_search_24"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/item_json_fold_all"
+        android:title="@string/label_fold_all"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/item_json_unfold_all"
+        android:title="@string/label_unfold_all"
+        app:showAsAction="never" />
+</menu>

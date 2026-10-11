@@ -39,7 +39,6 @@ import com.privat.pitz.financehelper.ui.AccountPreviewList;
 import com.privat.pitz.financehelper.ui.RbAccountManager;
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.ui.dialog.AddIncomeDialog;
-import com.privat.pitz.financehelper.ui.dialog.EditSourceCodeDialog;
 import com.privat.pitz.financehelper.ui.dialog.CurrentIncomeDialog;
 import com.privat.pitz.financehelper.ui.dialog.LoadFileDialog;
 import com.privat.pitz.financehelper.ui.dialog.SaveFileDialog;
@@ -103,7 +102,7 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
         } else if (itemId == R.id.item_load_accounts) {
             showLoadFileDialog();
         } else if (itemId == R.id.item_edit) {
-            showEditSavefileDialog();
+            startActivity(JsonEditorActivity.class);
         } else if (itemId == R.id.item_backup_all) {
             startBackupAll();
         } else if (itemId == R.id.item_restore_all) {
@@ -410,27 +409,6 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
             }
             dialog.dismiss();
         });
-    }
-
-    private void showEditSavefileDialog() {
-        EditSourceCodeDialog dialog = new EditSourceCodeDialog(this, getBasicEditDialog()) {
-            @Override
-            public void onConfirm(String newContent) {
-                try {
-                    getController().importAccounts(newContent);
-                    getController().sortAllTransactions();
-                    showToast(R.string.toast_success_accounts_imported);
-                } catch (JSONException e) {
-                    showErrorToast(e);
-                }
-            }
-        };
-
-        try {
-            dialog.show(getController().exportAccounts());
-        } catch (JSONException e) {
-            showErrorToast(e);
-        }
     }
 
     private void startBackupAll() {

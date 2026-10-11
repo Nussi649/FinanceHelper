@@ -320,7 +320,6 @@ open with the user's input intact. `getTitleRes()` is resolved in `show()` rathe
 constructor, so it may depend on subclass state — `CreateBudgetAccountDialog` uses that for its
 project/budget title switch.
 
-Four dialogs deliberately do **not** extend it, because they do no input validation: `LoadFileDialog`,
-`SaveFileDialog` and `TransactionRedirectionDialog` use a real auto-dismissing positive listener,
-and `EditSourceCodeDialog` is handed a prebuilt dialog by `AbstractActivity.getBasicEditDialog()`
-rather than inflating one.
+Three dialogs deliberately do **not** extend it, because they do no input validation: `LoadFileDialog`,
+`SaveFileDialog` and `TransactionRedirectionDialog` use a real auto-dismissing positive listener.
+(The raw save-file editor used to be a fourth; it is now the full-screen `JsonEditorActivity`.)

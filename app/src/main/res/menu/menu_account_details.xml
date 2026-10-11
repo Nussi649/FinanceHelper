@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- also inflated by the budget account screen, so one entry serves both -->
+    <item
+        android:id="@+id/item_edit_json"
+        android:title="@string/label_json_edit" />
     <item
         android:id="@+id/item_delete_account"
         android:title="@string/label_delete_account" />
