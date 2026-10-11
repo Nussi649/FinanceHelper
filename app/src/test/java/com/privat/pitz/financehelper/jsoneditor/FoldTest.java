@@ -230,7 +230,7 @@ public class FoldTest {
         String full = sample();
         TreeSet<Integer> folded = FoldMath.foldAtDepth(full, new TreeSet<Integer>(), 2);
         FoldMath.Rendered rendered = FoldMath.render(full, folded);
-        // Giro, Essen and Kino are multi-line; Bar is a one-liner ("tx": [] is flat... it holds an empty array)
+        // every account is multi-line, Bar included even though its "tx" is empty
         assertFalse(rendered.display.contains("Spar"));
         assertTrue(rendered.display.contains("\"assets\": ["));
         assertTrue(rendered.display.contains("\"budgets\": ["));

@@ -40,9 +40,10 @@ public class JsonCompactPrinterTest {
     }
 
     @Test
-    public void emptyContainersStayFlat() throws Exception {
-        assertEquals("{\"x\": []}", JsonCompactPrinter.format("{\"x\":[]}"));
-        assertEquals("[{}, []]", JsonCompactPrinter.format("[{},[]]"));
+    public void emptyContainersPrintInlineButKeepTheirParentMultiLine() throws Exception {
+        // an account without entries must still get its own lines (and a fold marker)
+        assertEquals("{\n  \"x\": []\n}", JsonCompactPrinter.format("{\"x\":[]}"));
+        assertEquals("[\n  {},\n  []\n]", JsonCompactPrinter.format("[{},[]]"));
     }
 
     @Test

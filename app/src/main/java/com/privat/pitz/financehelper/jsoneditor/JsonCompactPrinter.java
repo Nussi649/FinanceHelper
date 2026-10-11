@@ -109,11 +109,16 @@ public final class JsonCompactPrinter {
         }
     }
 
-    /** True if no value is a non-empty container; empty ones print as {} / [] and count as flat. */
+    /**
+     * True if every value is a primitive. Any container counts against it, even an empty one: an
+     * account with no entries still holds "tx": [], and flattening it put the whole account on a
+     * single line that wrapped over half the screen and had no fold marker. Transactions never
+     * hold containers, so they stay one per line.
+     */
     private static boolean isFlat(JSONObject obj) {
         Iterator<String> keys = obj.keys();
         while (keys.hasNext()) {
-            if (isNonEmptyContainer(obj.opt(keys.next())))
+            if (isContainer(obj.opt(keys.next())))
                 return false;
         }
         return true;
@@ -121,18 +126,14 @@ public final class JsonCompactPrinter {
 
     private static boolean isFlat(JSONArray arr) {
         for (int i = 0; i < arr.length(); i++) {
-            if (isNonEmptyContainer(arr.opt(i)))
+            if (isContainer(arr.opt(i)))
                 return false;
         }
         return true;
     }
 
-    private static boolean isNonEmptyContainer(Object v) {
-        if (v instanceof JSONObject)
-            return ((JSONObject) v).length() > 0;
-        if (v instanceof JSONArray)
-            return ((JSONArray) v).length() > 0;
-        return false;
+    private static boolean isContainer(Object v) {
+        return v instanceof JSONObject || v instanceof JSONArray;
     }
 
     private static void newline(StringBuilder sb, int level) {
