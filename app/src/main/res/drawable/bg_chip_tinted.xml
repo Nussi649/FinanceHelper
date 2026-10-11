@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pale-blue chip for tappable values in dialogs (date, time): clearly a control, but quieter
+     than the filled primary button so it does not compete with the dialog's main action. -->
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="#304F61CA">
+    <item>
+        <shape>
+            <corners android:radius="10dp" />
+            <solid android:color="@color/colorSelection" />
+        </shape>
+    </item>
+</ripple>
