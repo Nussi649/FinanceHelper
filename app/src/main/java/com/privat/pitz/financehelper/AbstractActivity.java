@@ -108,7 +108,11 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
         ViewCompat.setOnApplyWindowInsetsListener(content, (view, windowInsets) -> {
             Insets bars = windowInsets.getInsets(
                     WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            // Edge-to-edge also retires adjustResize: the window no longer shrinks for the
+            // keyboard, so whatever the user is typing into would sit underneath it. The IME
+            // inset includes the navigation bar, hence max() rather than a sum.
+            int imeBottom = windowInsets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            view.setPadding(bars.left, bars.top, bars.right, Math.max(bars.bottom, imeBottom));
             return windowInsets;
         });
         paintStatusBarBackground();
