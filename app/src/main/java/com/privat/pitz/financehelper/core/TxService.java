@@ -346,4 +346,145 @@ public class TxService {
         return true;
     }
     // endregion
+
+    // region move / merge entries
+    /**
+     * Moves {@code entries} from {@code source} to {@code target}, unchanged.
+     *
+     * <p>Entries are treated as standalone records here, deliberately. The two halves of a booking
+     * are only linked by sharing a date and description, and that link does not survive merges or
+     * deletions of offsetting entries, so trying to drag a "counterpart" along would guess wrong.
+     * Moving one entry changes exactly two account totals: the one it leaves and the one it joins.
+     *
+     * <p>Refused without touching anything if either account is not live in the model (the orphan
+     * problem described in {@link #createTx}), if source and target are the same, or if any entry
+     * is not actually on {@code source}.
+     *
+     * @return false if the move was refused
+     */
+    public boolean moveTx(AccountBE source, List<TxBE> entries, AccountBE target)
+            throws JSONException, IOException {
+        if (!model.containsAccount(source) || !model.containsAccount(target) || source == target
+                || entries.isEmpty()) {
+            Log.println(Log.ERROR, "move_tx", String.format(
+                    "Refusing move of %d entries from %s to %s.", entries.size(), source, target));
+            return false;
+        }
+        for (TxBE tx : entries) {
+            if (source.getTxIndex(tx) == -1) {
+                Log.println(Log.ERROR, "move_tx", String.format(
+                        "Refusing move: %s is not on %s.", tx, source));
+                return false;
+            }
+        }
+        final List<TxBE> sourceBefore = new ArrayList<>(source.getTxList());
+        final List<TxBE> targetBefore = new ArrayList<>(target.getTxList());
+        for (TxBE tx : entries) {
+            source.removeTx(tx);
+            target.addTx(tx);
+        }
+        target.sortTxByDate();
+        repo.saveOrRevert("move_tx", "moving entries to " + target, () -> {
+            restoreTxList(source, sourceBefore);
+            restoreTxList(target, targetBefore);
+        });
+        return true;
+    }
+
+    /**
+     * Everything needed to undo a {@link #mergeTx}: the anchor's previous state and the entries
+     * that were folded into it.
+     */
+    public static final class Merge {
+        public final AccountBE account;
+        public final TxBE anchor;
+        /** True when the entries summed to zero and were all removed, the anchor included. */
+        public final boolean cancelledOut;
+        private final List<TxBE> txListBefore;
+        private final float anchorAmountBefore;
+        private final String anchorDescriptionBefore;
+
+        Merge(AccountBE account, TxBE anchor, boolean cancelledOut, List<TxBE> txListBefore,
+              float anchorAmountBefore, String anchorDescriptionBefore) {
+            this.account = account;
+            this.anchor = anchor;
+            this.cancelledOut = cancelledOut;
+            this.txListBefore = txListBefore;
+            this.anchorAmountBefore = anchorAmountBefore;
+            this.anchorDescriptionBefore = anchorDescriptionBefore;
+        }
+
+        private void revert() {
+            anchor.setAmount(anchorAmountBefore);
+            anchor.setDescription(anchorDescriptionBefore);
+            restoreTxList(account, txListBefore);
+        }
+    }
+
+    /** The amount {@link #mergeTx} would give the anchor, rounded to cents. */
+    public static float mergedAmount(TxBE anchor, List<TxBE> others) {
+        // Summing floats leaves residue (-3.68 + -9.38 = -13.059999); amounts are cents.
+        double sum = anchor.getAmount();
+        for (TxBE tx : others)
+            sum += tx.getAmount();
+        return Math.round(sum * 100.0) / 100.0f;
+    }
+
+    /**
+     * Merges {@code others} into {@code anchor}, all on {@code account}: the anchor keeps its date,
+     * takes {@code newDescription} and the summed amount, and the others are removed. If the sum
+     * is zero the entries cancel out and the anchor is removed as well, rather than leaving a 0,00
+     * entry behind. Either way the account total is unchanged - only a move can change a total.
+     *
+     * @return what is needed to undo the merge, or null if it was refused (an entry not on
+     *         {@code account}, the anchor among {@code others}, duplicates, or nothing to merge)
+     */
+    public Merge mergeTx(AccountBE account, TxBE anchor, List<TxBE> others, String newDescription)
+            throws JSONException, IOException {
+        boolean valid = model.containsAccount(account) && !others.isEmpty()
+                && account.getTxIndex(anchor) != -1 && !others.contains(anchor);
+        for (int i = 0; valid && i < others.size(); i++) {
+            TxBE tx = others.get(i);
+            valid = account.getTxIndex(tx) != -1 && others.indexOf(tx) == i;
+        }
+        if (!valid) {
+            Log.println(Log.ERROR, "merge_tx", String.format(
+                    "Refusing merge of %d entries into %s on %s.", others.size(), anchor, account));
+            return null;
+        }
+        float amount = mergedAmount(anchor, others);
+        boolean cancelledOut = amount == 0.0f;
+        final Merge merge = new Merge(account, anchor, cancelledOut,
+                new ArrayList<>(account.getTxList()), anchor.getAmount(), anchor.getDescription());
+
+        for (TxBE tx : others)
+            account.removeTx(tx);
+        if (cancelledOut) {
+            account.removeTx(anchor);
+        } else {
+            anchor.setAmount(amount);
+            anchor.setDescription(newDescription);
+        }
+        repo.saveOrRevert("merge_tx", "merging entries on " + account, merge::revert);
+        return merge;
+    }
+
+    /** Reverses a {@link #mergeTx}, restoring every entry exactly as it was. */
+    public void undoMerge(Merge merge) throws JSONException, IOException {
+        final float mergedAmount = merge.anchor.getAmount();
+        final String mergedDescription = merge.anchor.getDescription();
+        final List<TxBE> mergedList = new ArrayList<>(merge.account.getTxList());
+        merge.revert();
+        repo.saveOrRevert("merge_tx", "undoing a merge on " + merge.account, () -> {
+            merge.anchor.setAmount(mergedAmount);
+            merge.anchor.setDescription(mergedDescription);
+            restoreTxList(merge.account, mergedList);
+        });
+    }
+
+    private static void restoreTxList(AccountBE account, List<TxBE> entries) {
+        account.getTxList().clear();
+        account.getTxList().addAll(entries);
+    }
+    // endregion
 }

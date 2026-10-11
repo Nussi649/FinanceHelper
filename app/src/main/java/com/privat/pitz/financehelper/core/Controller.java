@@ -225,6 +225,18 @@ public class Controller {
         return txService.deleteTx(parent, tx);
     }
 
+    public boolean moveTx(AccountBE source, List<TxBE> entries, AccountBE target) throws JSONException, IOException {
+        return txService.moveTx(source, entries, target);
+    }
+
+    public TxService.Merge mergeTx(AccountBE account, TxBE anchor, List<TxBE> others, String newDescription) throws JSONException, IOException {
+        return txService.mergeTx(account, anchor, others, newDescription);
+    }
+
+    public void undoMerge(TxService.Merge merge) throws JSONException, IOException {
+        txService.undoMerge(merge);
+    }
+
     // add funds to one account
     public boolean addFunds(float amount, String desc) throws JSONException, IOException {
         return txService.addFunds(amount, desc);
