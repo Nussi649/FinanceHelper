@@ -89,6 +89,16 @@ public class FoldEditText extends AppCompatEditText {
     private boolean structuralChange;
     private boolean gutterTouch;
     private float gutterDownY;
+    // finger down on the text (not the gutter)
+    private boolean textTouch;
+    // The user panned by hand and has not tapped or typed since. TextView pulls the view back to
+    // the caret whenever it can (on finger-up and on later redraws), which snapped every
+    // sideways pan straight back to x = 0 the moment the finger lifted. While this is set,
+    // bringPointIntoView is a no-op; a tap or any typing clears it, so typing still follows
+    // the caret.
+    private boolean keepUserScroll;
+    // the current text touch scrolled the view, i.e. it was a pan rather than a tap
+    private boolean pannedThisTouch;
 
     public FoldEditText(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -129,6 +139,8 @@ public class FoldEditText extends AppCompatEditText {
 
             @Override
             public void afterTextChanged(Editable s) {
+                if (!structuralChange)
+                    keepUserScroll = false;
                 scanDirty = true;
                 removeCallbacks(rescan);
                 postDelayed(rescan, RESCAN_DELAY_MS);
@@ -374,6 +386,8 @@ public class FoldEditText extends AppCompatEditText {
                 gutterDownY = event.getY();
                 if (gutterTouch)
                     return true; // keep the caret where it is
+                textTouch = true;
+                pannedThisTouch = false;
                 break;
             case MotionEvent.ACTION_UP:
                 if (gutterTouch) {
@@ -384,6 +398,7 @@ public class FoldEditText extends AppCompatEditText {
                 }
                 break;
             case MotionEvent.ACTION_CANCEL:
+                textTouch = false;
                 if (gutterTouch) {
                     gutterTouch = false;
                     return true;
@@ -394,7 +409,36 @@ public class FoldEditText extends AppCompatEditText {
                     return true;
                 break;
         }
-        return super.onTouchEvent(event);
+        boolean handled = super.onTouchEvent(event);
+        if (event.getActionMasked() == MotionEvent.ACTION_UP && textTouch) {
+            textTouch = false;
+            // a tap places the caret, so following it is right again; a pan keeps its position
+            if (!pannedThisTouch)
+                keepUserScroll = false;
+        }
+        return handled;
+    }
+
+    @Override
+    protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+        super.onScrollChanged(l, t, oldl, oldt);
+        if (textTouch) {
+            pannedThisTouch = true;
+            keepUserScroll = true;
+        }
+    }
+
+    // Deliberately not cleared on selection changes: lifting the finger after a pan moves the
+    // selection to the touch point and straight back, which would undo the pan on the next
+    // frame. Taps and typing are the signals that the caret should be followed again.
+    @Override
+    public boolean bringPointIntoView(int offset) {
+        return !keepUserScroll && super.bringPointIntoView(offset);
+    }
+
+    @Override
+    public boolean bringPointIntoView(int offset, boolean requestRectWithoutFocus) {
+        return !keepUserScroll && super.bringPointIntoView(offset, requestRectWithoutFocus);
     }
 
     private void onGutterTap(float y) {
