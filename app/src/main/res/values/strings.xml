@@ -178,4 +178,27 @@
     <string name="dummy_current_percentage">rel.</string>
     <string name="dummy_yearly_budget">Jahr</string>
     <string name="dummy_renewal">1M (2024–01)</string>
+
+    <!-- moving and merging entries -->
+    <string name="label_account">Konto</string>
+    <string name="label_pick_account">Konto wählen</string>
+    <string name="label_account_current">%1$s (aktuell)</string>
+    <string name="label_account_was">%1$s (war: %2$s)</string>
+    <string name="label_selection_count">%1$d ausgewählt</string>
+    <string name="label_merge">Zusammenführen</string>
+    <string name="label_move">Verschieben</string>
+    <string name="label_remove">Entfernen</string>
+    <string name="label_merge_title">%1$d Einträge zusammenführen</string>
+    <string name="label_merge_cancel_out">Die Einträge heben sich auf (Summe 0,00) und werden entfernt.</string>
+    <string name="label_forwarded_title">Weitergeleitetes Konto</string>
+    <string name="label_forwarded_warning">%1$s leitet Buchungen an %2$s weiter. Das Verschieben ändert die Datei von %2$s nicht, die musst du dort selbst anpassen.</string>
+    <plurals name="snackbar_tx_moved">
+        <item quantity="one">Eintrag nach %2$s verschoben</item>
+        <item quantity="other">%1$d Einträge nach %2$s verschoben</item>
+    </plurals>
+    <string name="snackbar_tx_merged">Einträge zusammengeführt</string>
+    <string name="snackbar_tx_cancelled_out">Einträge haben sich aufgehoben und wurden entfernt</string>
+    <string name="toast_error_tx_not_moved">Verschieben fehlgeschlagen, es wurde nichts geändert.</string>
+    <string name="toast_error_tx_not_merged">Zusammenführen fehlgeschlagen, es wurde nichts geändert.</string>
+    <string name="toast_info_merge_needs_two">Zum Zusammenführen mindestens zwei Einträge auswählen.</string>
 </resources>

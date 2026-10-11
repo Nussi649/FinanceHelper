@@ -1,5 +1,6 @@
 package com.privat.pitz.financehelper.ui;
 
+import android.app.AlertDialog;
 import android.content.Context;
 import android.util.Log;
 import android.view.View;
@@ -10,13 +11,20 @@ import com.google.android.material.snackbar.Snackbar;
 import org.json.JSONException;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import com.privat.pitz.financehelper.R;
 import com.privat.pitz.financehelper.core.Controller;
+import com.privat.pitz.financehelper.core.TxService;
 import com.privat.pitz.financehelper.data.AccountBE;
+import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.data.TxBE;
 import com.privat.pitz.financehelper.ui.adapter.TxListAdapter;
+import com.privat.pitz.financehelper.ui.dialog.AccountPickerDialog;
 import com.privat.pitz.financehelper.ui.dialog.EditTxDialog;
+import com.privat.pitz.financehelper.ui.dialog.MergeTxDialog;
 
 /**
  * Shared implementation of {@link TxListSection.TxActions}: swipe RIGHT opens {@link EditTxDialog}
@@ -28,7 +36,7 @@ import com.privat.pitz.financehelper.ui.dialog.EditTxDialog;
  * Extracted from what used to be near-identical copies of these two methods in
  * {@code AssetAccountDetailsActivity} and {@code BudgetAccountDetailsActivity}.
  */
-public class TxSwipeActions implements TxListSection.TxActions {
+public class TxSwipeActions implements TxListSection.TxActions, TxListSection.SelectionActions {
     private final Context context;
     private final Controller controller;
     private final AccountBE account;
@@ -55,7 +63,7 @@ public class TxSwipeActions implements TxListSection.TxActions {
 
     @Override
     public void onEditRequested(int position, TxBE tx) {
-        EditTxDialog dialog = new EditTxDialog(context, tx) {
+        EditTxDialog dialog = new EditTxDialog(context, tx, controller.getModel(), account) {
             @Override
             public void onConfirm(Edit edit) {
                 try {
@@ -94,7 +102,12 @@ public class TxSwipeActions implements TxListSection.TxActions {
                         Log.println(Log.ERROR, "edit_tx",
                                 String.format("Error writing safe file after editing a transaction (%s): %s", tx, e));
                     showErrorToast(e);
+                    return;
                 }
+                // The edit is saved first and the move is its own step, so backing out of the
+                // forwarded-account warning keeps the edit and only skips the move.
+                if (edit.moveTo != null)
+                    move(Collections.singletonList(tx), edit.moveTo, () -> { });
                 // Deliberately no notifyItemChanged(position) here. An edit can change the date,
                 // and onRefresh() runs after account.sortTxByDate(), so by this point `position`
                 // may refer to a completely different entry. onRefresh() -> section.refresh() ->
@@ -147,6 +160,102 @@ public class TxSwipeActions implements TxListSection.TxActions {
             }
         });
         snackbar.show();
+    }
+
+    @Override
+    public void onMoveRequested(List<TxBE> entries, Runnable done) {
+        List<TxBE> toMove = new ArrayList<>(entries);
+        new AccountPickerDialog(context, controller.getModel(), account)
+                .show(target -> move(toMove, target, done));
+    }
+
+    @Override
+    public void onMergeRequested(TxBE anchor, List<TxBE> others, Runnable done) {
+        List<TxBE> toMerge = new ArrayList<>(others);
+        new MergeTxDialog(context, anchor, toMerge).show((description, date) -> {
+            try {
+                TxService.Merge merge = controller.mergeTx(account, anchor, toMerge, description, date);
+                if (merge == null) {
+                    Toast.makeText(context, R.string.toast_error_tx_not_merged, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                done.run();
+                onChanged.onRefresh();
+                Snackbar.make(snackbarAnchor, merge.cancelledOut
+                                ? R.string.snackbar_tx_cancelled_out : R.string.snackbar_tx_merged,
+                        Snackbar.LENGTH_LONG)
+                        .setAction(R.string.label_undo, v -> {
+                            try {
+                                controller.undoMerge(merge);
+                                onChanged.onRefresh();
+                            } catch (JSONException | IOException e) {
+                                showErrorToast(e);
+                            }
+                        })
+                        .show();
+            } catch (JSONException | IOException e) {
+                showErrorToast(e);
+            }
+        });
+    }
+
+    /** Moves {@code entries} off this account to {@code target}, offering undo afterwards. */
+    private void move(List<TxBE> entries, AccountBE target, Runnable done) {
+        confirmForwarding(target, () -> {
+            try {
+                if (!controller.moveTx(account, entries, target)) {
+                    Toast.makeText(context, R.string.toast_error_tx_not_moved, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                done.run();
+                onChanged.onRefresh();
+                String message = context.getResources().getQuantityString(
+                        R.plurals.snackbar_tx_moved, entries.size(), entries.size(), target.getName());
+                Snackbar.make(snackbarAnchor, message, Snackbar.LENGTH_LONG)
+                        .setAction(R.string.label_undo, v -> {
+                            try {
+                                if (!controller.moveTx(target, entries, account))
+                                    Toast.makeText(context, R.string.toast_error_tx_not_moved,
+                                            Toast.LENGTH_LONG).show();
+                                onChanged.onRefresh();
+                            } catch (JSONException | IOException e) {
+                                showErrorToast(e);
+                            }
+                        })
+                        .show();
+            } catch (JSONException | IOException e) {
+                showErrorToast(e);
+            }
+        });
+    }
+
+    /**
+     * Runs {@code proceed} straight away, unless the move touches an account that forwards its
+     * bookings into another entity's save file. That copy was written when the booking was made
+     * and a move here cannot reach it, so the user is told to fix the other file by hand.
+     */
+    private void confirmForwarding(AccountBE target, Runnable proceed) {
+        BudgetAccountBE forwarding = forwardingAccount(account);
+        if (forwarding == null)
+            forwarding = forwardingAccount(target);
+        if (forwarding == null) {
+            proceed.run();
+            return;
+        }
+        new AlertDialog.Builder(context)
+                .setTitle(R.string.label_forwarded_title)
+                .setMessage(context.getString(R.string.label_forwarded_warning,
+                        forwarding.getName(), forwarding.getOtherEntity()))
+                .setPositiveButton(R.string.label_move, (d, w) -> proceed.run())
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+    }
+
+    private static BudgetAccountBE forwardingAccount(AccountBE account) {
+        if (!(account instanceof BudgetAccountBE))
+            return null;
+        String otherEntity = ((BudgetAccountBE) account).getOtherEntity();
+        return otherEntity == null || otherEntity.isEmpty() ? null : (BudgetAccountBE) account;
     }
 
     // Mirrors AbstractActivity.showErrorToast(Exception) for the two exception types this class's

@@ -403,20 +403,22 @@ public class TxService {
         private final List<TxBE> txListBefore;
         private final float anchorAmountBefore;
         private final String anchorDescriptionBefore;
+        private final Date anchorDateBefore;
 
-        Merge(AccountBE account, TxBE anchor, boolean cancelledOut, List<TxBE> txListBefore,
-              float anchorAmountBefore, String anchorDescriptionBefore) {
+        Merge(AccountBE account, TxBE anchor, boolean cancelledOut, List<TxBE> txListBefore) {
             this.account = account;
             this.anchor = anchor;
             this.cancelledOut = cancelledOut;
             this.txListBefore = txListBefore;
-            this.anchorAmountBefore = anchorAmountBefore;
-            this.anchorDescriptionBefore = anchorDescriptionBefore;
+            this.anchorAmountBefore = anchor.getAmount();
+            this.anchorDescriptionBefore = anchor.getDescription();
+            this.anchorDateBefore = anchor.getDate();
         }
 
         private void revert() {
             anchor.setAmount(anchorAmountBefore);
             anchor.setDescription(anchorDescriptionBefore);
+            anchor.setDate(anchorDateBefore);
             restoreTxList(account, txListBefore);
         }
     }
@@ -430,17 +432,24 @@ public class TxService {
         return Math.round(sum * 100.0) / 100.0f;
     }
 
+    /** {@link #mergeTx(AccountBE, TxBE, List, String, Date)}, keeping the anchor's date. */
+    public Merge mergeTx(AccountBE account, TxBE anchor, List<TxBE> others, String newDescription)
+            throws JSONException, IOException {
+        return mergeTx(account, anchor, others, newDescription, anchor.getDate());
+    }
+
     /**
-     * Merges {@code others} into {@code anchor}, all on {@code account}: the anchor keeps its date,
-     * takes {@code newDescription} and the summed amount, and the others are removed. If the sum
-     * is zero the entries cancel out and the anchor is removed as well, rather than leaving a 0,00
-     * entry behind. Either way the account total is unchanged - only a move can change a total.
+     * Merges {@code others} into {@code anchor}, all on {@code account}: the anchor takes
+     * {@code newDescription}, {@code newDate} and the summed amount, and the others are removed.
+     * If the sum is zero the entries cancel out and the anchor is removed as well, rather than
+     * leaving a 0,00 entry behind. Either way the account total is unchanged - only a move can
+     * change a total.
      *
      * @return what is needed to undo the merge, or null if it was refused (an entry not on
      *         {@code account}, the anchor among {@code others}, duplicates, or nothing to merge)
      */
-    public Merge mergeTx(AccountBE account, TxBE anchor, List<TxBE> others, String newDescription)
-            throws JSONException, IOException {
+    public Merge mergeTx(AccountBE account, TxBE anchor, List<TxBE> others, String newDescription,
+                         Date newDate) throws JSONException, IOException {
         boolean valid = model.containsAccount(account) && !others.isEmpty()
                 && account.getTxIndex(anchor) != -1 && !others.contains(anchor);
         for (int i = 0; valid && i < others.size(); i++) {
@@ -455,7 +464,7 @@ public class TxService {
         float amount = mergedAmount(anchor, others);
         boolean cancelledOut = amount == 0.0f;
         final Merge merge = new Merge(account, anchor, cancelledOut,
-                new ArrayList<>(account.getTxList()), anchor.getAmount(), anchor.getDescription());
+                new ArrayList<>(account.getTxList()));
 
         for (TxBE tx : others)
             account.removeTx(tx);
@@ -464,6 +473,8 @@ public class TxService {
         } else {
             anchor.setAmount(amount);
             anchor.setDescription(newDescription);
+            anchor.setDate(newDate);
+            account.sortTxByDate();
         }
         repo.saveOrRevert("merge_tx", "merging entries on " + account, merge::revert);
         return merge;
@@ -473,11 +484,13 @@ public class TxService {
     public void undoMerge(Merge merge) throws JSONException, IOException {
         final float mergedAmount = merge.anchor.getAmount();
         final String mergedDescription = merge.anchor.getDescription();
+        final Date mergedDate = merge.anchor.getDate();
         final List<TxBE> mergedList = new ArrayList<>(merge.account.getTxList());
         merge.revert();
         repo.saveOrRevert("merge_tx", "undoing a merge on " + merge.account, () -> {
             merge.anchor.setAmount(mergedAmount);
             merge.anchor.setDescription(mergedDescription);
+            merge.anchor.setDate(mergedDate);
             restoreTxList(merge.account, mergedList);
         });
     }

@@ -1,17 +1,20 @@
 package com.privat.pitz.financehelper.ui.adapter;
 
 import android.annotation.SuppressLint;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.privat.pitz.financehelper.R;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import com.privat.pitz.financehelper.core.Util;
@@ -32,6 +35,41 @@ public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewH
         }
     }
     protected List<TxBE> entries = new ArrayList<>();
+
+    /** Taps and long-presses on rows; only screens that support selecting entries set this. */
+    public interface EntryInteraction {
+        void onEntryClicked(TxBE tx);
+        void onEntryLongClicked(TxBE tx);
+    }
+
+    private EntryInteraction interaction;
+    // Insertion-ordered on purpose: the first entry selected is the anchor a merge folds the
+    // others into, so the order of selection is data, not presentation.
+    private final LinkedHashSet<TxBE> selected = new LinkedHashSet<>();
+
+    public void setEntryInteraction(EntryInteraction interaction) {
+        this.interaction = interaction;
+    }
+
+    /** Selects {@code tx}, or deselects it if it already is. */
+    @SuppressLint("NotifyDataSetChanged")
+    public void toggleSelected(TxBE tx) {
+        if (!selected.remove(tx))
+            selected.add(tx);
+        // whole list, not one row: deselecting the anchor promotes another row to anchor
+        notifyDataSetChanged();
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    public void clearSelection() {
+        selected.clear();
+        notifyDataSetChanged();
+    }
+
+    /** The selected entries in the order they were selected; the first one is the anchor. */
+    public List<TxBE> getSelected() {
+        return new ArrayList<>(selected);
+    }
 
     @SuppressWarnings("unchecked")
     @SuppressLint("NotifyDataSetChanged")
@@ -75,6 +113,22 @@ public class TxListAdapter extends RecyclerView.Adapter<TxListAdapter.EntryViewH
         holder.date.setText(Util.formatDateDisplay(entry.getDate()));
         holder.labelDescription.setText(entry.getDescription());
         holder.labelAmount.setText(Util.formatFloatDisplay(entry.getAmount()));
+
+        int background = Color.TRANSPARENT;
+        if (selected.contains(entry)) {
+            boolean isAnchor = selected.iterator().next() == entry;
+            background = ContextCompat.getColor(holder.itemView.getContext(),
+                    isAnchor ? R.color.colorSelectionAnchor : R.color.colorSelection);
+        }
+        holder.itemView.setBackgroundColor(background);
+
+        if (interaction != null) {
+            holder.itemView.setOnClickListener(v -> interaction.onEntryClicked(entry));
+            holder.itemView.setOnLongClickListener(v -> {
+                interaction.onEntryLongClicked(entry);
+                return true;
+            });
+        }
     }
 
     public TxBE getTxAtPosition(int position) {

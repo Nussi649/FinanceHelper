@@ -233,6 +233,10 @@ public class Controller {
         return txService.mergeTx(account, anchor, others, newDescription);
     }
 
+    public TxService.Merge mergeTx(AccountBE account, TxBE anchor, List<TxBE> others, String newDescription, Date newDate) throws JSONException, IOException {
+        return txService.mergeTx(account, anchor, others, newDescription, newDate);
+    }
+
     public void undoMerge(TxService.Merge merge) throws JSONException, IOException {
         txService.undoMerge(merge);
     }

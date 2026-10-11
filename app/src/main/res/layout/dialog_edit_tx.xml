@@ -47,6 +47,29 @@
         android:inputType="numberDecimal"
         android:hint="@string/label_amount" />
 
+    <TextView
+        android:layout_width="240dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:textSize="12sp"
+        android:text="@string/label_account" />
+
+    <!-- tapping opens AccountPickerDialog; turns highlighted once a different account is picked -->
+    <TextView
+        android:id="@+id/tv_account"
+        android:layout_width="240dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="3dp"
+        android:minHeight="44dp"
+        android:gravity="center_vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:textSize="16sp"
+        android:textColor="@color/colorPrimary"
+        android:background="@drawable/bg_button_outlined"
+        android:drawableEnd="@drawable/ic_arrow_down_24"
+        android:drawableTint="@color/colorPrimary" />
+
     <CheckBox
         android:id="@+id/cb_update_counterpart"
         android:layout_width="wrap_content"

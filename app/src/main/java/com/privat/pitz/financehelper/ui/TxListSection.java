@@ -4,10 +4,15 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.view.ActionMode;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.ItemTouchHelper;
@@ -16,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.privat.pitz.financehelper.R;
 import com.privat.pitz.financehelper.data.TxBE;
+import com.privat.pitz.financehelper.ui.adapter.TxListAdapter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +48,17 @@ public class TxListSection {
         void onDeleteRequested(int position, TxBE tx);
     }
 
+    /**
+     * Supplied by screens whose entries can be selected for bulk actions. Each callback receives
+     * {@code done}, which ends selection mode; call it once the action is carried out, and not if
+     * the user backs out of a dialog, so the selection survives a cancel.
+     */
+    public interface SelectionActions {
+        /** {@code anchor} is the entry selected first, which the others are merged into. */
+        void onMergeRequested(TxBE anchor, List<TxBE> others, Runnable done);
+        void onMoveRequested(List<TxBE> entries, Runnable done);
+    }
+
     public static final BiPredicate<TxBE, String> MATCH_DESCRIPTION =
             (tx, query) -> tx.getDescription().toUpperCase().contains(query.toUpperCase());
 
@@ -56,6 +73,11 @@ public class TxListSection {
 
     private String lastQuery;
     private List<? extends TxBE> lastVisibleEntries = new ArrayList<>();
+
+    private static final int MENU_MERGE = 1;
+    private static final int MENU_MOVE = 2;
+    // non-null exactly while selection mode is active
+    private ActionMode actionMode;
 
     public <A extends RecyclerView.Adapter<?> & EntryListAdapter> TxListSection(
             View root,
@@ -112,6 +134,13 @@ public class TxListSection {
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
                 return false;
+            }
+
+            @Override
+            public int getSwipeDirs(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder) {
+                // a swipe-delete in the middle of selecting would pull a row out from under the
+                // selection; while selecting, a horizontal drag does nothing
+                return actionMode != null ? 0 : super.getSwipeDirs(recyclerView, viewHolder);
             }
 
             @Override
@@ -190,6 +219,81 @@ public class TxListSection {
 
         ItemTouchHelper itemTouchHelper = new ItemTouchHelper(simpleCallback);
         itemTouchHelper.attachToRecyclerView(recyclerView);
+    }
+
+    /**
+     * Turns on selecting entries: a long-press selects the first one and enters selection mode,
+     * taps then add or remove entries, and the contextual action bar offers merge and move.
+     */
+    public void enableSelection(TxListAdapter adapter, SelectionActions actions) {
+        AppCompatActivity activity = (AppCompatActivity) root.getContext();
+        ActionMode.Callback callback = new ActionMode.Callback() {
+            @Override
+            public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+                menu.add(Menu.NONE, MENU_MERGE, Menu.NONE, R.string.label_merge)
+                        .setIcon(R.drawable.ic_merge_24)
+                        .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+                menu.add(Menu.NONE, MENU_MOVE, Menu.NONE, R.string.label_move)
+                        .setIcon(R.drawable.ic_transfer_arrow_24)
+                        .setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+                return true;
+            }
+
+            @Override
+            public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+                return false;
+            }
+
+            @Override
+            public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+                List<TxBE> selected = adapter.getSelected();
+                if (item.getItemId() == MENU_MERGE) {
+                    if (selected.size() < 2) {
+                        Toast.makeText(activity, R.string.toast_info_merge_needs_two,
+                                Toast.LENGTH_SHORT).show();
+                        return true;
+                    }
+                    actions.onMergeRequested(selected.get(0),
+                            selected.subList(1, selected.size()), mode::finish);
+                    return true;
+                } else if (item.getItemId() == MENU_MOVE) {
+                    actions.onMoveRequested(selected, mode::finish);
+                    return true;
+                }
+                return false;
+            }
+
+            @Override
+            public void onDestroyActionMode(ActionMode mode) {
+                actionMode = null;
+                adapter.clearSelection();
+            }
+        };
+
+        adapter.setEntryInteraction(new TxListAdapter.EntryInteraction() {
+            @Override
+            public void onEntryClicked(TxBE tx) {
+                if (actionMode == null)
+                    return;
+                toggle(tx);
+            }
+
+            @Override
+            public void onEntryLongClicked(TxBE tx) {
+                if (actionMode == null)
+                    actionMode = activity.startSupportActionMode(callback);
+                toggle(tx);
+            }
+
+            private void toggle(TxBE tx) {
+                adapter.toggleSelected(tx);
+                int count = adapter.getSelected().size();
+                if (count == 0)
+                    actionMode.finish();
+                else
+                    actionMode.setTitle(activity.getString(R.string.label_selection_count, count));
+            }
+        });
     }
 
     /**

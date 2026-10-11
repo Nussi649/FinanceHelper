@@ -54,6 +54,7 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
                 TxListSection.MATCH_DESCRIPTION,
                 this::renderTxSum,
                 swipeActions);
+        section.enableSelection(listAdapter, swipeActions);
 
         // The inherited populateUI() used to force this label to the short "Σ" form (rather than
         // the layout's default "Total Σ") for the per-entry sum card. Preserve that.

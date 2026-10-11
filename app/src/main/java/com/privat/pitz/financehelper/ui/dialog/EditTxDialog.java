@@ -16,7 +16,9 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 
+import com.privat.pitz.financehelper.core.Model;
 import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.data.AccountBE;
 import com.privat.pitz.financehelper.data.TxBE;
 
 @SuppressLint("DefaultLocale")
@@ -35,9 +37,18 @@ public abstract class EditTxDialog extends BaseInputDialog {
     EditText etAmount;
     CheckBox cbUpdateCounterpart;
 
-    public EditTxDialog(Context context, TxBE tx) {
+    private final Model model;
+    private final AccountBE account;
+    // the account the user picked in the dialog; stays == account unless they choose another
+    private AccountBE targetAccount;
+    TextView tvAccount;
+
+    public EditTxDialog(Context context, TxBE tx, Model model, AccountBE account) {
         super(context);
         this.tx = tx;
+        this.model = model;
+        this.account = account;
+        this.targetAccount = account;
         this.originalDate = tx.getDate();
         this.originalDescription = tx.getDescription();
         this.calendar = Calendar.getInstance();
@@ -62,9 +73,12 @@ public abstract class EditTxDialog extends BaseInputDialog {
         public final float newAmount;
         /** True if the user ticked "also change the counterpart". Off by default. */
         public final boolean updateCounterpart;
+        /** The account the entry should move to, or null to leave it where it is. */
+        public final AccountBE moveTo;
 
         Edit(TxBE tx, Date originalDate, String originalDescription,
-             Date newDate, String newDescription, float newAmount, boolean updateCounterpart) {
+             Date newDate, String newDescription, float newAmount, boolean updateCounterpart,
+             AccountBE moveTo) {
             this.tx = tx;
             this.originalDate = originalDate;
             this.originalDescription = originalDescription;
@@ -72,6 +86,7 @@ public abstract class EditTxDialog extends BaseInputDialog {
             this.newDescription = newDescription;
             this.newAmount = newAmount;
             this.updateCounterpart = updateCounterpart;
+            this.moveTo = moveTo;
         }
 
         /** Applies the edit to this side only. */
@@ -101,6 +116,13 @@ public abstract class EditTxDialog extends BaseInputDialog {
         etDescription = view.findViewById(R.id.et_description);
         etAmount = view.findViewById(R.id.et_amount);
         cbUpdateCounterpart = view.findViewById(R.id.cb_update_counterpart);
+        tvAccount = view.findViewById(R.id.tv_account);
+        renderAccount();
+        tvAccount.setOnClickListener(v ->
+                new AccountPickerDialog(context, model, account).show(picked -> {
+                    targetAccount = picked;
+                    renderAccount();
+                }));
 
         // Pre-fill the fields with the current values
         tvDate.setText(new SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(calendar.getTime()));
@@ -128,6 +150,19 @@ public abstract class EditTxDialog extends BaseInputDialog {
         });
     }
 
+    // A changed account is the one edit that changes two totals, so it is made obvious before
+    // confirming: highlighted, and naming the account it came from.
+    private void renderAccount() {
+        if (targetAccount == account) {
+            tvAccount.setText(account.getName());
+            tvAccount.setBackgroundResource(R.drawable.bg_button_outlined);
+        } else {
+            tvAccount.setText(context.getString(R.string.label_account_was,
+                    targetAccount.getName(), account.getName()));
+            tvAccount.setBackgroundResource(R.drawable.bg_button_outlined_highlighted);
+        }
+    }
+
     @Override
     protected boolean onConfirmClicked() {
         String description = etDescription.getText().toString();
@@ -145,7 +180,8 @@ public abstract class EditTxDialog extends BaseInputDialog {
                 // deliberately not mutated here - see Edit's javadoc
                 onConfirm(new Edit(tx, originalDate, originalDescription,
                         calendar.getTime(), description, amount,
-                        cbUpdateCounterpart != null && cbUpdateCounterpart.isChecked()));
+                        cbUpdateCounterpart != null && cbUpdateCounterpart.isChecked(),
+                        targetAccount == account ? null : targetAccount));
                 return true;
             } catch (NumberFormatException e) {
                 toastLong(R.string.toast_error_invalid_amount);

@@ -425,6 +425,29 @@ public class MoveMergeTxTest {
 
     // region undoMerge
     @Test
+    public void merge_withNewDate_resortsAndUndoRestoresDateAndOrder() throws JSONException, IOException {
+        TxBE anchor = tx(girokonto, -3.68f, "Spar", date(2026, 8, 1));
+        TxBE middle = tx(girokonto, -18f, "LePho", date(2026, 8, 2));
+        TxBE other = tx(girokonto, -9.38f, "Spar", date(2026, 8, 3));
+        List<TxBE> before = snapshot(girokonto);
+
+        TxService.Merge merge = controller.mergeTx(girokonto, anchor,
+                Collections.singletonList(other), "Spar gesamt", date(2026, 8, 4));
+
+        assertEquals(date(2026, 8, 4), anchor.getDate());
+        assertEquals("Spar gesamt", anchor.getDescription());
+        assertSame("the moved-forward anchor must sort after LePho", middle,
+                girokonto.getTxList().get(0));
+        assertSame(anchor, girokonto.getTxList().get(1));
+
+        controller.undoMerge(merge);
+
+        assertEquals(date(2026, 8, 1), anchor.getDate());
+        assertEquals("Spar", anchor.getDescription());
+        assertSameList("order and identities", before, girokonto);
+    }
+
+    @Test
     public void undo_restoresANormalMergeExactly() throws JSONException, IOException {
         TxBE first = tx(girokonto, -3.68f, "Brot", date(2026, 8, 1));
         TxBE anchor = tx(girokonto, -9.38f, "Milch", date(2026, 8, 3));

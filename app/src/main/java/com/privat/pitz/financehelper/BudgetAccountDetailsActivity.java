@@ -97,6 +97,7 @@ public class BudgetAccountDetailsActivity extends AbstractActivity implements Bu
                 TxListSection.MATCH_DESCRIPTION,
                 this::renderTxSum,
                 swipeActions);
+        section.enableSelection(listAdapter, swipeActions);
 
         // TxListSection hides these two by default (plain asset-account screens don't use them),
         // but the budget screen needs them visible to show percentage/yearly budget alongside
