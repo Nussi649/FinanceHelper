@@ -105,7 +105,10 @@ public class FoldEditText extends AppCompatEditText {
 
         // reserve the gutter inside the left padding; onDraw paints into it
         setPadding(gutterWidth + Math.round(4 * density), getPaddingTop(), getPaddingRight(), getPaddingBottom());
-        setHorizontallyScrolling(false);
+        // Lines never wrap: the EditText itself pans in both axes (its movement method turns a
+        // one-finger drag into scrollTo(x, y)); the gutter is repainted at getScrollX() so it
+        // stays put on screen.
+        setHorizontallyScrolling(true);
 
         // The TextView constructor already built an Editable with the default factory; swap the
         // factory and rebuild so every Editable from now on is a ProtectedEditable.
@@ -215,7 +218,16 @@ public class FoldEditText extends AppCompatEditText {
         int max = Math.max(0, layout.getHeight() + getCompoundPaddingTop() + getCompoundPaddingBottom() - getHeight());
         // a third of the way down leaves context above the target
         int target = layout.getLineTop(line) - getHeight() / 3;
-        scrollTo(0, Math.max(0, Math.min(target, max)));
+        int x = 0;
+        int visibleWidth = getWidth() - getCompoundPaddingLeft() - getCompoundPaddingRight();
+        if (visibleWidth > 0) {
+            // keep the offset a quarter of the way in from the left once it is off screen
+            int maxX = Math.max(0, (int) Math.ceil(layout.getLineRight(line)) - visibleWidth);
+            int at = (int) layout.getPrimaryHorizontal(offset);
+            if (at >= visibleWidth)
+                x = Math.max(0, Math.min(at - visibleWidth / 4, maxX));
+        }
+        scrollTo(x, Math.max(0, Math.min(target, max)));
     }
     //endregion
 
@@ -306,16 +318,17 @@ public class FoldEditText extends AppCompatEditText {
     //region gutter
     @Override
     protected void onDraw(Canvas canvas) {
-        Layout layout = getLayout();
-        if (layout != null) {
-            int left = getScrollX();
-            int top = getScrollY();
-            canvas.drawRect(left, top, left + gutterWidth, top + getHeight(), gutterPaint);
-            canvas.drawRect(left + gutterWidth - 1, top, left + gutterWidth, top + getHeight(), dividerPaint);
-        }
         super.onDraw(canvas);
+        Layout layout = getLayout();
         if (layout == null)
             return;
+        // The canvas is translated by the scroll offsets, so the gutter is painted at
+        // (getScrollX(), getScrollY()): it covers whatever text has scrolled under it and the
+        // markers stay at the same screen position at any horizontal scroll.
+        int left = getScrollX();
+        int top = getScrollY();
+        canvas.drawRect(left, top, left + gutterWidth, top + getHeight(), gutterPaint);
+        canvas.drawRect(left + gutterWidth - 1, top, left + gutterWidth, top + getHeight(), dividerPaint);
         // Never rescan from here: drawing happens per keystroke. A scan that is a few hundred
         // milliseconds stale only misplaces a marker briefly; the debounced rescan fixes it.
         if (scan == null)
