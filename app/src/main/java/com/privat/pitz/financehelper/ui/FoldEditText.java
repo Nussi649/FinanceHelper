@@ -15,9 +15,13 @@ import android.util.AttributeSet;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 import android.view.MotionEvent;
+import android.view.VelocityTracker;
 import android.view.ViewConfiguration;
+import android.widget.OverScroller;
 
 import androidx.appcompat.widget.AppCompatEditText;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.privat.pitz.financehelper.R;
 import com.privat.pitz.financehelper.jsoneditor.FoldMath;
@@ -99,12 +103,28 @@ public class FoldEditText extends AppCompatEditText {
     private boolean keepUserScroll;
     // the current text touch scrolled the view, i.e. it was a pan rather than a tap
     private boolean pannedThisTouch;
+    // this touch moved past the slop and is being handled as a pan by this class, not TextView
+    private boolean panning;
+    // this touch turned into a long-press selection, which TextView keeps handling
+    private boolean longPressed;
+    private float downX, downY, lastX, lastY;
+    private VelocityTracker velocity;
+    private final OverScroller flinger;
+    private final int minFlingVelocity;
+    private final int maxFlingVelocity;
+    // right edge of the widest line, -1 = needs measuring (reset whenever the text changes)
+    private int widestLine = -1;
+    private boolean imeVisible;
 
     public FoldEditText(Context context, AttributeSet attrs) {
         super(context, attrs);
         float density = getResources().getDisplayMetrics().density;
         gutterWidth = Math.round(24 * density);
-        touchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        ViewConfiguration viewConfig = ViewConfiguration.get(context);
+        touchSlop = viewConfig.getScaledTouchSlop();
+        minFlingVelocity = viewConfig.getScaledMinimumFlingVelocity();
+        maxFlingVelocity = viewConfig.getScaledMaximumFlingVelocity();
+        flinger = new OverScroller(context);
         placeholderTextColor = context.getColor(R.color.jsonEditorPlaceholderText);
         placeholderBackgroundColor = context.getColor(R.color.jsonEditorPlaceholderBackground);
         searchHitColor = context.getColor(R.color.jsonEditorSearchHit);
@@ -119,6 +139,17 @@ public class FoldEditText extends AppCompatEditText {
         // one-finger drag into scrollTo(x, y)); the gutter is repainted at getScrollX() so it
         // stays put on screen.
         setHorizontallyScrolling(true);
+
+        // Closing the keyboard (Back, or swiping it away) ends editing: drop the cursor so the
+        // editor is back in its neutral, read-and-scroll state. The layout root is focusable in
+        // touch mode, so the focus has somewhere to go.
+        ViewCompat.setOnApplyWindowInsetsListener(this, (view, insets) -> {
+            boolean visible = insets.isVisible(WindowInsetsCompat.Type.ime());
+            if (imeVisible && !visible && hasFocus())
+                clearFocus();
+            imeVisible = visible;
+            return ViewCompat.onApplyWindowInsets(view, insets);
+        });
 
         // The TextView constructor already built an Editable with the default factory; swap the
         // factory and rebuild so every Editable from now on is a ProtectedEditable.
@@ -141,6 +172,7 @@ public class FoldEditText extends AppCompatEditText {
             public void afterTextChanged(Editable s) {
                 if (!structuralChange)
                     keepUserScroll = false;
+                widestLine = -1;
                 scanDirty = true;
                 removeCallbacks(rescan);
                 postDelayed(rescan, RESCAN_DELAY_MS);
@@ -388,12 +420,59 @@ public class FoldEditText extends AppCompatEditText {
                     return true; // keep the caret where it is
                 textTouch = true;
                 pannedThisTouch = false;
+                panning = false;
+                longPressed = false;
+                downX = lastX = event.getX();
+                downY = lastY = event.getY();
+                flinger.forceFinished(true);
+                if (velocity != null)
+                    velocity.recycle();
+                velocity = VelocityTracker.obtain();
+                velocity.addMovement(event);
+                break;
+            case MotionEvent.ACTION_MOVE:
+                if (gutterTouch)
+                    return true;
+                if (velocity != null)
+                    velocity.addMovement(event);
+                if (!panning && !longPressed && textTouch
+                        && Math.hypot(event.getX() - downX, event.getY() - downY) > touchSlop) {
+                    // From here on this touch is a pan, never a caret gesture. TextView would
+                    // otherwise read a mostly-horizontal drag as "drag the cursor" (Android 12+
+                    // does that anywhere in focused text), so once a cursor existed every sideways
+                    // swipe moved it instead of scrolling. Cancelling the TextView's half of the
+                    // gesture also drops its pending long-press.
+                    panning = true;
+                    MotionEvent cancel = MotionEvent.obtain(event);
+                    cancel.setAction(MotionEvent.ACTION_CANCEL);
+                    super.onTouchEvent(cancel);
+                    cancel.recycle();
+                    lastX = event.getX();
+                    lastY = event.getY();
+                }
+                if (panning) {
+                    panTo(getScrollX() + Math.round(lastX - event.getX()),
+                            getScrollY() + Math.round(lastY - event.getY()));
+                    lastX = event.getX();
+                    lastY = event.getY();
+                    return true;
+                }
                 break;
             case MotionEvent.ACTION_UP:
                 if (gutterTouch) {
                     gutterTouch = false;
                     if (Math.abs(event.getY() - gutterDownY) < touchSlop)
                         onGutterTap(event.getY());
+                    return true;
+                }
+                if (panning) {
+                    panning = false;
+                    textTouch = false;
+                    if (velocity != null) {
+                        velocity.addMovement(event);
+                        velocity.computeCurrentVelocity(1000, maxFlingVelocity);
+                        fling(-velocity.getXVelocity(), -velocity.getYVelocity());
+                    }
                     return true;
                 }
                 break;
@@ -403,9 +482,13 @@ public class FoldEditText extends AppCompatEditText {
                     gutterTouch = false;
                     return true;
                 }
+                if (panning) {
+                    panning = false;
+                    return true;
+                }
                 break;
             default:
-                if (gutterTouch)
+                if (gutterTouch || panning)
                     return true;
                 break;
         }
@@ -417,6 +500,58 @@ public class FoldEditText extends AppCompatEditText {
                 keepUserScroll = false;
         }
         return handled;
+    }
+
+    @Override
+    public boolean performLongClick() {
+        // the TextView's long-press (word selection) owns the rest of this touch: dragging then
+        // extends the selection instead of panning
+        longPressed = true;
+        return super.performLongClick();
+    }
+
+    /** Scrolls to (x, y), clamped to the text's full extent, not just the lines on screen. */
+    private void panTo(int x, int y) {
+        scrollTo(Math.max(0, Math.min(x, maxScrollX())), Math.max(0, Math.min(y, maxScrollY())));
+    }
+
+    private void fling(float velocityX, float velocityY) {
+        if (Math.abs(velocityX) < minFlingVelocity && Math.abs(velocityY) < minFlingVelocity)
+            return;
+        flinger.fling(getScrollX(), getScrollY(), Math.round(velocityX), Math.round(velocityY),
+                0, maxScrollX(), 0, maxScrollY());
+        postInvalidateOnAnimation();
+    }
+
+    @Override
+    public void computeScroll() {
+        super.computeScroll();
+        if (flinger.computeScrollOffset()) {
+            keepUserScroll = true; // a fling is the tail of a pan
+            panTo(flinger.getCurrX(), flinger.getCurrY());
+            postInvalidateOnAnimation();
+        }
+    }
+
+    private int maxScrollX() {
+        Layout layout = getLayout();
+        if (layout == null)
+            return 0;
+        if (widestLine < 0) {
+            // getWidth() of a horizontally scrolling layout is a huge sentinel, so measure lines
+            float widest = 0;
+            for (int i = 0; i < layout.getLineCount(); i++)
+                widest = Math.max(widest, layout.getLineRight(i));
+            widestLine = (int) Math.ceil(widest);
+        }
+        return Math.max(0, widestLine + getCompoundPaddingLeft() + getCompoundPaddingRight() - getWidth());
+    }
+
+    private int maxScrollY() {
+        Layout layout = getLayout();
+        if (layout == null)
+            return 0;
+        return Math.max(0, layout.getHeight() + getCompoundPaddingTop() + getCompoundPaddingBottom() - getHeight());
     }
 
     @Override
