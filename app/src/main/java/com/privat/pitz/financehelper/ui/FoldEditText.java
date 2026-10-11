@@ -261,7 +261,7 @@ public class FoldEditText extends AppCompatEditText {
         int k = 0;
         for (int o : hidden.folded)
             dormant[k++] = o;
-        FoldMath.Placeholder p = new FoldMath.Placeholder(hidden.full, dormant);
+        FoldMath.Placeholder p = new FoldMath.Placeholder(hidden.full, dormant, region.key);
         p.displayStart = 0;
         p.displayEnd = p.text.length();
         SpannableStringBuilder replacement = new SpannableStringBuilder(p.text);

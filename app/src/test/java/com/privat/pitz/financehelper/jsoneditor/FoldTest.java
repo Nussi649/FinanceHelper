@@ -91,7 +91,7 @@ public class FoldTest {
         assertNotNull(assets);
         FoldMath.Rendered rendered = FoldMath.render(full, new TreeSet<>(Arrays.asList(assets.openOffset)));
         assertEquals(1, rendered.placeholders.size());
-        assertTrue(rendered.display, rendered.display.contains("\"assets\": [ … 2 ]"));
+        assertTrue(rendered.display, rendered.display.contains("\"assets\": [ … 2 Konten ]"));
         assertFalse(rendered.display.contains("Spar"));
         assertTrue(rendered.display.contains("\"budgets\""));
     }

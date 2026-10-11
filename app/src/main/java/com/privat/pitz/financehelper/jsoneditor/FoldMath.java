@@ -42,14 +42,19 @@ public final class FoldMath {
         /** The characters shown in place of the hidden text. */
         public final String text;
 
-        public Placeholder(String hidden, int[] dormant) {
+        /** @param key the JSON key the folded block is the value of (null if none); picks the label */
+        public Placeholder(String hidden, int[] dormant, String key) {
+            this(hidden, dormant, FoldLabels.label(hidden, key), true);
+        }
+
+        private Placeholder(String hidden, int[] dormant, String text, boolean ready) {
             this.hidden = hidden;
             this.dormant = dormant;
-            this.text = placeholderText(hidden);
+            this.text = text;
         }
 
         Placeholder copy() {
-            Placeholder p = new Placeholder(hidden, dormant);
+            Placeholder p = new Placeholder(hidden, dormant, text, true);
             p.displayStart = displayStart;
             p.displayEnd = displayEnd;
             p.fullStart = fullStart;
@@ -127,7 +132,7 @@ public final class FoldMath {
             for (int o : inner)
                 dormant[k++] = o - hiddenStart;
 
-            Placeholder p = new Placeholder(full.substring(hiddenStart, hiddenEnd), dormant);
+            Placeholder p = new Placeholder(full.substring(hiddenStart, hiddenEnd), dormant, r.key);
             p.displayStart = out.length();
             out.append(p.text);
             p.displayEnd = out.length();
@@ -228,11 +233,9 @@ public final class FoldMath {
         return result;
     }
 
-    /** What stands in for a hidden block, e.g. {@code " … 42 ]"}; the count is its direct entries. */
+    /** The generic placeholder, e.g. {@code " … 42 ]"}; see {@link FoldLabels} for the typed ones. */
     public static String placeholderText(String hidden) {
-        char closer = hidden.isEmpty() ? '?' : hidden.charAt(hidden.length() - 1);
-        int entries = countEntries(hidden.isEmpty() ? hidden : hidden.substring(0, hidden.length() - 1));
-        return " … " + entries + " " + closer;
+        return FoldLabels.generic(hidden);
     }
 
     /** Number of comma-separated top-level entries in the inside of a block (string aware). */
