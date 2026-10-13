@@ -94,9 +94,37 @@ A file that is not valid JSON on either side is never overwritten; it is reporte
 - Tested against `FakeGraph` (eTags, If-Match, 302 download, paging, 401, throttling) and end to end
   with the engine (`SyncOverGraphTest`).
 
+## Automatic sync
+
+One background job type (`CloudSyncWorker`, WorkManager, unique name `cloud-sync`) runs `syncAll`
+and repeats up to three rounds while the app keeps saving during the run
+(`hasPendingLocalChanges`). It waits for a network, retries with growing delays after a failure,
+and survives the app being closed. A missing sign-in ends it quietly (only the user can fix that);
+the outcome of every run is kept for the status line (`CloudSyncStatus`).
+
+Triggers (`CloudSyncScheduler.requestSync`, a new request replaces the pending one):
+
+- every successful write of a save file, 5 s later - so a burst of saves becomes one sync
+  (`Controller.setSavefileWrittenListener`, wired in `AbstractActivity.initController`)
+- a screen coming to the front (at most every 30 s) and every 5 minutes while one is open
+- signing in
+
+Only after the user signed in (`CloudSyncStatus.isEnabled`); signing out switches it off.
+Runs exclude each other (`CloudSync.RUN_LOCK`), also against the "sync now" button.
+
+### When a pull changes what the app shows
+
+`Controller.onSavefileReplacedBySync` reloads the open file and bumps a generation counter.
+Screens compare the counter with the one they saw when created (`AbstractActivity`), so they notice
+a reload even if it happened while they were not in front. Default reaction: `onRefresh()`. Screens
+that hold one account object (account details, settings) close with a toast, because that object is
+now a stale copy; the lists reload themselves. The raw JSON editor holds a copy of the file as text,
+so automatic syncs are held back while it is open (`CloudSync.pause`).
+
+The worker may run without any screen, even without a `Controller`; the reload hook looks the
+`Controller` up at the moment a file is replaced, on the main thread.
+
 ## Still to build
 
-- A way to start it: sign-in, "check connection" (runs `verifyConditionalWrites`), "sync now"
-- WorkManager triggers (debounced push after save, pull on start/resume), status UI, screens
-  refreshing on `addSavefileReloadListener`
 - Trash pruning, and a convention note for external writers (keep `i`, set `m` in UTC)
+- Release signing (the sign-in redirect is tied to the debug key)

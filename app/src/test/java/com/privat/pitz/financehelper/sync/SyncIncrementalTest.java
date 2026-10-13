@@ -190,6 +190,45 @@ public class SyncIncrementalTest {
         assertEquals(1, txOf(remoteDoc(FILE), "Giro").length());
     }
 
+    // region hasPendingLocalChanges
+
+    @Test
+    public void pendingLocalChanges_falseRightAfterASync() throws Exception {
+        syncedFile(FILE, doc(account("Giro", tx("a", "x", "1.00", M1))));
+        assertTrue(!engine.hasPendingLocalChanges());
+    }
+
+    @Test
+    public void pendingLocalChanges_trueAfterTheAppSaved() throws Exception {
+        syncedFile(FILE, doc(account("Giro", tx("a", "x", "1.00", M1))));
+        String id = idOfFirstTx(localDoc(FILE), "Giro");
+        local.files.put(FILE, text(doc(account("Giro", tx(id, "x", "1.00", M1), tx("n", "neu", "-5.00", M2)))));
+        assertTrue(engine.hasPendingLocalChanges());
+    }
+
+    @Test
+    public void pendingLocalChanges_trueForAFileThatWasNeverSynced() {
+        local.files.put(FILE, text(doc(account("Giro", tx("a", "x", "1.00", M1)))));
+        assertTrue(engine.hasPendingLocalChanges());
+    }
+
+    @Test
+    public void pendingLocalChanges_falseAgainOnceTheChangeWasSynced() throws Exception {
+        syncedFile(FILE, doc(account("Giro", tx("a", "x", "1.00", M1))));
+        String id = idOfFirstTx(localDoc(FILE), "Giro");
+        local.files.put(FILE, text(doc(account("Giro", tx(id, "x", "1.00", M1), tx("n", "neu", "-5.00", M2)))));
+        engine.syncAll();
+        assertTrue(!engine.hasPendingLocalChanges());
+    }
+
+    @Test
+    public void pendingLocalChanges_ignoresFilesThatAreNotSaveFiles() {
+        local.files.put("settings.json", "{}");
+        assertTrue(!engine.hasPendingLocalChanges());
+    }
+
+    // endregion
+
     // region syncLocalChanges: "the app just saved"
 
     @Test

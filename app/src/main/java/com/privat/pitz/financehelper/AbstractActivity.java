@@ -2,9 +2,13 @@ package com.privat.pitz.financehelper;
 
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
@@ -38,6 +42,7 @@ import com.privat.pitz.financehelper.core.Model;
 import com.privat.pitz.financehelper.core.ParseReport;
 import com.privat.pitz.financehelper.ui.RefreshListener;
 import com.privat.pitz.financehelper.core.Util;
+import com.privat.pitz.financehelper.sync.CloudSyncScheduler;
 
 public abstract class AbstractActivity extends AppCompatActivity implements RefreshListener {
     Controller controller = Controller.instance;
@@ -46,6 +51,24 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
     TextView titleDetailsView;
     Spinner titleSpinner;
     protected boolean passedOnCreate = false;
+    // how many sync reloads of the open save file this screen has accounted for
+    private int seenReloadGeneration;
+    // set once the screen has built its views; a reload before that is applied right after
+    private boolean uiReady;
+    private boolean reloadPending;
+    private final Runnable reloadListener = this::handleSavefileReloaded;
+    private final Handler syncHandler = new Handler(Looper.getMainLooper());
+    private final Runnable periodicSync = new Runnable() {
+        @Override
+        public void run() {
+            CloudSyncScheduler.requestSync(AbstractActivity.this, 0);
+            syncHandler.postDelayed(this, PERIODIC_SYNC_MS);
+        }
+    };
+    private static final long PERIODIC_SYNC_MS = 5 * 60 * 1000L;
+    // a sync is asked for when a screen comes to the front, but not more often than this
+    private static final long MIN_SYNC_REQUEST_GAP_MS = 30 * 1000L;
+    private static long lastSyncRequest;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +92,7 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
             return;
         }
         model = controller.getModel();
+        seenReloadGeneration = controller.getSavefileReloadGeneration();
         AbstractActivity self = this;
         new Thread(new Runnable() {
             @Override
@@ -79,6 +103,11 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
                     public void run() {
                         setupActionBar();
                         endWorkingThread();
+                        uiReady = true;
+                        if (reloadPending) {
+                            reloadPending = false;
+                            onSavefileReloaded();
+                        }
                     }
                 });
             }
@@ -206,9 +235,46 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+        if (controller == null) return;
+        controller.addSavefileReloadListener(reloadListener);
+        // a sync may have reloaded the save file while this screen was not in front
+        if (controller.getSavefileReloadGeneration() != seenReloadGeneration) {
+            handleSavefileReloaded();
+        }
+        long now = SystemClock.elapsedRealtime();
+        if (lastSyncRequest == 0 || now - lastSyncRequest > MIN_SYNC_REQUEST_GAP_MS) {
+            lastSyncRequest = now;
+            CloudSyncScheduler.requestSync(this, 0);
+        }
+        syncHandler.postDelayed(periodicSync, PERIODIC_SYNC_MS);
+    }
+
+    @Override
     protected void onStop() {
         passedOnCreate = false;
+        syncHandler.removeCallbacks(periodicSync);
+        if (controller != null) controller.removeSavefileReloadListener(reloadListener);
         super.onStop();
+    }
+
+    private void handleSavefileReloaded() {
+        seenReloadGeneration = controller.getSavefileReloadGeneration();
+        if (uiReady) {
+            onSavefileReloaded();
+        } else {
+            reloadPending = true;
+        }
+    }
+
+    /**
+     * A sync replaced the open save file and the model was reloaded from it: every account and
+     * transaction object this screen holds is now a stale copy. The default just refreshes; a
+     * screen that keeps hold of one account (a details screen) must override this.
+     */
+    protected void onSavefileReloaded() {
+        onRefresh();
     }
 
     protected void workingThread() { }
@@ -362,6 +428,10 @@ public abstract class AbstractActivity extends AppCompatActivity implements Refr
     protected void initController() {
         Controller.createInstance(this);
         controller = Controller.instance;
+        // every save of a save file asks for a sync a few seconds later (bundling a burst of saves)
+        final Context appContext = getApplicationContext();
+        controller.setSavefileWrittenListener(
+                () -> CloudSyncScheduler.requestSync(appContext, CloudSyncScheduler.AFTER_SAVE_DELAY_S));
         model = controller.getModel();
         if (controller.loadAppSettings())
             showToast(R.string.toast_success_settings_loaded);

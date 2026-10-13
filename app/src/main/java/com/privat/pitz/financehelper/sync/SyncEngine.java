@@ -132,6 +132,25 @@ public class SyncEngine {
         return out;
     }
 
+    /**
+     * True if any local save file differs from what was last synced - i.e. the app saved since.
+     * Local reads only, no network. A worker uses it to notice saves that happened while it ran.
+     */
+    public boolean hasPendingLocalChanges() {
+        for (String name : local.listFiles()) {
+            if (!SAVEFILE_NAME.matcher(name).matches()) continue;
+            try {
+                String base = baseStore.getBase(name);
+                if (base == null || baseStore.getEtag(name) == null || !base.equals(local.read(name))) {
+                    return true;
+                }
+            } catch (IOException e) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Syncs one file completely, reading both sides. */
     public FileOutcome syncFile(String name) {
         return sync(name, false);

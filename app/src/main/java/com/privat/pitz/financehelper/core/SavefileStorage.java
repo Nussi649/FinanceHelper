@@ -20,6 +20,14 @@ public interface SavefileStorage {
     boolean delete(String name);
     /** Names of files only (no sub-directories), never null; empty when empty or unreadable. */
     List<String> list();
+    /**
+     * The monitor writes are serialised on. Anything that must read-compare-write atomically
+     * against the app's own saves (the cloud sync) takes this lock, so it has to be the same object
+     * for every storage over the same directory - not one per instance.
+     */
+    default Object lock() {
+        return this;
+    }
     /** Milliseconds since the epoch, or -1 if unknown or the file does not exist. */
     default long lastModified(String name) {
         return -1L;

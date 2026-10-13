@@ -11,9 +11,15 @@ import com.privat.pitz.financehelper.core.Controller;
 import com.privat.pitz.financehelper.core.DirectoryStorage;
 
 /**
- * Wires the sync engine's storage interfaces to the app: the save files are the Controller's own
- * storage (the same object, so writes exclude each other), the sync bookkeeping lives in two
- * folders next to them that the save-file code never lists.
+ * Wires the sync engine's storage interfaces to the app: the save files are read and written
+ * through a {@link DirectoryStorage} on the app's files folder (its lock is shared process-wide, so
+ * the sync and the app's own saves exclude each other), the sync bookkeeping lives in two folders
+ * next to them that the save-file code never lists.
+ *
+ * <p>The sync also runs when the app's screens are not (WorkManager starts the process on its own),
+ * so nothing here may depend on a {@link Controller} existing. Whether one exists is looked up at
+ * the moment a file is replaced, on the main thread - the same thread that builds it - so a
+ * Controller that appears while a sync is running still gets to reload what the sync replaced.
  */
 public final class SyncSetup {
     private static final String BASE_DIR = "sync-base";
@@ -22,9 +28,13 @@ public final class SyncSetup {
     private SyncSetup() {
     }
 
-    public static LocalFiles localFiles(Context context, Controller controller) {
-        return new StorageLocalFiles(controller.getStorage(), storageIn(context, TRASH_DIR),
-                mainThread(), controller::onSavefileReplacedBySync);
+    public static LocalFiles localFiles(Context context) {
+        Context app = context.getApplicationContext();
+        return new StorageLocalFiles(new DirectoryStorage(app.getFilesDir()), storageIn(app, TRASH_DIR),
+                mainThread(), name -> {
+                    Controller controller = Controller.instance;
+                    if (controller != null) controller.onSavefileReplacedBySync(name);
+                });
     }
 
     public static SyncBaseStore baseStore(Context context) {

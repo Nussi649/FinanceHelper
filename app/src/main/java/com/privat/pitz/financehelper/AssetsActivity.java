@@ -186,6 +186,11 @@ public class AssetsActivity extends AbstractActivity {
     }
 
     @Override
+    protected void onSavefileReloaded() {
+        reloadContent();
+    }
+
+    @Override
     public void onRefresh() {
         refreshContent();
         setCustomTitle();

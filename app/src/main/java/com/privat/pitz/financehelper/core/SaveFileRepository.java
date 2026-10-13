@@ -136,8 +136,18 @@ public class SaveFileRepository {
         model.currentInspectedAccount = model.reattachSelection(model.currentInspectedAccount);
     }
 
+    private Runnable onSavefileWritten;
+
+    /** Called after every successful write of a save file (not of the settings file). */
+    void setOnSavefileWritten(Runnable listener) {
+        onSavefileWritten = listener;
+    }
+
     public void writeToInternal(String data, String filename) throws IOException {
         storage.write(filename, data);
+        if (onSavefileWritten != null && Util.isValidSavefileName(filename)) {
+            onSavefileWritten.run();
+        }
     }
 
     public String readFromInternal(String filename) throws IOException {

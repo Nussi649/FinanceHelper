@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.TreeSet;
 
 import com.privat.pitz.financehelper.core.ParseReport;
+import com.privat.pitz.financehelper.sync.CloudSync;
 import com.privat.pitz.financehelper.data.AccountBE;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
 import com.privat.pitz.financehelper.jsoneditor.AccountFocus;
@@ -142,6 +143,24 @@ public class JsonEditorActivity extends AbstractActivity {
     @Override
     public void onRefresh() {
         // nothing to refresh: this screen only changes through its own save
+    }
+
+    @Override
+    protected void onSavefileReloaded() {
+        // automatic syncs are held back while this screen is open (see onStart), so a reload that
+        // still arrives was already under way; the text being edited is not touched
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        CloudSync.pause();
+    }
+
+    @Override
+    protected void onStop() {
+        CloudSync.resume();
+        super.onStop();
     }
 
     @Override

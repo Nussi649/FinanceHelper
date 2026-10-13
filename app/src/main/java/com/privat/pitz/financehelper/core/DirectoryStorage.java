@@ -22,6 +22,9 @@ import java.util.List;
  * {@code getFilesDir()}; a test constructs it from a temp folder - it is the same class both ways.
  */
 public class DirectoryStorage implements SavefileStorage {
+    // one for the whole process: the app and the background sync each build their own instance
+    private static final Object LOCK = new Object();
+
     private final File dir;
 
     public DirectoryStorage(File dir) {
@@ -34,21 +37,28 @@ public class DirectoryStorage implements SavefileStorage {
      * name deliberately matches no save-file pattern.
      */
     @Override
-    public synchronized void write(String name, String data) throws IOException {
-        File file = new File(dir, name);
-        File scratch = new File(dir, "write-" + System.nanoTime() + ".part");
-        try {
-            try (FileWriter writer = new FileWriter(scratch)) {
-                writer.append(data);
-                writer.flush();
-            }
-            Files.move(scratch.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } finally {
-            if (scratch.exists()) {
-                scratch.delete();
+    public void write(String name, String data) throws IOException {
+        synchronized (LOCK) {
+            File file = new File(dir, name);
+            File scratch = new File(dir, "write-" + System.nanoTime() + ".part");
+            try {
+                try (FileWriter writer = new FileWriter(scratch)) {
+                    writer.append(data);
+                    writer.flush();
+                }
+                Files.move(scratch.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } finally {
+                if (scratch.exists()) {
+                    scratch.delete();
+                }
             }
         }
+    }
+
+    @Override
+    public Object lock() {
+        return LOCK;
     }
 
     @Override

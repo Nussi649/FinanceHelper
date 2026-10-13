@@ -113,6 +113,11 @@ public class BudgetsActivity extends AbstractActivity implements BudgetAccountLi
     }
 
     @Override
+    protected void onSavefileReloaded() {
+        reloadUI();
+    }
+
+    @Override
     public void onRefresh() {
         for (BudgetAccountTableRow row : budgetViews)
             row.updateUI();

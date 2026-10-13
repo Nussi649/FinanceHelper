@@ -70,8 +70,8 @@ public class StorageLocalFiles implements LocalFiles {
     @Override
     public boolean replaceIfUnchanged(String name, String expected, String content) throws IOException {
         FutureTask<Boolean> task = new FutureTask<>(() -> {
-            // same monitor the storage takes for its own writes: nothing else can write in between
-            synchronized (files) {
+            // the monitor the storage takes for its own writes: nothing else can write in between
+            synchronized (files.lock()) {
                 String current = read(name);
                 boolean unchanged = expected == null ? current == null : expected.equals(current);
                 if (!unchanged) return false;

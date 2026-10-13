@@ -13,6 +13,14 @@
         android:textStyle="bold"
         android:text="@string/cloud_status_checking" />
 
+    <TextView
+        android:id="@+id/tv_cloud_last"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="14sp"
+        android:text="@string/cloud_last_none" />
+
     <Button
         android:id="@+id/btn_cloud_sign_in"
         android:layout_width="match_parent"
@@ -31,6 +39,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/label_cloud_sync_now" />
+
+    <Button
+        android:id="@+id/btn_cloud_sign_out"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/label_cloud_sign_out" />
 
     <ScrollView
         android:layout_width="match_parent"

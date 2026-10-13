@@ -62,6 +62,14 @@ public class SettingsActivity extends AbstractActivity {
     }
 
     @Override
+    protected void onSavefileReloaded() {
+        // this screen holds one account object that the reload replaced; the screen behind it
+        // reloads itself when it comes back to the front
+        showToast(R.string.toast_info_reloaded_from_cloud);
+        finish();
+    }
+
+    @Override
     public void onRefresh() {
 
     }

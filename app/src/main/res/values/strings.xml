@@ -24,8 +24,13 @@
     <string name="label_currency">€</string>
     <string name="label_file">Datei</string>
     <string name="label_sync">Sync</string>
+    <string name="toast_info_reloaded_from_cloud">Daten wurden aus OneDrive aktualisiert</string>
     <string name="label_cloud_sync">OneDrive-Sync</string>
     <string name="label_cloud_sign_in">Bei Microsoft anmelden</string>
+    <string name="label_cloud_sign_out">Abmelden (Auto-Sync aus)</string>
+    <string name="cloud_last_none">Noch nicht synchronisiert</string>
+    <string name="cloud_last_ok">Zuletzt synchronisiert %1$s: %2$s</string>
+    <string name="cloud_last_failed">Letzter Sync fehlgeschlagen %1$s: %2$s</string>
     <string name="label_cloud_check">Verbindung prüfen</string>
     <string name="label_cloud_sync_now">Jetzt synchronisieren</string>
     <string name="cloud_status_checking">Status wird geprüft …</string>

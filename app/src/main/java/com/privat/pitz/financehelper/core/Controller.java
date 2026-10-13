@@ -72,6 +72,11 @@ public class Controller {
         instance = new Controller(app, new DirectoryStorage(app.getFilesDir()));
     }
 
+    /** Called after every successful write of a save file, on whichever thread wrote it. */
+    public void setSavefileWrittenListener(Runnable listener) {
+        repo.setOnSavefileWritten(listener);
+    }
+
     public Model getModel() { return model; }
 
     // resets all account lists
@@ -122,6 +127,16 @@ public class Controller {
 
     // region cloud sync hooks
     private final List<Runnable> savefileReloadListeners = new CopyOnWriteArrayList<>();
+    private volatile int savefileReloadGeneration;
+
+    /**
+     * Counts how often a sync has reloaded the open save file. A screen compares it with the value
+     * it saw when it was created, so it can tell that what it shows was loaded before a reload -
+     * even if the reload happened while the screen was not in front.
+     */
+    public int getSavefileReloadGeneration() {
+        return savefileReloadGeneration;
+    }
 
     /** The storage the save files live in; sync must write through this same object. */
     public SavefileStorage getStorage() {
@@ -145,6 +160,7 @@ public class Controller {
     public void onSavefileReplacedBySync(String name) throws JSONException, IOException {
         if (!name.equals(model.currentFileName)) return;
         readAccountsFromInternal(name);
+        savefileReloadGeneration++;
         for (Runnable listener : savefileReloadListeners) {
             listener.run();
         }

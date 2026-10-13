@@ -91,6 +91,14 @@ public class AssetAccountDetailsActivity extends AbstractActivity {
     }
 
     @Override
+    protected void onSavefileReloaded() {
+        // this screen holds one account object that the reload replaced; the screen behind it
+        // reloads itself when it comes back to the front
+        showToast(R.string.toast_info_reloaded_from_cloud);
+        finish();
+    }
+
+    @Override
     public void onRefresh() {
         // Re-applies the active filter and re-sums what is actually on screen. With no filter
         // active this is the whole account, exactly as before; with one active the sum now
