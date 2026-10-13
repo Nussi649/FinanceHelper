@@ -67,13 +67,22 @@ assets and budget accounts):
 keys:
 
 ```json
-{ "d": "Miete", "a": "-850.00", "t": "01.08.2026 09:00" }
+{ "d": "Miete", "a": "-850.00", "t": "01.08.2026 09:00", "i": "3fa9c01b77de", "m": "2026-08-01T07:12:44Z" }
 ```
 
 - `d` = description (`Const.JSON_TAG_DESCRIPTION`)
 - `a` = amount, formatted via `Util.formatFloatSave` — always `.` as decimal separator regardless
   of device locale (`Const.JSON_TAG_AMOUNT`)
 - `t` = timestamp, format `Const.DATE_FORMAT_SAVE = "dd.MM.yyyy HH:mm"` (`Const.JSON_TAG_TIME`)
+- `i` = transaction id, 12 hex characters, stable across edits and devices (`Const.JSON_TAG_ID`).
+  Added for cloud sync: sync matches "the same transaction" by id, not by date+description, which
+  change when a transaction is edited. A missing or empty id is filled in on load (silently, not
+  reported); the next save writes it.
+- `m` = time of last change, ISO-8601 UTC to whole seconds, e.g. `"2026-10-13T14:05:00Z"`
+  (`Const.JSON_TAG_MODIFIED`). Not the booking date (`t`). Whoever changes a transaction - the app
+  or an external writer - should set it; sync keeps the copy with the newer `m`. A missing or
+  unreadable `m` reads as the epoch ("never modified"), which loses every newer-wins comparison.
+  Fractional seconds are accepted on read.
 
 **BudgetAccount object** (`Util.serialise_BudgetAccount`/`parseJSON_BudgetAccount`) — extends the
 Account shape:

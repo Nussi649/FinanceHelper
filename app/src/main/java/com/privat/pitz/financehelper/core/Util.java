@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -449,7 +450,43 @@ public abstract class Util {
         }
 
         Date time = parseDateOrNow(json_in, report, what);
-        return new TxBE(amount, description, time);
+
+        // identity and modification time were added for cloud sync. Files written before that (or
+        // by a writer that does not know them) lack both; they are filled in silently rather than
+        // reported - nothing is wrong with such a file, and the next save makes it complete.
+        String id = json_in.optString(Const.JSON_TAG_ID, "").trim();
+        if (id.isEmpty()) {
+            id = TxBE.newId();
+        }
+        Date modified = parseModified(json_in.optString(Const.JSON_TAG_MODIFIED, null));
+        return new TxBE(amount, description, time, id, modified);
+    }
+
+    public static String formatModified(Date input) {
+        SimpleDateFormat sdf = new SimpleDateFormat(Const.DATE_FORMAT_MODIFIED, Locale.ROOT);
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return sdf.format(input);
+    }
+
+    /**
+     * Reads a modification stamp, or returns the epoch for a missing/unreadable one: "never
+     * modified" loses every newer-wins comparison, which is the safe direction - an entry we know
+     * nothing about must not beat one with a real timestamp. Accepts a fractional-seconds part,
+     * since a writer other than this app may add one.
+     */
+    public static Date parseModified(String raw) {
+        if (raw != null) {
+            String s = raw.trim().replaceFirst("\\.\\d+(?=Z$)", "");
+            try {
+                SimpleDateFormat sdf = new SimpleDateFormat(Const.DATE_FORMAT_MODIFIED, Locale.ROOT);
+                sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+                sdf.setLenient(false);
+                return sdf.parse(s);
+            } catch (ParseException ignored) {
+                // falls through to the epoch
+            }
+        }
+        return new Date(0L);
     }
 
     /**
@@ -778,6 +815,8 @@ public abstract class Util {
             new_entry.put(Const.JSON_TAG_AMOUNT, Util.formatFloatSave(entry_in.getAmount()));
             new_entry.put(Const.JSON_TAG_TIME,
                     formatDateSaveOrNow(entry_in.getDate(), "Transaction entry"));
+            new_entry.put(Const.JSON_TAG_ID, entry_in.getId());
+            new_entry.put(Const.JSON_TAG_MODIFIED, formatModified(entry_in.getModified()));
             return new_entry;
         } catch (JSONException e) {
             Log.println(Log.ERROR, "serialise_entry",

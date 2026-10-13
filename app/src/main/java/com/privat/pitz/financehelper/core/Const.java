@@ -30,6 +30,8 @@ public class Const {
     public static String JSON_TAG_TIME = "t";
     public static String JSON_TAG_AMOUNT = "a";
     public static String JSON_TAG_DESCRIPTION = "d";
+    public static String JSON_TAG_ID = "i";
+    public static String JSON_TAG_MODIFIED = "m";
 
     // Recurring Order JSON Tags
     public static String JSON_TAG_SENDER = "sender";
@@ -46,6 +48,8 @@ public class Const {
 
     public static String DATE_FORMAT_DISPLAY = "dd.MM. HH:mm";
     public static String DATE_FORMAT_SAVE = "dd.MM.yyyy HH:mm";
+    // modification stamps are UTC so that devices in different time zones agree
+    public static String DATE_FORMAT_MODIFIED = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 
     public static String DESC_OPENING = "Eröffnung";
 
