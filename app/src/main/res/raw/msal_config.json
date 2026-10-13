@@ -1,0 +1,15 @@
+{
+  "client_id": "ecd106b7-b5fb-4724-a6c8-8f08b9030dac",
+  "authorization_user_agent": "DEFAULT",
+  "redirect_uri": "msauth://com.privat.pitz.financehelper/U%2FWkv9DHlSwK6kQzTOMD9jdiJnI%3D",
+  "account_mode": "SINGLE",
+  "broker_redirect_uri_registered": false,
+  "authorities": [
+    {
+      "type": "AAD",
+      "audience": {
+        "type": "PersonalMicrosoftAccount"
+      }
+    }
+  ]
+}

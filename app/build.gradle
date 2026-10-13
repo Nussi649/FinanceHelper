@@ -44,6 +44,8 @@ dependencies {
     implementation 'androidx.lifecycle:lifecycle-viewmodel:2.8.7'
     implementation 'androidx.lifecycle:lifecycle-livedata:2.8.7'
     implementation 'androidx.documentfile:documentfile:1.1.0'
+    // Microsoft sign-in for the OneDrive sync (Graph calls themselves use plain HttpURLConnection)
+    implementation 'com.microsoft.identity.client:msal:8.5.0'
     testImplementation 'junit:junit:4.13.2'
     // Real org.json implementation for JVM unit tests, since the Android SDK stub for org.json
     // throws "not mocked" and returnDefaultValues does not make it produce real JSON behavior.

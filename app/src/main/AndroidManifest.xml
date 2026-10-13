@@ -3,6 +3,10 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     tools:ignore="LockedOrientationActivity">
 
+    <!-- OneDrive sync -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -67,6 +71,23 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|locale|layoutDirection|fontScale"
             android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize">
+        </activity>
+        <!--
+            Where the Microsoft sign-in page hands control back. The path is the base64 SHA-1 of
+            the key the APK is signed with (here: the debug key) - it must match the redirect URI
+            in res/raw/msal_config.json and the one registered in Azure. A build signed with another
+            key needs its own hash in all three places.
+        -->
+        <activity android:name="com.microsoft.identity.client.BrowserTabActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="msauth"
+                    android:host="com.privat.pitz.financehelper"
+                    android:path="/U/Wkv9DHlSwK6kQzTOMD9jdiJnI=" />
+            </intent-filter>
         </activity>
     </application>
 

@@ -55,9 +55,31 @@ A file that is not valid JSON on either side is never overwritten; it is reporte
   `Controller.addSavefileReloadListener` tells screens to refresh (UI wiring still to do).
 - `CloudSyncIntegrationTest` covers this with the real Controller and engine.
 
+## OneDrive side (done, not yet tried on a device)
+
+- `sync/graph/GraphRemoteStore` talks to Microsoft Graph in the app folder (`Apps/FinanceHelper`,
+  `special/approot`); copies of overwritten files go to its `trash` sub-folder. Writes are
+  conditional: `If-Match` with the eTag read earlier (412 -> `EtagMismatchException`), creation with
+  `conflictBehavior=fail` (409 -> same). Metadata is read before content, so a file that changes in
+  between makes the later write fail and retry - never the reverse.
+- The content download is a 302 to a pre-authorised address; the store follows it itself so the
+  bearer token is not sent there. `UrlConnectionTransport` never follows redirects.
+- `verifyConditionalWrites()` proves on the real account that OneDrive enforces both conditions
+  (writes a scratch file, tries a stale-eTag write and a create-over-existing, deletes it). The
+  sync must not be trusted before this has passed once.
+- `MsalTokenProvider` (MSAL 8.5.0, personal account, scope `Files.ReadWrite.AppFolder`): one
+  interactive `signIn`, afterwards silent tokens from background workers. Client id and redirect
+  URI are in `res/raw/msal_config.json`; the signature-hash path is also in the manifest
+  (`BrowserTabActivity`). Both are tied to the **debug signing key**; a build signed with another
+  key needs its own hash in Azure, the config and the manifest.
+- MSAL needs one Microsoft-only artifact from a Microsoft Maven feed; `build.gradle` allows that
+  repository for that one group only.
+- Tested against `FakeGraph` (eTags, If-Match, 302 download, paging, 401, throttling) and end to end
+  with the engine (`SyncOverGraphTest`).
+
 ## Still to build
 
-- `RemoteStore` on Microsoft Graph (`Apps/FinanceHelper`, `If-Match` on the etag - to be verified
-  against a personal account; fallback is a GET-compare before the PUT)
-- WorkManager triggers (debounced push after save, pull on start/resume), status UI
+- A way to start it: sign-in, "check connection" (runs `verifyConditionalWrites`), "sync now"
+- WorkManager triggers (debounced push after save, pull on start/resume), status UI, screens
+  refreshing on `addSavefileReloadListener`
 - Trash pruning, and a convention note for external writers (keep `i`, set `m` in UTC)
