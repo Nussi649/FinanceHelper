@@ -19,6 +19,8 @@ public final class Fakes {
         public final Map<String, String> trash = new LinkedHashMap<>();
         public Date modified = new Date(1_786_000_000_000L);
         public int puts = 0;
+        public int gets = 0;
+        public int lists = 0;
         public boolean failTrash = false;
         /** Runs just before every put - the place to simulate the other writer getting in first. */
         public Runnable beforePut = null;
@@ -33,12 +35,16 @@ public final class Fakes {
         }
 
         @Override
-        public List<String> listFiles() {
-            return new ArrayList<>(files.keySet());
+        public Map<String, String> listEtags() {
+            lists++;
+            Map<String, String> out = new LinkedHashMap<>();
+            for (String name : files.keySet()) out.put(name, etag(name));
+            return out;
         }
 
         @Override
         public RemoteFile get(String name) {
+            gets++;
             return files.containsKey(name) ? new RemoteFile(files.get(name), etag(name), modified) : null;
         }
 
@@ -110,6 +116,7 @@ public final class Fakes {
 
     public static final class Base implements SyncBaseStore {
         public final Map<String, String> bases = new HashMap<>();
+        public final Map<String, String> etags = new HashMap<>();
 
         @Override
         public String getBase(String name) {
@@ -117,8 +124,15 @@ public final class Fakes {
         }
 
         @Override
-        public void setBase(String name, String content) {
+        public String getEtag(String name) {
+            return etags.get(name);
+        }
+
+        @Override
+        public void setBase(String name, String content, String etag) {
             bases.put(name, content);
+            if (etag == null) etags.remove(name);
+            else etags.put(name, etag);
         }
     }
 }

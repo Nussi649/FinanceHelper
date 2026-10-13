@@ -31,6 +31,23 @@ If either conditional write fails, the file is read and merged again (up to 5 ti
 - First sync (no base): entries with identical content in the same account are taken to be the
   same transaction, everything else is unioned. A lost base therefore never loses data.
 
+## What a sync costs
+
+Only what changed. Per file the engine remembers the base text and the remote etag it was written
+under.
+
+- `syncAll()` lists the remote folder once (names + etags). A file whose etag equals the remembered
+  one still holds the base, so it is not downloaded; a local file whose text equals the base has not
+  been changed by the app, so there is nothing to push. Such a file costs nothing further.
+- A file changed only locally is pushed with one conditional write (`If-Match` on the remembered
+  etag), without downloading first. If the cloud had changed in the meantime the write is refused,
+  and only then is the file read and merged.
+- A file changed in the cloud is downloaded once.
+- `syncLocalChanges(names)` is for "the app just saved this": no listing, no download; a file that
+  is unchanged locally causes no request at all.
+- A missing or unknown etag is never trusted - it just means one full read.
+- Measured on the device with 20 files: first run 42 s (learning the etags), unchanged runs 0.8 s.
+
 ## Recoverability
 
 Whenever a merge drops something (a deletion, the losing side of a conflict, a removed account),

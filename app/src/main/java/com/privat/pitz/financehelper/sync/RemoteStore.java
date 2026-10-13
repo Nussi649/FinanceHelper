@@ -2,7 +2,7 @@ package com.privat.pitz.financehelper.sync;
 
 import java.io.IOException;
 import java.util.Date;
-import java.util.List;
+import java.util.Map;
 
 /**
  * The shared copy of the save files (OneDrive, later). The sync engine only ever talks to this
@@ -30,8 +30,12 @@ public interface RemoteStore {
         }
     }
 
-    /** Names of the save files, excluding anything in the trash. */
-    List<String> listFiles() throws IOException;
+    /**
+     * The save files in the folder (excluding the trash) with their current etags, in one request.
+     * Comparing these with the etags remembered from the last sync is how unchanged files are
+     * skipped without being downloaded.
+     */
+    Map<String, String> listEtags() throws IOException;
 
     /** @return null if the file does not exist */
     RemoteFile get(String name) throws IOException;

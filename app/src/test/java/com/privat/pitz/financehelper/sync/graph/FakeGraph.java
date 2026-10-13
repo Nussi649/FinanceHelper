@@ -117,6 +117,7 @@ class FakeGraph implements HttpTransport {
         for (int i = skip; i < end; i++) {
             JSONObject o = new JSONObject();
             o.put("name", names.get(i));
+            o.put("eTag", etag(items.get(names.get(i))));
             o.put("file", new JSONObject());
             value.put(o);
         }

@@ -14,7 +14,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
+import java.util.Map;
 
 import com.privat.pitz.financehelper.sync.RemoteStore;
 import com.privat.pitz.financehelper.sync.RemoteStore.EtagMismatchException;
@@ -48,27 +48,28 @@ public class GraphRemoteStoreTest {
     // region listing
 
     @Test
-    public void listFiles_returnsTheFolderFilesOnly_notTheTrash() throws Exception {
+    public void listEtags_returnsTheFolderFilesOnly_notTheTrash() throws Exception {
         graph.put(FILE, "{}");
         graph.put("2026-09-User.jso", "{}");
         graph.put("trash/" + FILE + ".20261013T140500Z", "{}");
 
-        List<String> names = store.listFiles();
+        Map<String, String> files = store.listEtags();
 
-        assertEquals(new HashSet<>(java.util.Arrays.asList(FILE, "2026-09-User.jso")), new HashSet<>(names));
+        assertEquals(new HashSet<>(java.util.Arrays.asList(FILE, "2026-09-User.jso")), files.keySet());
+        assertEquals(FakeGraph.etag(graph.items.get(FILE)), files.get(FILE));
     }
 
     @Test
-    public void listFiles_followsPaging() throws Exception {
+    public void listEtags_followsPaging() throws Exception {
         for (int i = 1; i <= 5; i++) graph.put("2026-0" + i + "-User.jso", "{}");
         graph.pageSize = 2;
 
-        assertEquals(5, store.listFiles().size());
+        assertEquals(5, store.listEtags().size());
     }
 
     @Test
-    public void listFiles_ofAnEmptyFolder_isEmpty() throws Exception {
-        assertEquals(Collections.emptyList(), store.listFiles());
+    public void listEtags_ofAnEmptyFolder_isEmpty() throws Exception {
+        assertEquals(Collections.emptyMap(), store.listEtags());
     }
 
     // endregion

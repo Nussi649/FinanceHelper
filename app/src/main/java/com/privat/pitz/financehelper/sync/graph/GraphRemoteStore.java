@@ -7,9 +7,9 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import com.privat.pitz.financehelper.core.Util;
 import com.privat.pitz.financehelper.sync.RemoteStore;
@@ -56,23 +56,24 @@ public class GraphRemoteStore implements RemoteStore {
     // region RemoteStore
 
     @Override
-    public List<String> listFiles() throws IOException {
-        List<String> names = new ArrayList<>();
-        String url = ROOT + "/children?$select=name,file&$top=200";
+    public Map<String, String> listEtags() throws IOException {
+        Map<String, String> files = new LinkedHashMap<>();
+        String url = ROOT + "/children?$select=name,file,eTag&$top=200";
         while (url != null) {
             HttpTransport.Response r = send("GET", url, null, null, null);
             // the app folder is created on first use; before that there is simply nothing in it
-            if (r.status == 404) return names;
+            if (r.status == 404) return files;
             requireStatus(r, 200);
             JSONObject page = json(r);
             JSONArray items = page.optJSONArray("value");
             for (int i = 0; items != null && i < items.length(); i++) {
                 JSONObject item = items.optJSONObject(i);
-                if (item != null && item.has("file")) names.add(item.optString("name"));
+                // an empty etag never equals a remembered one, so such a file is simply read in full
+                if (item != null && item.has("file")) files.put(item.optString("name"), item.optString("eTag", ""));
             }
             url = page.optString("@odata.nextLink", null);
         }
-        return names;
+        return files;
     }
 
     @Override

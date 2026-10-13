@@ -63,7 +63,7 @@ public class SyncEngineTest {
         String t = text(d);
         local.files.put(FILE, t);
         remote.write(FILE, t);
-        base.setBase(FILE, t);
+        base.setBase(FILE, t, remote.etag(FILE));
     }
 
     // region basic flows
