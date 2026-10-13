@@ -63,6 +63,10 @@
                 android:id="@+id/item_sync_change_folder"
                 android:title="@string/label_sync_change_folder"
                 android:orderInCategory="5" />
+            <item
+                android:id="@+id/item_cloud_sync"
+                android:title="@string/label_cloud_sync"
+                android:orderInCategory="6" />
         </menu>
     </item>
     <item

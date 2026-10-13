@@ -24,6 +24,14 @@
     <string name="label_currency">€</string>
     <string name="label_file">Datei</string>
     <string name="label_sync">Sync</string>
+    <string name="label_cloud_sync">OneDrive-Sync</string>
+    <string name="label_cloud_sign_in">Bei Microsoft anmelden</string>
+    <string name="label_cloud_check">Verbindung prüfen</string>
+    <string name="label_cloud_sync_now">Jetzt synchronisieren</string>
+    <string name="cloud_status_checking">Status wird geprüft …</string>
+    <string name="cloud_status_signed_in">Bei Microsoft angemeldet</string>
+    <string name="cloud_status_signed_out">Nicht angemeldet</string>
+    <string name="cloud_status_unavailable">Anmeldung nicht verfügbar: %1$s</string>
     <string name="label_file_name">Dateiname</string>
     <string name="label_settings">Einstellungen</string>
     <string name="label_are_u_sure">Sind Sie sicher?</string>

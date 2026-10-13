@@ -64,6 +64,12 @@
             android:configChanges="orientation"
             android:screenOrientation="portrait">
         </activity>
+        <activity android:name=".CloudSyncActivity"
+            android:theme="@style/Theme.AppCompat.Light"
+            android:exported="false"
+            android:configChanges="orientation"
+            android:screenOrientation="portrait">
+        </activity>
         <!-- unsaved edits live only in the view, so survive configuration changes instead of recreating -->
         <activity android:name=".JsonEditorActivity"
             android:theme="@style/Theme.AppCompat.Light"

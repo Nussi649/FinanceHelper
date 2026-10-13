@@ -114,6 +114,8 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
         } else if (itemId == R.id.item_sync_change_folder) {
             pendingSyncAction = PendingSyncAction.NONE;
             pickSyncFolderLauncher.launch(null);
+        } else if (itemId == R.id.item_cloud_sync) {
+            startActivity(CloudSyncActivity.class);
         } else if (itemId == R.id.item_integrity_check) {
             showIntegrityCheckDialog();
         } else if (itemId == R.id.item_settings) {
