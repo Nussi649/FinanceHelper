@@ -23,7 +23,6 @@
     <string name="label_amount">Betrag</string>
     <string name="label_currency">€</string>
     <string name="label_file">Datei</string>
-    <string name="label_sync">Sync</string>
     <string name="toast_info_reloaded_from_cloud">Daten wurden aus OneDrive aktualisiert</string>
     <string name="label_cloud_sync">OneDrive-Sync</string>
     <string name="label_cloud_sign_in">Bei Microsoft anmelden</string>
@@ -49,9 +48,6 @@
     <string name="label_edit_savefile">Bearbeiten…</string>
     <string name="label_backup_all">Alle Speicherstände sichern (ZIP)…</string>
     <string name="label_restore_all">Speicherstände wiederherstellen (ZIP)…</string>
-    <string name="label_sync_push">In Sync-Ordner sichern</string>
-    <string name="label_sync_pull">Aus Sync-Ordner laden</string>
-    <string name="label_sync_change_folder">Sync-Ordner ändern…</string>
     <string name="label_integrity_check">Integritätsprüfung…</string>
     <string name="label_integrity_check_title_before">1/2: \"Vorher\"-Datei wählen</string>
     <string name="label_integrity_check_title_after">2/2: \"Nachher\"-Datei wählen (Vorher: %1$s. Gleiche Datei zweimal = nur Strukturprüfung ohne Summenvergleich)</string>
@@ -130,8 +126,6 @@
     <string name="toast_success_settings_loaded">Einstellungen wurden erfolgreich geladen.</string>
     <string name="toast_success_backup_written">Sicherung mit %1$d Datei(en) wurde erfolgreich erstellt.</string>
     <string name="toast_success_backup_restored">%1$d Datei(en) wurden erfolgreich wiederhergestellt.</string>
-    <string name="toast_success_sync_push">%1$d Datei(en) in den Sync-Ordner geschrieben.</string>
-    <string name="toast_success_sync_pull">%1$d Datei(en) aus dem Sync-Ordner geladen.</string>
         <!-- Error -->
     <string name="toast_error_unknown">Ein unbekannter Fehler ist aufgetreten.</string>
     <string name="toast_error_account_not_found">Das Konto konnte nicht gefunden werden.</string>
@@ -142,9 +136,6 @@
     <string name="toast_error_backup_failed">Die Sicherung konnte nicht erstellt werden.</string>
     <string name="toast_error_restore_failed">Die Wiederherstellung ist fehlgeschlagen. Ist die gewählte Datei eine gültige Sicherung?</string>
     <string name="toast_error_restore_empty">Die gewählte Datei enthält keine gültigen Speicherstände.</string>
-    <string name="toast_error_sync_folder_empty">Der Sync-Ordner enthält keine gültigen Speicherstände.</string>
-    <string name="toast_error_sync_failed">Der Sync-Ordner konnte nicht gelesen oder beschrieben werden.</string>
-    <string name="toast_error_sync_folder_invalid">Der Zugriff auf den Sync-Ordner ist nicht mehr gültig. Bitte wähle ihn erneut aus.</string>
     <string name="toast_error_select_both_accounts">Bitte beide Konten auswählen.</string>
     <string name="toast_error_empty_description">Das Beschreibungsfeld ist leer.</string>
     <string name="toast_error_account_name_taken">Es existiert bereits ein Konto mit diesem Namen.</string>

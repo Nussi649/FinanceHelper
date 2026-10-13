@@ -3,7 +3,6 @@ package com.privat.pitz.financehelper.core;
 import android.content.Context;
 import android.net.Uri;
 
-import androidx.documentfile.provider.DocumentFile;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,10 +15,9 @@ import java.util.zip.ZipOutputStream;
 
 /**
  * SAF (Storage Access Framework) transfer cluster extracted from {@link Controller}: bundling all
- * save files into/out of a zip at a user-picked Uri, and pushing/pulling them unzipped to/from a
- * user-picked folder. This is deliberately not unit-tested: it is the one class that keeps Android
- * dependencies ({@link Context}, {@link Uri}, {@code ContentResolver}, {@link DocumentFile}) - the
- * pure parts ({@link Util#copyStream}, {@link Util#isSyncableName}) were already extracted, and
+ * save files into/out of a zip at a user-picked Uri. This is deliberately not unit-tested: it is the
+ * one class that keeps Android dependencies ({@link Context}, {@link Uri}, {@code ContentResolver}) -
+ * the pure parts ({@link Util#copyStream}, {@link Util#isSyncableName}) were already extracted, and
  * what remains here is thin SAF plumbing where a fake ContentResolver would only test the fake.
  */
 public class SavefileTransferService {
@@ -76,61 +74,6 @@ public class SavefileTransferService {
                 zis.closeEntry();
                 count++;
             }
-        }
-        return count;
-    }
-
-    // pushes all save files (and app settings) as individual, unzipped files into a SAF tree Uri
-    // (e.g. a folder inside a cloud-sync app like Google Drive), overwriting any same-named file
-    // already there. This is the "no zip" counterpart to exportAllSavefilesToUri, meant to let a
-    // remote tool/agent read and edit the plain JSON files directly.
-    public int pushSavefilesToFolder(Uri treeUri) throws IOException {
-        DocumentFile treeDir = DocumentFile.fromTreeUri(context, treeUri);
-        if (treeDir == null || !treeDir.canWrite())
-            throw new IOException("Cannot write to the selected sync folder");
-        List<String> names = storage.list();
-        int count = 0;
-        for (String name : names) {
-            if (!Util.isSyncableName(name))
-                continue;
-            // remove any existing file with the same name so createFile doesn't produce a duplicate
-            DocumentFile existing = treeDir.findFile(name);
-            if (existing != null)
-                existing.delete();
-            DocumentFile target = treeDir.createFile("application/octet-stream", name);
-            if (target == null)
-                continue;
-            OutputStream os = context.getContentResolver().openOutputStream(target.getUri());
-            if (os == null)
-                continue;
-            try (OutputStream out = os; InputStream is = storage.openRead(name)) {
-                Util.copyStream(is, out);
-            }
-            count++;
-        }
-        return count;
-    }
-
-    // pulls all save files (and app settings) from a SAF tree Uri back into internal storage,
-    // overwriting local files of the same name. Counterpart to pushSavefilesToFolder.
-    public int pullSavefilesFromFolder(Uri treeUri) throws IOException {
-        DocumentFile treeDir = DocumentFile.fromTreeUri(context, treeUri);
-        if (treeDir == null || !treeDir.canRead())
-            throw new IOException("Cannot read from the selected sync folder");
-        int count = 0;
-        for (DocumentFile child : treeDir.listFiles()) {
-            if (child.isDirectory())
-                continue;
-            String name = child.getName();
-            if (!Util.isSyncableName(name))
-                continue;
-            InputStream is = context.getContentResolver().openInputStream(child.getUri());
-            if (is == null)
-                continue;
-            try (InputStream in = is; OutputStream out = storage.openWrite(name)) {
-                Util.copyStream(in, out);
-            }
-            count++;
         }
         return count;
     }

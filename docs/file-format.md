@@ -144,7 +144,6 @@ stored via `context.getFilesDir()`. Read/written by `Controller.loadAppSettings(
 ```json
 {
   "defaultEntity": "User",
-  "syncFolderUri": "content://com.google.android.apps.docs.storage/tree/...",
   "defaultAccounts": [
     { "name": "User", "sender": "Girokonto", "receiver": "Lebensmittel" }
   ]
@@ -153,11 +152,8 @@ stored via `context.getFilesDir()`. Read/written by `Controller.loadAppSettings(
 
 - `defaultEntity` (`Const.JSON_TAG_DEFAULT_ENTITY`) → `Model.Settings.defaultEntityName` — which
   entity to load on app start.
-- `syncFolderUri` (`Const.JSON_TAG_SYNC_FOLDER_URI`) → `Model.Settings.syncFolderUri` — **optional**,
-  absent on any settings.json written before the folder-sync feature (see below) existed; a
-  `String.valueOf(Uri)` of the SAF tree the user picked for folder sync, or omitted entirely if none
-  has been chosen (never written as a JSON `null` — `Util.serialise_Settings` only puts the key when
-  non-null, since `org.json.JSONObject.put(key, null)` removes the key rather than writing anything).
+- A `syncFolderUri` key may still be present in a `settings.json` written by an earlier version
+  (it belonged to the removed folder sync, see below). It is ignored on load and not written again.
 - `defaultAccounts` (`Const.JSON_TAG_DEFAULT_ACCOUNTS`) → `Model.Settings.entityDefaultsMap`, one
   entry per entity that has ever had a sender/receiver selected, mapping entity name → `{sender,
   receiver}` account **names** (`Model.EntityDefaults`). Resolved back to live `AccountBE`
@@ -206,65 +202,9 @@ This bundles **all** entities' save files (every period, every entity) plus `set
 one zip — it is not scoped to the currently-loaded entity/period. There is no encryption; the zip
 is plain JSON, same as the on-device files.
 
-## Folder sync (added this session, not yet committed)
+## Folder sync (removed)
 
-A second, complementary mechanism to the zip backup above — kept alongside it rather than
-replacing it (the zip is a simple portable single-file fallback). Where the zip is a manual
-one-shot export/import bundle, folder sync writes/reads the **individual, unzipped** `.jso`/
-`settings.json` files directly inside a folder the user grants persistent access to via SAF's
-`ACTION_OPEN_DOCUMENT_TREE` — e.g. a folder inside the Google Drive app, which exposes itself as a
-`DocumentsProvider` and shows up in the system folder picker like any local folder. This means a
-tool with direct access to that Drive folder (e.g. an AI agent with a Drive connector) can read and
-edit the plain JSON save files directly, with no zip step in the way.
-
-Implemented in `Backend/Controller.java`:
-
-- **`pushSavefilesToFolder(Uri treeUri)`** (`Controller.java:337-361`) — same file-selection logic
-  as the zip export, but writes each accepted file as its own `DocumentFile` (`createFile` with
-  `application/octet-stream` — deliberately generic, to avoid SAF providers guessing/mangling the
-  `.jso` extension based on a more specific MIME type), deleting any existing same-named file first
-  via `DocumentFile.findFile`. Returns the count written.
-- **`pullSavefilesFromFolder(Uri treeUri)`** (`:373-397`) — lists the tree's children via
-  `DocumentFile.listFiles()`, filters through the same `isValidSavefileName`/
-  `APPLICATION_SETTINGS_FILENAME` check as the zip import, and overwrites files of the same name in
-  `context.getFilesDir()`. Returns the count restored.
-
-Both require `androidx.documentfile:documentfile` (added as an explicit dependency in
-`app/build.gradle`, even though it was already present transitively, to avoid relying on a
-transitive version).
-
-Wired up in `MainActivity`:
-
-- `pickSyncFolderLauncher` (`MainActivity.java:57-58`) —
-  `ActivityResultContracts.OpenDocumentTree()`. On a non-null result, `onSyncFolderPicked` (`:482-`)
-  calls `takePersistableUriPermission(...)` so the grant survives app/device restarts, and persists
-  the tree `Uri` into `model.settings.syncFolderUri` (see above).
-- The folder is only picked **once** — `triggerSync(PendingSyncAction)` (`:472-`) checks
-  `model.settings.syncFolderUri` first and reuses the stored `Uri` (via `Uri.parse`) if already set,
-  only falling back to the picker if it's still null. A 3-state `PendingSyncAction` enum (`NONE` /
-  `PUSH` / `PULL`, `:59`) tracks which action (if any) should run once the picker returns, so the
-  same picker/callback serves "push", "pull", and "just change the folder, do nothing yet" (the
-  `item_sync_change_folder` menu action) without triggering an unwanted sync as a side effect of
-  changing folders.
-- `performSync(Uri, PendingSyncAction)` (`:501-`) does the actual push/pull. On pull, it reloads
-  `settings.json` from the freshly-pulled files (which may be a different device's copy) and then
-  **re-asserts and re-saves** the local `syncFolderUri` afterwards, so a pull can never silently
-  break the local sync-folder link even if the pulled `settings.json` had a stale/missing one. On a
-  caught `SecurityException` (the persisted grant became invalid — folder deleted/unshared,
-  permission revoked outside the app, etc.), clears `syncFolderUri` back to `null` so the next sync
-  attempt re-prompts the picker instead of repeatedly failing against a dead `Uri`.
-- Three new menu items in `res/menu/menu_main.xml`: `item_sync_push` / `item_sync_pull` /
-  `item_sync_change_folder`, under the same "File" submenu as the zip backup items.
-
-Like the zip backup, this covers **all** entities/periods plus `settings.json` in one pass — no
-partial/single-file sync UI. Sync is manual (menu tap), not automatic on app open/close — that was
-a deliberate scope decision (simpler, no background-reliability risk to validate without a physical
-device on hand), so a stale local copy can persist until the next manual pull.
-
-**Known caveat, confirmed in real use**: files added to the sync folder by something other than
-this app (e.g. an external tool writing directly via the Drive API) don't necessarily show up
-immediately via "Aus Sync-Ordner laden" — the Google Drive Android app maintains its own local
-index that it syncs with the cloud on its own schedule, and `DocumentFile.listFiles()` only sees
-what that index currently knows about. If a pull seems to be missing recently-added files, open
-the Google Drive app itself and let it finish syncing (or pull-to-refresh in it) before retrying -
-this is a Drive-app-side latency, not a bug in `pullSavefilesFromFolder`.
+An earlier version could push and pull the individual save files to a folder chosen through the
+system folder picker (e.g. a Google Drive folder), by hand, from the Sync menu. It was replaced by
+the automatic OneDrive sync, which merges changes instead of overwriting whole files; see
+`sync.md`. The zip backup above is unchanged and now sits in the "Datei" menu.

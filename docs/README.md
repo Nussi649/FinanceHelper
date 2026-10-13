@@ -5,7 +5,8 @@ manages **asset accounts** (bank accounts, cash, etc.) and **budget accounts** (
 spending budgets, arranged in a tree of sub-budgets) for one or more "financial entities" (e.g.
 different people or households sharing the same install), persisted as plain JSON files in
 app-internal storage, one file per `(year, month, entity)`. All UI strings are German. There is
-no backend/server and no cloud sync beyond a manual zip-export/import backup feature.
+no backend/server of its own; the save files sync automatically with a OneDrive folder (see `sync.md`),
+and there is a manual zip export/import as a backup.
 
 - Package: `com.privat.pitz.financehelper`
 - Language: Java, single Gradle module `app`

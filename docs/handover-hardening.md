@@ -178,4 +178,4 @@ before the merge; re-run the relevant parts after touching any of these areas.
 - Swipe-delete with no filter active, let the Snackbar expire, force-stop from that screen, reopen —
   the transaction stays deleted.
 - Pick a *child* account as sender and receiver; the transaction lands on the child.
-- Zip backup export + import; SAF folder push + pull.
+- Zip backup export + import; OneDrive sync (sign in, sync now).

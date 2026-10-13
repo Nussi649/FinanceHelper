@@ -381,10 +381,6 @@ public abstract class Util {
             report.defaulted("Einstellungen", Const.JSON_TAG_DEFAULT_ENTITY, "User");
         }
 
-        // optional field, absent in settings files written before the folder-sync feature existed
-        settings.syncFolderUri = json_in.has(Const.JSON_TAG_SYNC_FOLDER_URI) ?
-                json_in.optString(Const.JSON_TAG_SYNC_FOLDER_URI, null) : null;
-
         JSONArray entitiesArray = json_in.optJSONArray(Const.JSON_TAG_DEFAULT_ACCOUNTS);
         if (entitiesArray == null) {
             report.defaulted("Einstellungen", Const.JSON_TAG_DEFAULT_ACCOUNTS, "keine Vorgaben");
@@ -781,8 +777,6 @@ public abstract class Util {
             // a dropped defaultEntity key makes parseJSON_Settings throw, and loadAppSettings then
             // falls back to a blank Settings - one null here would discard every entity default
             putOrDefault(settingsJSON, Const.JSON_TAG_DEFAULT_ENTITY, settings.defaultEntityName, "User");
-            if (settings.syncFolderUri != null)
-                settingsJSON.put(Const.JSON_TAG_SYNC_FOLDER_URI, settings.syncFolderUri);
 
             // Create a JSON array to hold the defaults for each entity
             JSONArray entitiesArray = new JSONArray();

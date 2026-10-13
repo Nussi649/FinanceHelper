@@ -1,7 +1,6 @@
 package com.privat.pitz.financehelper;
 
 import android.annotation.SuppressLint;
-import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Looper;
@@ -56,11 +55,6 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
             new ActivityResultContracts.CreateDocument("application/zip"), this::onBackupTargetSelected);
     private final ActivityResultLauncher<String[]> openRestoreLauncher = registerForActivityResult(
             new ActivityResultContracts.OpenDocument(), this::onRestoreSourceSelected);
-    private final ActivityResultLauncher<Uri> pickSyncFolderLauncher = registerForActivityResult(
-            new ActivityResultContracts.OpenDocumentTree(), this::onSyncFolderPicked);
-    private enum PendingSyncAction { NONE, PUSH, PULL }
-    // set right before launching pickSyncFolderLauncher, so its callback knows which action (if any) to run afterwards
-    private PendingSyncAction pendingSyncAction = PendingSyncAction.NONE;
 
     //region overridden activity methods
     @Override
@@ -107,13 +101,6 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
             startBackupAll();
         } else if (itemId == R.id.item_restore_all) {
             startRestoreAll();
-        } else if (itemId == R.id.item_sync_push) {
-            triggerSync(PendingSyncAction.PUSH);
-        } else if (itemId == R.id.item_sync_pull) {
-            triggerSync(PendingSyncAction.PULL);
-        } else if (itemId == R.id.item_sync_change_folder) {
-            pendingSyncAction = PendingSyncAction.NONE;
-            pickSyncFolderLauncher.launch(null);
         } else if (itemId == R.id.item_cloud_sync) {
             startActivity(CloudSyncActivity.class);
         } else if (itemId == R.id.item_integrity_check) {
@@ -463,70 +450,6 @@ public class MainActivity extends AbstractActivity implements RedirectionPrompt 
         if (!availableEntities.isEmpty())
             model.availableEntities = availableEntities;
         recreate();
-    }
-
-    private void triggerSync(PendingSyncAction action) {
-        String stored = model.settings.syncFolderUri;
-        if (stored == null || stored.isEmpty()) {
-            pendingSyncAction = action;
-            pickSyncFolderLauncher.launch(null);
-        } else {
-            performSync(Uri.parse(stored), action);
-        }
-    }
-
-    private void onSyncFolderPicked(Uri treeUri) {
-        // user cancelled the folder picker
-        if (treeUri == null)
-            return;
-        // persist access to this folder across app/device restarts
-        getContentResolver().takePersistableUriPermission(treeUri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-        model.settings.syncFolderUri = treeUri.toString();
-        try {
-            controller.saveAppSettings();
-        } catch (JSONException | IOException e) {
-            showErrorToast(e);
-        }
-        if (pendingSyncAction != PendingSyncAction.NONE)
-            performSync(treeUri, pendingSyncAction);
-        else
-            showToastLong(R.string.label_sync_change_folder);
-    }
-
-    private void performSync(Uri treeUri, PendingSyncAction action) {
-        try {
-            if (action == PendingSyncAction.PUSH) {
-                controller.saveAppSettings();
-                controller.saveAccountsToInternal();
-                int count = controller.pushSavefilesToFolder(treeUri);
-                showToastLong(getString(R.string.toast_success_sync_push, count));
-            } else if (action == PendingSyncAction.PULL) {
-                int count = controller.pullSavefilesFromFolder(treeUri);
-                if (count == 0) {
-                    showToastLong(R.string.toast_error_sync_folder_empty);
-                    return;
-                }
-                // reload whatever settings came down, then re-assert the sync folder link in case
-                // the pulled settings.json didn't carry it (e.g. an older or hand-edited copy)
-                controller.loadAppSettings();
-                model.settings.syncFolderUri = treeUri.toString();
-                controller.saveAppSettings();
-                List<String> availableEntities = controller.getAllAvailableEntities();
-                if (!availableEntities.isEmpty())
-                    model.availableEntities = availableEntities;
-                showToastLong(getString(R.string.toast_success_sync_pull, count));
-                recreate();
-            }
-        } catch (SecurityException e) {
-            // the persisted grant became invalid (folder removed/unshared, permission revoked, etc.)
-            model.settings.syncFolderUri = null;
-            showToastLong(R.string.toast_error_sync_folder_invalid);
-        } catch (IOException e) {
-            showToastLong(R.string.toast_error_sync_failed);
-        } catch (JSONException e) {
-            showErrorToast(e);
-        }
     }
 
     private void showIntegrityCheckDialog() {

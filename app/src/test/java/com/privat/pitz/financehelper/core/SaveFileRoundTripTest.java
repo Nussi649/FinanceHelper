@@ -368,18 +368,17 @@ public class SaveFileRoundTripTest {
     }
 
     @Test
-    public void settingsSyncFolderUri_survivesRoundTrip() throws JSONException {
-        Model.Settings settings = new Model.Settings("User");
-        settings.syncFolderUri = "content://com.android.externalstorage.documents/tree/primary%3AFinance";
-        Model.Settings parsed = roundTrip(settings);
-        assertEquals("content://com.android.externalstorage.documents/tree/primary%3AFinance",
-                parsed.syncFolderUri);
-    }
+    public void settingsFileFromTheFolderSyncEra_stillLoads_andDropsTheObsoleteKey() throws JSONException {
+        // settings.json files written before OneDrive sync carry a syncFolderUri that is no longer used
+        JSONObject old = Util.serialise_Settings(new Model.Settings("Haushalt"));
+        old.put("syncFolderUri", "content://com.android.externalstorage.documents/tree/primary%3AFinance");
 
-    @Test
-    public void settingsAbsentSyncFolderUri_staysNull() throws JSONException {
-        Model.Settings parsed = roundTrip(new Model.Settings("User"));
-        assertEquals(null, parsed.syncFolderUri);
+        ParseReport report = new ParseReport();
+        Model.Settings parsed = Util.parseJSON_Settings(old, report);
+
+        assertEquals("Haushalt", parsed.defaultEntityName);
+        assertTrue(report.getNotes().toString(), report.isEmpty());
+        assertFalse(Util.serialise_Settings(parsed).has("syncFolderUri"));
     }
 
     @Test

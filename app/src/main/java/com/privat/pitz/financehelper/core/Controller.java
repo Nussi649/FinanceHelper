@@ -179,20 +179,6 @@ public class Controller {
         return transfers.importSavefilesFromZipUri(sourceUri);
     }
 
-    // pushes all save files (and app settings) as individual, unzipped files into a SAF tree Uri
-    // (e.g. a folder inside a cloud-sync app like Google Drive), overwriting any same-named file
-    // already there. This is the "no zip" counterpart to exportAllSavefilesToUri, meant to let a
-    // remote tool/agent read and edit the plain JSON files directly.
-    public int pushSavefilesToFolder(Uri treeUri) throws IOException {
-        return transfers.pushSavefilesToFolder(treeUri);
-    }
-
-    // pulls all save files (and app settings) from a SAF tree Uri back into internal storage,
-    // overwriting local files of the same name. Counterpart to pushSavefilesToFolder.
-    public int pullSavefilesFromFolder(Uri treeUri) throws IOException {
-        return transfers.pullSavefilesFromFolder(treeUri);
-    }
-
     public void loadEntityCurrentPeriod(String entityName) throws JSONException, IllegalArgumentException, IOException {
         entities.loadEntityCurrentPeriod(entityName);
     }
