@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.security.InvalidParameterException;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.privat.pitz.financehelper.data.AccountBE;
 import com.privat.pitz.financehelper.data.BudgetAccountBE;
@@ -118,6 +119,37 @@ public class Controller {
     public void readAccountsFromInternal(String filename) throws JSONException, IOException {
         repo.readAccountsFromInternal(filename);
     }
+
+    // region cloud sync hooks
+    private final List<Runnable> savefileReloadListeners = new CopyOnWriteArrayList<>();
+
+    /** The storage the save files live in; sync must write through this same object. */
+    public SavefileStorage getStorage() {
+        return storage;
+    }
+
+    /** Called (on the main thread) after a sync reloaded the open save file from disk. */
+    public void addSavefileReloadListener(Runnable listener) {
+        savefileReloadListeners.add(listener);
+    }
+
+    public void removeSavefileReloadListener(Runnable listener) {
+        savefileReloadListeners.remove(listener);
+    }
+
+    /**
+     * A sync replaced a save file on disk. If it is the one open in memory, the model is stale and
+     * the very next change would write it back over what the sync brought in - so reload it now.
+     * Must run on the thread that makes the app's own changes.
+     */
+    public void onSavefileReplacedBySync(String name) throws JSONException, IOException {
+        if (!name.equals(model.currentFileName)) return;
+        readAccountsFromInternal(name);
+        for (Runnable listener : savefileReloadListeners) {
+            listener.run();
+        }
+    }
+    // endregion
 
     // bundles all save files (and the app settings) into a single zip file at the given SAF Uri,
     // so it can be picked up by a file manager, cloud sync folder, or copied off the device over USB

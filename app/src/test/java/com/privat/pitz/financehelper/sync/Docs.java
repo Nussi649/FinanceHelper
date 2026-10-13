@@ -5,14 +5,14 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 /** Tiny builders for save-file documents, so merge tests read as what they are about. */
-final class Docs {
+public final class Docs {
     private Docs() {
     }
 
-    static final String T = "01.08.2026 09:00";
+    public static final String T = "01.08.2026 09:00";
 
     /** A transaction. {@code id} / {@code m} may be null to leave them out, as a foreign writer might. */
-    static JSONObject tx(String id, String desc, String amount, String m) {
+    public static JSONObject tx(String id, String desc, String amount, String m) {
         try {
             JSONObject o = new JSONObject();
             o.put("d", desc);
@@ -26,7 +26,7 @@ final class Docs {
         }
     }
 
-    static JSONObject account(String name, JSONObject... txs) {
+    public static JSONObject account(String name, JSONObject... txs) {
         try {
             JSONObject o = new JSONObject();
             o.put("name", name);
@@ -39,11 +39,11 @@ final class Docs {
         }
     }
 
-    static JSONObject withSub(JSONObject budget, JSONObject... subs) {
+    public static JSONObject withSub(JSONObject budget, JSONObject... subs) {
         return set(budget, "sub_budgets", array(subs));
     }
 
-    static JSONObject doc(JSONObject... assets) {
+    public static JSONObject doc(JSONObject... assets) {
         try {
             JSONObject o = new JSONObject();
             o.put("assets", array(assets));
@@ -56,7 +56,7 @@ final class Docs {
         }
     }
 
-    static JSONObject set(JSONObject o, String key, Object value) {
+    public static JSONObject set(JSONObject o, String key, Object value) {
         try {
             o.put(key, value);
             return o;
@@ -65,14 +65,14 @@ final class Docs {
         }
     }
 
-    static JSONArray array(JSONObject... items) {
+    public static JSONArray array(JSONObject... items) {
         JSONArray a = new JSONArray();
         for (JSONObject i : items) a.put(i);
         return a;
     }
 
     /** The tx array of the named top-level asset account, or null if there is no such account. */
-    static JSONArray txOf(JSONObject doc, String account) {
+    public static JSONArray txOf(JSONObject doc, String account) {
         JSONArray assets = doc.optJSONArray("assets");
         for (int i = 0; i < assets.length(); i++) {
             if (account.equals(assets.optJSONObject(i).optString("name"))) {
@@ -82,7 +82,7 @@ final class Docs {
         return null;
     }
 
-    static JSONObject account(JSONObject doc, String name) {
+    public static JSONObject account(JSONObject doc, String name) {
         JSONArray assets = doc.optJSONArray("assets");
         for (int i = 0; i < assets.length(); i++) {
             if (name.equals(assets.optJSONObject(i).optString("name"))) return assets.optJSONObject(i);
@@ -90,7 +90,7 @@ final class Docs {
         return null;
     }
 
-    static JSONObject find(JSONArray txs, String id) {
+    public static JSONObject find(JSONArray txs, String id) {
         for (int i = 0; i < txs.length(); i++) {
             if (id.equals(txs.optJSONObject(i).optString("i"))) return txs.optJSONObject(i);
         }

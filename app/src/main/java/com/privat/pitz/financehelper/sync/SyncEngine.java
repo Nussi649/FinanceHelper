@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.LongSupplier;
+import java.util.regex.Pattern;
 
-import com.privat.pitz.financehelper.core.Util;
 
 /**
  * Brings the local and the remote copy of each save file into agreement.
@@ -69,6 +69,9 @@ public class SyncEngine {
         }
     }
 
+    /** A save file name exactly - the app-wide check is unanchored and would also take "x.jso.bak". */
+    private static final Pattern SAVEFILE_NAME = Pattern.compile("\\d{4}-\\d{2}-[^\\s/]+\\.jso");
+
     static final int MAX_ATTEMPTS = 5;
     static final String TRASH_STAMP = "yyyyMMdd'T'HHmmss'Z'";
 
@@ -92,10 +95,10 @@ public class SyncEngine {
     public Map<String, FileOutcome> syncAll() throws IOException {
         Set<String> names = new LinkedHashSet<>();
         for (String n : local.listFiles()) {
-            if (Util.isValidSavefileName(n)) names.add(n);
+            if (SAVEFILE_NAME.matcher(n).matches()) names.add(n);
         }
         for (String n : remote.listFiles()) {
-            if (Util.isValidSavefileName(n)) names.add(n);
+            if (SAVEFILE_NAME.matcher(n).matches()) names.add(n);
         }
         Map<String, FileOutcome> out = new LinkedHashMap<>();
         for (String name : names) {

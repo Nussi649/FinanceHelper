@@ -9,26 +9,26 @@ import java.util.List;
 import java.util.Map;
 
 /** In-memory stand-ins for the three things the sync engine talks to. */
-final class Fakes {
+public final class Fakes {
     private Fakes() {
     }
 
-    static final class Remote implements RemoteStore {
-        final Map<String, String> files = new LinkedHashMap<>();
-        final Map<String, Integer> versions = new HashMap<>();
-        final Map<String, String> trash = new LinkedHashMap<>();
-        Date modified = new Date(1_786_000_000_000L);
-        int puts = 0;
-        boolean failTrash = false;
+    public static final class Remote implements RemoteStore {
+        public final Map<String, String> files = new LinkedHashMap<>();
+        public final Map<String, Integer> versions = new HashMap<>();
+        public final Map<String, String> trash = new LinkedHashMap<>();
+        public Date modified = new Date(1_786_000_000_000L);
+        public int puts = 0;
+        public boolean failTrash = false;
         /** Runs just before every put - the place to simulate the other writer getting in first. */
-        Runnable beforePut = null;
+        public Runnable beforePut = null;
 
-        void write(String name, String content) {
+        public void write(String name, String content) {
             files.put(name, content);
             versions.merge(name, 1, Integer::sum);
         }
 
-        String etag(String name) {
+        public String etag(String name) {
             return versions.containsKey(name) ? "v" + versions.get(name) : null;
         }
 
@@ -64,13 +64,13 @@ final class Fakes {
         }
     }
 
-    static final class Local implements LocalFiles {
-        final Map<String, String> files = new LinkedHashMap<>();
-        final Map<String, String> trash = new LinkedHashMap<>();
-        Date modified = new Date(1_786_000_000_000L);
-        int writes = 0;
+    public static final class Local implements LocalFiles {
+        public final Map<String, String> files = new LinkedHashMap<>();
+        public final Map<String, String> trash = new LinkedHashMap<>();
+        public Date modified = new Date(1_786_000_000_000L);
+        public int writes = 0;
         /** Runs just before every replaceIfUnchanged - simulates the app saving mid-sync. */
-        Runnable beforeReplace = null;
+        public Runnable beforeReplace = null;
 
         @Override
         public List<String> listFiles() {
@@ -108,8 +108,8 @@ final class Fakes {
         }
     }
 
-    static final class Base implements SyncBaseStore {
-        final Map<String, String> bases = new HashMap<>();
+    public static final class Base implements SyncBaseStore {
+        public final Map<String, String> bases = new HashMap<>();
 
         @Override
         public String getBase(String name) {

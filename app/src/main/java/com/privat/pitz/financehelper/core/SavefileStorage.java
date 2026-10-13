@@ -18,6 +18,10 @@ public interface SavefileStorage {
     OutputStream openWrite(String name) throws IOException;
     boolean exists(String name);
     boolean delete(String name);
-    /** Names only, never null; empty list when the directory is empty or unreadable. */
+    /** Names of files only (no sub-directories), never null; empty when empty or unreadable. */
     List<String> list();
+    /** Milliseconds since the epoch, or -1 if unknown or the file does not exist. */
+    default long lastModified(String name) {
+        return -1L;
+    }
 }

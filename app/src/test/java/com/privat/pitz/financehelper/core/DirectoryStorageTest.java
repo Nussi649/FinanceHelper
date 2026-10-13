@@ -76,4 +76,35 @@ public class DirectoryStorageTest {
 
         assertTrue(storage.exists("2026-08-User.jso"));
     }
+
+    @Test
+    public void write_overExistingFile_replacesItAndLeavesNoScratchFile() throws IOException {
+        DirectoryStorage storage = newStorage();
+        storage.write("2026-08-User.jso", "first, longer content");
+        storage.write("2026-08-User.jso", "second");
+
+        assertEquals("second\n", storage.read("2026-08-User.jso"));
+        assertEquals(1, tempFolder.getRoot().list().length);
+    }
+
+    @Test
+    public void list_skipsSubDirectories() throws IOException {
+        DirectoryStorage storage = newStorage();
+        tempFolder.newFolder("sync-base");
+        storage.write("2026-08-User.jso", "data");
+
+        List<String> names = storage.list();
+
+        assertEquals(1, names.size());
+        assertEquals("2026-08-User.jso", names.get(0));
+    }
+
+    @Test
+    public void lastModified_isKnownForExistingFilesAndMinusOneOtherwise() throws IOException {
+        DirectoryStorage storage = newStorage();
+        storage.write("2026-08-User.jso", "data");
+
+        assertTrue(storage.lastModified("2026-08-User.jso") > 0);
+        assertEquals(-1L, storage.lastModified("missing.jso"));
+    }
 }

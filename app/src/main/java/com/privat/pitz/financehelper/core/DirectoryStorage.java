@@ -12,8 +12,9 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -27,16 +28,27 @@ public class DirectoryStorage implements SavefileStorage {
         this.dir = dir;
     }
 
+    /**
+     * Writes to a scratch file and renames it over the target, so a reader (the cloud sync runs on
+     * its own thread) sees either the old or the new content, never half of the new. The scratch
+     * name deliberately matches no save-file pattern.
+     */
     @Override
-    public void write(String name, String data) throws IOException {
+    public synchronized void write(String name, String data) throws IOException {
         File file = new File(dir, name);
-        if (!file.exists()) {
-            file.createNewFile();
+        File scratch = new File(dir, "write-" + System.nanoTime() + ".part");
+        try {
+            try (FileWriter writer = new FileWriter(scratch)) {
+                writer.append(data);
+                writer.flush();
+            }
+            Files.move(scratch.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            if (scratch.exists()) {
+                scratch.delete();
+            }
         }
-        FileWriter writer = new FileWriter(file);
-        writer.append(data);
-        writer.flush();
-        writer.close();
     }
 
     @Override
@@ -84,7 +96,19 @@ public class DirectoryStorage implements SavefileStorage {
 
     @Override
     public List<String> list() {
-        String[] names = dir.list();
-        return names == null ? new ArrayList<>() : new ArrayList<>(Arrays.asList(names));
+        File[] files = dir.listFiles(File::isFile);
+        List<String> names = new ArrayList<>();
+        if (files != null) {
+            for (File f : files) {
+                if (!f.getName().endsWith(".part")) names.add(f.getName());
+            }
+        }
+        return names;
+    }
+
+    @Override
+    public long lastModified(String name) {
+        File file = new File(dir, name);
+        return file.exists() ? file.lastModified() : -1L;
     }
 }
